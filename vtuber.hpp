@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define WIDTH 600
-#define HEIGHT 600
+#define WIDTH 1920
+#define HEIGHT 1080
 
 namespace vtuber
 {
