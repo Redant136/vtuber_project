@@ -17,12 +17,9 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 else()
 
   message(STATUS "cl detected, adding compile flags")
-  if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
-  endif()
-  set(CMAKE_CXX_FLAGS "-W3")
-  set(CMAKE_CXX_FLAGS_DEBUG "-DEBUG")
-  set(CMAKE_CXX_FLAGS_RELEASE "-Ox")
+  # set(CMAKE_CXX_FLAGS "-Wall")
+  # set(CMAKE_CXX_FLAGS_DEBUG "-DEBUG")
+  # set(CMAKE_CXX_FLAGS_RELEASE "-Ox")
 
 endif(CMAKE_COMPILER_IS_GNUCXX)
 
@@ -31,19 +28,9 @@ if(APPLE)
   link_directories( /usr/local/lib)
 endif()
 
-
 add_executable(vtuber main.cpp)
 
-add_subdirectory(extern/glad/)
-target_link_libraries(vtuber PRIVATE glad)
+file(COPY models DESTINATION ${CMAKE_BINARY_DIR})
 
-find_package(glfw)
-if(glfw_found)
-  target_link_libraries(vtuber PRIVATE glfw3)
-else()
-  add_subdirectory(extern/glfw)
-  target_link_libraries(vtuber PRIVATE glfw)
-endif()
-
-
+add_subdirectory(extern)
 

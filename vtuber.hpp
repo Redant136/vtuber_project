@@ -1,5 +1,11 @@
+#pragma once
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <opencv2/core.hpp>
+#include <opencv2/videoio.hpp>
+
+#include <iostream>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -50,6 +56,10 @@ namespace vtuber
     glViewport(0, 0, width, height);
   }
 
+  static void compileShaders(){
+
+  }
+
   void launch()
   {
     if (!glfwInit())
@@ -64,7 +74,7 @@ namespace vtuber
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Name", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "test", NULL, NULL);
     if (window == NULL)
     {
       glfwTerminate();
@@ -78,10 +88,14 @@ namespace vtuber
     }
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    // compile shaders
+    // init
+
     while (!glfwWindowShouldClose(window))
     {
       glfwMakeContextCurrent(window);
       glClear(GL_COLOR_BUFFER_BIT);
+
 
       // draw here
       glfwSwapInterval(1); //v-sync
