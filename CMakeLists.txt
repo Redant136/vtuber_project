@@ -4,6 +4,9 @@ project(VTuber VERSION 1.0)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED True)
+
 
 if(CMAKE_COMPILER_IS_GNUCXX)
   message(STATUS "GCC detected, adding compile flags")
@@ -13,10 +16,15 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   set(CMAKE_CXX_FLAGS "-Wall -Wextra")
   set(CMAKE_CXX_FLAGS_DEBUG "-g")
   set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-
-else()
-
+  
+  
+  
+  else()
+  
   message(STATUS "cl detected, adding compile flags")
+  # set(CMAKE_DEBUG_POSTFIX "d")
+  # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+
   # set(CMAKE_CXX_FLAGS "-Wall")
   # set(CMAKE_CXX_FLAGS_DEBUG "-DEBUG")
   # set(CMAKE_CXX_FLAGS_RELEASE "-Ox")
@@ -33,4 +41,3 @@ add_executable(vtuber main.cpp)
 file(COPY models DESTINATION ${CMAKE_BINARY_DIR})
 
 add_subdirectory(extern)
-
