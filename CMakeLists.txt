@@ -39,5 +39,6 @@ endif()
 add_executable(vtuber main.cpp)
 
 file(COPY models DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})
 
 add_subdirectory(extern)

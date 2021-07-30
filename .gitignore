@@ -33,3 +33,4 @@
 
 build/*
 install/*
+opencv_install/*

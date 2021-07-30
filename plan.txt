@@ -1,0 +1,13 @@
+opencv cam https://docs.opencv.org/3.4/d8/dfe/classcv_1_1VideoCapture.html
+
+train tensorflow to recognize face and positions
+use opencv to help create dataset
+
+
+map position data to 3d model
+
+3d model in opengl
+https://learnopengl.com/Model-Loading/Model
+assimp to load 3d model
+
+

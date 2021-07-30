@@ -1,5 +1,11 @@
 #ifndef MODEL_H
 #define MODEL_H
+#include <opencv2/core.hpp>
+#include <opencv2/gapi.hpp>
+#include <opencv2/photo.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgcodecs.hpp>
+// #include <opencv2/core/opengl.hpp>
 
 #include <glad/glad.h>
 #include <gl/GL.h>
@@ -154,15 +160,15 @@ private:
     // 1. diffuse maps
     vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse",scene);
     textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-    // 2. specular maps
-    vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular",scene);
-    textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-    // 3. normal maps
-    std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal",scene);
-    textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-    // 4. height maps
-    std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height",scene);
-    textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+    // // 2. specular maps
+    // vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular",scene);
+    // textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+    // // 3. normal maps
+    // std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal",scene);
+    // textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+    // // 4. height maps
+    // std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height",scene);
+    // textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 
     // return a mesh object created from the extracted mesh data
     return Mesh(vertices, indices, textures);
@@ -232,40 +238,55 @@ unsigned int TextureFromFile(const char *path, const string &directory,const aiS
     // if (true)
     if (tex->mHeight > 0)
     {
-      GLenum format = GL_RGBA;
-      glBindTexture(GL_TEXTURE_2D, textureID);
-      // glTexImage2D(GL_TEXTURE_2D, 0, format, tex->mWidth, tex->mHeight, 0, format, GL_UNSIGNED_BYTE, tex->pcData);
-      // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, scene->mTextures[ti]->mWidth, scene->mTextures[ti]->mHeight, 0, GL_BGRA, GL_UNSIGNED_BYTE,
-      //              scene->mTextures[ti]->pcData);
       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex->mWidth, tex->mHeight, 0, GL_BGRA, GL_UNSIGNED_BYTE,
                    tex->pcData);
 
       glGenerateMipmap(GL_TEXTURE_2D);
-
-      // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-      // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (tex->achFormatHint[0] & 0x01) ? GL_REPEAT : GL_CLAMP_TO_EDGE);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (tex->achFormatHint[0] & 0x01) ? GL_REPEAT : GL_CLAMP_TO_EDGE);
-
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }else{
-      std::cout << "Texture failed to load at path: '" << path << "'" << std::endl;
+    }
+    else
+    {
+      // if (std::string(tex->achFormatHint) == "png")
+      // {
+        cv::Mat rawData(1, tex->mWidth, CV_8UC1, (void *)tex->pcData);
+        cv::Mat decodedImage = cv::imdecode(rawData, cv::IMREAD_ANYCOLOR);
+        // cv::imshow("img",decodedImage);
+        if (decodedImage.data)
+        {
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, decodedImage.cols, decodedImage.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, decodedImage.ptr());
+        }
+        else
+        {
+          std::cout << "Could not find embeded png texture '" << path << "'" << std::endl;
+        }
+      // }
     }
   }
   else
   {
+    
     int width, height, nrComponents;
     unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
     if (data)
     {
+      // cv::Mat stbImg=cv::Mat(1, nSize, CV_8UC1, (void*)pcBuffer );
       GLenum format;
-      if (nrComponents == 1)
-        format = GL_RED;
-      else if (nrComponents == 3)
+      if (nrComponents == 1){
+        format = GL_RED;  
+      }
+      else if (nrComponents == 3){
         format = GL_RGB;
-      else if (nrComponents == 4)
+      }
+      else if (nrComponents == 4){
         format = GL_RGBA;
+      }
 
       glBindTexture(GL_TEXTURE_2D, textureID);
       glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
@@ -276,11 +297,37 @@ unsigned int TextureFromFile(const char *path, const string &directory,const aiS
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+      // std::cout << filename << std::endl;
+      // cv::Mat opencvImg = cv::imread(filename);
+      // std::cout<<nrComponents<<std::endl;
+      // std::cout<<opencvImg.channels()<<std::endl;
+      // cv::imshow("stb", cv::Mat(width, height, CV_8UC3, data));
+      // cv::imshow("opencv", cv::imread(filename.c_str(), cv::IMREAD_UNCHANGED));
+
       stbi_image_free(data);
     }else{
       std::cout << "Texture failed to load at path: '" << path << "'" << std::endl;
       stbi_image_free(data);
     }
+
+    // cv::Mat image = cv::imread(filename, cv::IMREAD_UNCHANGED|cv::IMREAD_COLOR|cv::IMREAD_IGNORE_ORIENTATION);
+    
+    // cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+    // cv::flip(image, image, -1);
+    // if (!image.empty())
+    // {
+    //   glBindTexture(GL_TEXTURE_2D, textureID);
+    //   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, image.data);
+    //   glGenerateMipmap(GL_TEXTURE_2D);
+    //   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    //   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    //   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    //   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // }
+    // else
+    // {
+    //   std::cout << "Could not find embeded png texture '" << filename << "'" << std::endl;
+    // }
   }
 
   // int width, height, nrComponents;

@@ -7,9 +7,10 @@
 #include <opencv2/photo.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
 
 #include <glm/glm.hpp>
-// #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -19,10 +20,16 @@
 #include <string>
 #include <stdlib.h>
 #include <assert.h>
+#include <functional>
+#include <fstream>
 
-#define WIDTH 1920
-#define HEIGHT 1080
+#define SCREEN_WIDTH 1920
+#define SCREEN_HEIGHT 1080
+#ifndef VMODEL
 #define VMODEL "models/male1.glb"
+#endif
+#define VERTEX_SHADER "shaders/vertex_shader.glsl"
+#define FRAGMENT_SHADER "shaders/fragment_shader.glsl"
 
 #define convertVec2(dest, src) dest.x=src.x;dest.y=src.y;
 #define convertVec3(dest, src) convertVec2(dest, src)dest.z=src.z;
@@ -30,6 +37,7 @@
 
 namespace vtuber
 {
+  typedef unsigned char uchar;
   typedef unsigned short ushort;
   typedef unsigned int uint;
   typedef unsigned long ulong;
@@ -64,13 +72,15 @@ namespace vtuber
     return ((float)rand()) / RAND_MAX;
   }
 
-  struct vertex
+  struct Vertex
   {
     glm::vec3 position;
     glm::vec3 normal;
     glm::vec2 texCoords;
+    glm::vec3 tangent;
+    glm::vec3 bitangent;
   };
-  struct texture_gl
+  struct Texture_gl
   {
     uint id;
     std::string type;
@@ -78,12 +88,12 @@ namespace vtuber
   struct Mesh
   {
   public:
-    std::vector<vertex> vertices;
+    std::vector<Vertex> vertices;
     std::vector<uint> indices;
-    std::vector<texture_gl> textures;
+    std::vector<Texture_gl> textures;
     uint VAO, VBO, EBO;
 
-    Mesh(std::vector<vertex> vertices,std::vector<uint> indices,std::vector<texture_gl> textures)
+    Mesh(std::vector<Vertex> vertices,std::vector<uint> indices,std::vector<Texture_gl> textures)
     {
       this->vertices = vertices;
       this->indices = indices;
@@ -96,27 +106,199 @@ namespace vtuber
       glBindVertexArray(VAO);
       glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertex), &vertices[0], GL_STATIC_DRAW);
+      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
 
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-      glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int),
-                   &indices[0], GL_STATIC_DRAW);
+      glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint), &indices[0], GL_STATIC_DRAW);
 
       // vertex positions
       glEnableVertexAttribArray(0);
-      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)0);
+      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)0);
       // vertex normals
       glEnableVertexAttribArray(1);
-      glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *) sizeof(glm::vec3));
+      glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
       // vertex texture coords
       glEnableVertexAttribArray(2);
-      glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)(sizeof(glm::vec3)+sizeof(glm::vec3)));
+      glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, texCoords));
+      // vertex tangent
+      glEnableVertexAttribArray(3);
+      glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, tangent));
+      // vertex bitangent
+      glEnableVertexAttribArray(4);
+      glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, bitangent));
 
       glBindVertexArray(0);
     }
   };
-  
-  class VModel{
+  class Shader
+  {
+  public:
+    uint ID;
+    Shader():ID(0){
+    }
+    Shader(const char *vertexPath, const char *fragmentPath, const char *geometryPath = nullptr)
+    {
+      // 1. retrieve the vertex/fragment source code from filePath
+      std::string vertexCode;
+      std::string fragmentCode;
+      std::string geometryCode;
+      std::ifstream vShaderFile;
+      std::ifstream fShaderFile;
+      std::ifstream gShaderFile;
+      // ensure ifstream objects can throw exceptions:
+      vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+      fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+      gShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+      try
+      {
+        // open files
+        vShaderFile.open(vertexPath);
+        fShaderFile.open(fragmentPath);
+        std::stringstream vShaderStream, fShaderStream;
+        // read file's buffer contents into streams
+        vShaderStream << vShaderFile.rdbuf();
+        fShaderStream << fShaderFile.rdbuf();
+        // close file handlers
+        vShaderFile.close();
+        fShaderFile.close();
+        // convert stream into string
+        vertexCode = vShaderStream.str();
+        fragmentCode = fShaderStream.str();
+        // if geometry shader path is present, also load a geometry shader
+        if (geometryPath != nullptr)
+        {
+          gShaderFile.open(geometryPath);
+          std::stringstream gShaderStream;
+          gShaderStream << gShaderFile.rdbuf();
+          gShaderFile.close();
+          geometryCode = gShaderStream.str();
+        }
+      }
+      catch (std::ifstream::failure &e)
+      {
+        std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+      }
+      const char *vShaderCode = vertexCode.c_str();
+      const char *fShaderCode = fragmentCode.c_str();
+      // 2. compile shaders
+      uint vertex, fragment;
+      // vertex shader
+      vertex = glCreateShader(GL_VERTEX_SHADER);
+      glShaderSource(vertex, 1, &vShaderCode, NULL);
+      glCompileShader(vertex);
+      checkCompileErrors(vertex, "VERTEX");
+      // fragment Shader
+      fragment = glCreateShader(GL_FRAGMENT_SHADER);
+      glShaderSource(fragment, 1, &fShaderCode, NULL);
+      glCompileShader(fragment);
+      checkCompileErrors(fragment, "FRAGMENT");
+      // if geometry shader is given, compile geometry shader
+      unsigned int geometry;
+      if (geometryPath != nullptr)
+      {
+        const char *gShaderCode = geometryCode.c_str();
+        geometry = glCreateShader(GL_GEOMETRY_SHADER);
+        glShaderSource(geometry, 1, &gShaderCode, NULL);
+        glCompileShader(geometry);
+        checkCompileErrors(geometry, "GEOMETRY");
+      }
+      // shader Program
+      ID = glCreateProgram();
+      glAttachShader(ID, vertex);
+      glAttachShader(ID, fragment);
+      if (geometryPath != nullptr)
+        glAttachShader(ID, geometry);
+      glLinkProgram(ID);
+      checkCompileErrors(ID, "PROGRAM");
+      // delete the shaders as they're linked into our program now and no longer necessery
+      glDeleteShader(vertex);
+      glDeleteShader(fragment);
+      if (geometryPath != nullptr)
+        glDeleteShader(geometry);
+    }
+    void use()
+    {
+      glUseProgram(ID);
+    }
+    void setBool(const std::string &name, bool value) const
+    {
+      glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value);
+    }
+    void setInt(const std::string &name, int value) const
+    {
+      glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
+    }
+    void setFloat(const std::string &name, float value) const
+    {
+      glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
+    }
+    void setVec2(const std::string &name, const glm::vec2 &value) const
+    {
+      glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+    }
+    void setVec2(const std::string &name, float x, float y) const
+    {
+      glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
+    }
+    void setVec3(const std::string &name, const glm::vec3 &value) const
+    {
+      glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+    }
+    void setVec3(const std::string &name, float x, float y, float z) const
+    {
+      glUniform3f(glGetUniformLocation(ID, name.c_str()), x, y, z);
+    }
+    void setVec4(const std::string &name, const glm::vec4 &value) const
+    {
+      glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+    }
+    void setVec4(const std::string &name, float x, float y, float z, float w)
+    {
+      glUniform4f(glGetUniformLocation(ID, name.c_str()), x, y, z, w);
+    }
+    void setMat2(const std::string &name, const glm::mat2 &mat) const
+    {
+      glUniformMatrix2fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
+    }
+    void setMat3(const std::string &name, const glm::mat3 &mat) const
+    {
+      glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
+    }
+    void setMat4(const std::string &name, const glm::mat4 &mat) const
+    {
+      glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
+    }
+
+  private:
+    void checkCompileErrors(GLuint shader, std::string type)
+    {
+      GLint success;
+      GLchar infoLog[1024];
+      if (type != "PROGRAM")
+      {
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+        if (!success)
+        {
+          glGetShaderInfoLog(shader, 1024, NULL, infoLog);
+          std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << "\n"
+                    << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+        }
+      }
+      else
+      {
+        glGetProgramiv(shader, GL_LINK_STATUS, &success);
+        if (!success)
+        {
+          glGetProgramInfoLog(shader, 1024, NULL, infoLog);
+          std::cout << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << "\n"
+                    << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+        }
+      }
+    }
+  };
+
+  class VModel
+  {
   public:
     std::vector<Mesh> meshes;
 
@@ -130,7 +312,13 @@ namespace vtuber
 
     void loadModel(std::string path){
       Assimp::Importer import;
-      const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+      const aiScene *scene = import.ReadFile(path,
+      aiProcess_Triangulate |
+      aiProcess_GenSmoothNormals |
+      aiProcess_FlipUVs |
+      aiProcess_CalcTangentSpace |
+      aiProcess_EmbedTextures|
+      aiProcess_SortByPType);
 
       if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
       {
@@ -141,9 +329,53 @@ namespace vtuber
       processNode(scene->mRootNode, scene);
     }
 
+    void draw(Shader&shader){
+      for (uint i = 0; i < meshes.size(); i++)
+      {
+        unsigned int diffuseNr = 1;
+        unsigned int specularNr = 1;
+        unsigned int normalNr = 1;
+        unsigned int heightNr = 1;
+        for (uint j = 0; j < meshes[i].textures.size(); j++)
+        {
+          glActiveTexture(GL_TEXTURE0 + j);
+          std::string number;
+          std::string name = meshes[i].textures[j].type;
+          if (name == "texture_diffuse"){
+            number = std::to_string(diffuseNr++);
+          }
+          else if (name == "texture_specular"){
+            number = std::to_string(specularNr++);
+          }
+          else if (name == "texture_normal"){
+            number = std::to_string(normalNr++);
+          }
+          else if (name == "texture_height"){
+            number = std::to_string(heightNr++);
+          }
+
+          // glUniform1i(glGetUniformLocation(shader.ID, "texture"), i);
+          // std::cout<<(name + number)<<std::endl;
+          glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), j);
+          glBindTexture(GL_TEXTURE_2D, meshes[i].textures[j].id);
+
+//--------------------------------------
+
+          // glActiveTexture(GL_TEXTURE0 + j); // active proper texture unit before binding
+
+          // // now set the sampler to the correct texture unit
+          // glUniform1i(glGetUniformLocation(shader.ID, "texture"), j);
+          // glBindTexture(GL_TEXTURE_2D, meshes[i].textures[j].id);
+        }
+        glBindVertexArray(meshes[i].VAO);
+        glDrawElements(GL_TRIANGLES, meshes[i].indices.size(), GL_UNSIGNED_INT, 0);
+
+        glBindVertexArray(0);
+        glActiveTexture(GL_TEXTURE0);
+      }
+    }
   private:
-    std::vector<texture_gl> loaded_textures;
-  
+    std::vector<Texture_gl> loaded_textures;
     void processNode(aiNode *node, const aiScene *scene)
     {
       for (uint i = 0; i < node->mNumMeshes; i++)
@@ -151,7 +383,6 @@ namespace vtuber
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
         meshes.push_back(processMesh(mesh, scene));
       }
-      // after we've processed all of the meshes (if any) we then recursively process each of the children nodes
       for (unsigned int i = 0; i < node->mNumChildren; i++)
       {
         processNode(node->mChildren[i], scene);
@@ -159,75 +390,85 @@ namespace vtuber
     }
     Mesh processMesh(aiMesh *mesh, const aiScene *scene)
     {
-      std::vector<vertex> vertices;
+      std::vector<Vertex> vertices;
       std::vector<uint> indices;
-      std::vector<texture_gl> textures;
-
+      std::vector<Texture_gl> textures;
       for (uint i = 0; i < mesh->mNumVertices; i++)
       {
-        vertex vertex_;
+        Vertex vertex_;
         glm::vec3 vector;
         convertVec3(vector, mesh->mVertices[i]);
-        vertex_.position=vector;
-        convertVec3(vector, mesh->mNormals[i]);
-        vertex_.normal=vector;
-        if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
+        vertex_.position = vector;
+        if (mesh->HasNormals())
+        {
+          convertVec3(vector, mesh->mNormals[i]);
+          vertex_.normal = vector;
+        }
+        if (mesh->mTextureCoords[0])
         {
           glm::vec2 vec;
-          convertVec2(vec,mesh->mTextureCoords[0][i]);
+          convertVec2(vec, mesh->mTextureCoords[0][i]);
           vertex_.texCoords = vec;
+          convertVec3(vector, mesh->mTangents[i]);
+          vertex_.tangent = vector;
+          convertVec3(vector, mesh->mBitangents[i]);
+          vertex_.bitangent = vector;
         }
         else
+        {
           vertex_.texCoords = glm::vec2(0.0f, 0.0f);
+        }
+
         vertices.push_back(vertex_);
       }
       for (uint i = 0; i < mesh->mNumFaces; i++)
       {
         aiFace face = mesh->mFaces[i];
-        for (unsigned int j = 0; j < face.mNumIndices; j++){
+        for (uint j = 0; j < face.mNumIndices; j++)
+        {
           indices.push_back(face.mIndices[j]);
         }
       }
-      if (mesh->mMaterialIndex >= 0)
-      {
-        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-        std::vector<texture_gl> diffuseMaps = loadMaterialTexture(material, aiTextureType_DIFFUSE, scene);
-        textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-        std::vector<texture_gl> specularMaps = loadMaterialTexture(material, aiTextureType_SPECULAR, scene);
-        textures.insert(textures.end(), specularMaps.begin(),specularMaps.end());
-      }
-
+      aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+      std::vector<Texture_gl> diffuseMaps = loadMaterialTexture(material, aiTextureType_DIFFUSE, scene);
+      textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+      std::vector<Texture_gl> specularMaps = loadMaterialTexture(material, aiTextureType_SPECULAR, scene);
+      textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+      std::vector<Texture_gl> normalMaps = loadMaterialTexture(material, aiTextureType_HEIGHT, scene);
+      textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+      std::vector<Texture_gl> heightMaps = loadMaterialTexture(material, aiTextureType_AMBIENT, scene);
+      textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
       return Mesh(vertices, indices, textures);
     }
-    std::vector<texture_gl> loadMaterialTexture(const aiMaterial *material,const aiTextureType type, const aiScene *scene)
+    std::vector<Texture_gl> loadMaterialTexture(const aiMaterial *material,const aiTextureType type, const aiScene *scene)
     {
-      std::vector<texture_gl>textures;
-      // for(uint i=0;i<scene->mNumTextures;i++){
-      //   std::cout<<scene->mTextures[i]->mFilename.C_Str()<<std::endl;
-      // }
-      for (uint i = 0; i < material->GetTextureCount(type);i++){
+      std::vector<Texture_gl>textures;
+      for (uint i = 0; i < material->GetTextureCount(type);i++)
+      {
         aiString texture_file;
         material->Get(AI_MATKEY_TEXTURE(type, i), texture_file);
-        bool included=false;
-        for(uint j=0;j<loaded_textures.size();j++){
-          if(loaded_textures[i].type==texture_file.C_Str()){
-            textures.push_back(loaded_textures[j]);
-            included=true;
+        Texture_gl tex;
+        bool included = false;
+        for (uint j = 0; j < loaded_textures.size(); j++)
+        {
+          if (loaded_textures[j].type == std::string(texture_file.C_Str()))
+          {
+            tex.id = loaded_textures[j].id;
+            included = true;
             break;
           }
         }
-        if(!included){
+        if(!included)
+        {
           uint textureID;
           glGenTextures(1, &textureID);
           glBindTexture(GL_TEXTURE_2D, textureID);
-
           if (auto texture = scene->GetEmbeddedTexture(texture_file.C_Str()))
           {
             if (texture->mHeight > 0)
             {
               glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texture->mWidth, texture->mHeight, 0, GL_BGRA, GL_UNSIGNED_BYTE,
                           texture->pcData);
-
               glGenerateMipmap(GL_TEXTURE_2D);
               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (texture->achFormatHint[0] & 0x01) ? GL_REPEAT : GL_CLAMP_TO_EDGE);
               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (texture->achFormatHint[0] & 0x01) ? GL_REPEAT : GL_CLAMP_TO_EDGE);
@@ -236,24 +477,77 @@ namespace vtuber
             }
             else
             {
-              if(std::string(texture->achFormatHint)=="png"){
-                // Mat a;
-                cv::Mat img = cv::imread("path_to_image", cv::IMREAD_ANYCOLOR);
-//TODO HERE
-                // imshow("img", img);
-              }
-              // std::cout << "Could not find texture '" << texture_file.C_Str() << "'" << std::endl;
+              // if(std::string(texture->achFormatHint)=="png")
+              // {
+                cv::Mat image(1, texture->mWidth, CV_8UC1, (void *)texture->pcData);
+                image = cv::imdecode(image, cv::IMREAD_ANYCOLOR);
+
+                // std::cout<<image.channels()<<std::endl;
+                // cv::Mat shown=image.clone();
+                // cv::resize(shown, shown, cv::Size(), 0.25, 0.25);
+                // cv::imshow(texture_file.C_Str(), shown);
+
+                cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+                // cv::flip(image, decodedImage, 0);
+
+                if (!image.empty())
+                {
+                  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, image.ptr());
+                }
+                else
+                {
+                  std::cout << "Could not decode embeded texture '" << texture_file.C_Str() << "'" << std::endl;
+                }
+              // }
             }
           }
           else
           {
-            std::cout<<"not embedded texture"<<std::endl;
+            cv::Mat image = cv::imread(std::string("models/") + texture_file.C_Str(), cv::IMREAD_UNCHANGED | cv::IMREAD_ANYCOLOR | cv::IMREAD_IGNORE_ORIENTATION);
+            cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+            cv::flip(image, image, 0);
+
+            if (!image.empty())
+            {
+              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+              glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, image.ptr());
+              glGenerateMipmap(GL_TEXTURE_2D);
+            }
+            else
+            {
+              std::cout << "Could not find embeded png texture '" << texture_file.C_Str() << "'" << std::endl;
+            }
           }
-          texture_gl tex={textureID,texture_file.C_Str()};
-          
+
+          tex.id = textureID;
+          tex.type = texture_file.C_Str();
           loaded_textures.push_back(tex);
-          textures.push_back(tex);
         }
+        switch (type)
+        {
+        case aiTextureType_DIFFUSE:
+          tex.type = "texture_diffuse";
+          break;
+        case aiTextureType_SPECULAR:
+          tex.type = "texture_specular";
+          break;
+        case aiTextureType_HEIGHT:
+          tex.type = "texture_normal";
+          break;
+        case aiTextureType_AMBIENT:
+          tex.type = "texture_height";
+          break;
+        default:
+          break;
+        }
+        textures.push_back(tex);
       }
       return textures;
     }
@@ -265,18 +559,7 @@ namespace vtuber
     glViewport(0, 0, width, height);
   }
 
-  static void compileShaders()
-  {
-  }
-  static void init()
-  {
-    VModel model=VModel(VMODEL);
-  }
-  static void draw()
-  {
-  }
-
-  void launch()
+  void launch(std::function<void(GLFWwindow *)> init, std::function<void(GLFWwindow*)> draw)
   {
     if (!glfwInit())
     {
@@ -290,7 +573,7 @@ namespace vtuber
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "test", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "test", NULL, NULL);
     if (window == NULL)
     {
       glfwTerminate();
@@ -304,19 +587,14 @@ namespace vtuber
     }
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    // compile shaders
-    // init
-    compileShaders();
-    init();
+    init(window);
 
     while (!glfwWindowShouldClose(window))
     {
       glfwMakeContextCurrent(window);
       glClear(GL_COLOR_BUFFER_BIT);
 
-
-      // draw here
-      draw();
+      draw(window);
       glfwSwapInterval(1); //v-sync
       glfwSwapBuffers(window);
       glfwPollEvents();
