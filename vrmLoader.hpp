@@ -14,10 +14,7 @@
 
 using json = nlohmann::json;
 
-
-#define print(x) std::cout<<x<<std::endl;
-
-namespace VRM
+namespace vtuber
 {
   typedef unsigned char uchar;
   typedef unsigned short ushort;
@@ -35,6 +32,14 @@ namespace VRM
 
   namespace glTF
   {
+#define GLTF_COMPONENT_BYTE (5120)
+#define GLTF_COMPONENT_UBYTE (5121)
+#define GLTF_COMPONENT_SHORT (5122)
+#define GLTF_COMPONENT_USHORT (5123)
+#define GLTF_COMPONENT_INT (5124)
+#define GLTF_COMPONENT_UINT (5125)
+#define GLTF_COMPONENT_FLOAT (5126)
+#define GLTF_COMPONENT_DOUBLE (5130)
     typedef std::string string;
 
     struct Extension
@@ -44,20 +49,28 @@ namespace VRM
 
     struct Buffer
     {
-      string uri="";
+      uchar *buffer;
+      bool bufferOwner = false;
+      ~Buffer()
+      {
+        if (bufferOwner)
+          delete[] buffer;
+      }
+      //----------------
+      string uri = "";
       int byteLength = 0;
-      string name="";
+      string name = "";
       std::vector<Extension> extension;
       std::vector<Extension> extras;
     };
     struct BufferView
     {
-      int buffer=0;
-      int byteOffset=0;
-      int byteLength=0;
-      int byteStride=0;
-      int target=0;
-      string name=0;
+      int buffer = 0;
+      int byteOffset = 0;
+      int byteLength = 0;
+      int byteStride = 0;
+      int target = 0;
+      string name = 0;
       std::vector<Extension> extension;
       std::vector<Extension> extras;
     };
@@ -65,8 +78,27 @@ namespace VRM
     {
       int bufferView = -1;
       int byteOffset = 0;
-      string type = "";
-      int componentType = 0;
+      enum Types
+      {
+        SCALAR,
+        VEC2,
+        VEC3,
+        VEC4,
+        MAT2,
+        MAT3,
+        MAT4
+      } type;
+      enum glComponentType
+      {
+        BYTE = GLTF_COMPONENT_BYTE,
+        UNSIGNED_BYTE = GLTF_COMPONENT_UBYTE,
+        SHORT = GLTF_COMPONENT_SHORT,
+        UNSIGNED_SHORT = GLTF_COMPONENT_USHORT,
+        INT = GLTF_COMPONENT_INT,
+        UNSIGNED_INT = GLTF_COMPONENT_UINT,
+        FLOAT = GLTF_COMPONENT_FLOAT,
+        DOUBLE = GLTF_COMPONENT_DOUBLE
+      } componentType = FLOAT;
       int count = 0;
       std::vector<float> max;
       std::vector<float> min;
@@ -80,13 +112,14 @@ namespace VRM
           int byteOffset = 0;
           enum glComponentType
           {
-            BYTE = 5120,
-            UNSIGNED_BYTE = 5121,
-            SHORT = 5122,
-            UNSIGNED_SHORT = 5123,
-            //INT = 5124,
-            UNSIGNED_INT = 5125,
-            FLOAT = 5126
+            BYTE = GLTF_COMPONENT_BYTE,
+            UNSIGNED_BYTE = GLTF_COMPONENT_UBYTE,
+            SHORT = GLTF_COMPONENT_SHORT,
+            UNSIGNED_SHORT = GLTF_COMPONENT_USHORT,
+            INT = GLTF_COMPONENT_INT,
+            UNSIGNED_INT = GLTF_COMPONENT_UINT,
+            FLOAT = GLTF_COMPONENT_FLOAT,
+            DOUBLE = GLTF_COMPONENT_DOUBLE
           } componentType;
           std::vector<Extension> extension;
           std::vector<Extension> extras;
@@ -109,7 +142,7 @@ namespace VRM
     struct Image
     {
       string name = "";
-      string uri= "";
+      string uri = "";
       int bufferView = -1;
       string mimeType = "";
       std::vector<Extension> extension;
@@ -138,15 +171,15 @@ namespace VRM
       glFilter minFilter = NEAREST;
       glWrap wrapS = CLAMP_TO_EDGE;
       glWrap wrapT = CLAMP_TO_EDGE;
-      string name="";
+      string name = "";
       std::vector<Extension> extension;
       std::vector<Extension> extras;
     };
     struct Texture
     {
-      int sampler=-1;
-      int source=-1;
-      string name="";
+      int sampler = -1;
+      int source = -1;
+      string name = "";
       std::vector<Extension> extension;
       std::vector<Extension> extras;
     };
@@ -177,7 +210,7 @@ namespace VRM
       {
         float strength = 1.f;
       };
-      string name="";
+      string name = "";
       PbrMetallicRoughness pbrMetallicRoughness;
       MaterialNormalTextureInfo normalTexture;
       MaterialOcclusionTextureInfo occlusionTexture;
@@ -210,7 +243,7 @@ namespace VRM
       {
         float aspectRatio = 1.f;
         float yfov = 1.f;
-        float zfar= 0.f;
+        float zfar = 0.f;
         float znear = 0.f;
         std::vector<Extension> extension;
         std::vector<Extension> extras;
@@ -229,10 +262,10 @@ namespace VRM
     //--------
     struct Skin
     {
-      string name="";
-      int inverseBindMatrices=-1;
-      std::vector<int>joints;
-      int skeleton=-1;
+      string name = "";
+      int inverseBindMatrices = -1;
+      std::vector<int> joints;
+      int skeleton = -1;
       std::vector<Extension> extension;
       std::vector<Extension> extras;
     };
@@ -288,8 +321,8 @@ namespace VRM
           int NORMAL = -1;
           int TANGENT = -1;
         };
-        int mode=0;
-        int indices=-1;
+        int mode = 0;
+        int indices = -1;
         struct Attributes
         {
           int POSITION = -1;
@@ -302,11 +335,11 @@ namespace VRM
           int WEIGHTS_0 = -1;
         } attributes;
         int material = 0;
-        std::vector<MorphTarget>targets;
+        std::vector<MorphTarget> targets;
         std::vector<Extension> extension;
         std::vector<Extension> extras;
       };
-      std::string name="";
+      std::string name = "";
       std::vector<Primitive> primitives;
       std::vector<float> weights;
       std::vector<Extension> extension;
@@ -314,29 +347,29 @@ namespace VRM
     };
     struct Node
     {
-      string name="";
-      std::vector<uint>children;
-      std::vector<float>matrix;
-      std::vector<float>translation;
+      string name = "";
+      std::vector<uint> children;
+      std::vector<float> matrix;
+      std::vector<float> translation;
       std::vector<float> rotation;
-      std::vector<float>scale;
-      int mesh=-1;
-      int skin=-1;
+      std::vector<float> scale;
+      int mesh = -1;
+      int skin = -1;
       std::vector<float> weights;
-      int camera=-1;
-      std::vector<Extension> extension;
-      std::vector<Extension> extras;
-    };
-    
-    struct Scene
-    {
-      string name="";
-      std::vector<int>nodes;
+      int camera = -1;
       std::vector<Extension> extension;
       std::vector<Extension> extras;
     };
 
-    struct glTFData
+    struct Scene
+    {
+      string name = "";
+      std::vector<int> nodes;
+      std::vector<Extension> extension;
+      std::vector<Extension> extras;
+    };
+
+    struct glTFModel
     {
       struct
       {
@@ -356,28 +389,72 @@ namespace VRM
       std::vector<Sampler> samplers;
       std::vector<Image> images;
       std::vector<Material> materials;
-      std::vector<Mesh>meshes;
+      std::vector<Mesh> meshes;
 
       std::vector<Node> nodes;
       std::vector<Skin> skins;
 
       int scene;
-      std::vector<Scene>scenes;
-      
+      std::vector<Scene> scenes;
+
       std::vector<Animation> animations;
       std::vector<Camera> cameras;
-      std::vector<string>extensionsUsed;
-      std::vector<string>extensionsRequired;
+      std::vector<string> extensionsUsed;
+      std::vector<string> extensionsRequired;
 
       std::vector<Extension> extension;
       std::vector<Extension> extras;
     };
+
+    uint gltf_sizeof(int type)
+    {
+      switch (type)
+      {
+      case GLTF_COMPONENT_BYTE:
+      case GLTF_COMPONENT_UBYTE:
+        return sizeof(char);
+      case GLTF_COMPONENT_SHORT:
+      case GLTF_COMPONENT_USHORT:
+        return sizeof(short);
+      case GLTF_COMPONENT_INT:
+      case GLTF_COMPONENT_UINT:
+        return sizeof(int);
+      case GLTF_COMPONENT_FLOAT:
+        return sizeof(float);
+      case GLTF_COMPONENT_DOUBLE:
+        return sizeof(double);
+      default:
+        assert(0);
+        return 0;
+      }
+    }
+
+    uint gltf_num_components(Accessor::Types type)
+    {
+      switch(type){
+        case Accessor::Types::SCALAR:
+        return 1;
+        case Accessor::Types::VEC2:
+          return 2;
+        case Accessor::Types::VEC3:
+          return 3;
+        case Accessor::Types::VEC4:
+          return 4;
+        case Accessor::Types::MAT2:
+          return 4;
+        case Accessor::Types::MAT3:
+          return 9;
+        case Accessor::Types::MAT4:
+          return 16;
+
+      }
+    }
   }
 
   class Importer
   {
   public:
-    glTF::glTFData data;
+    glTF::glTFModel model;
 
     void import(std::string path, Filetype type = glb)
     {
@@ -398,41 +475,44 @@ namespace VRM
         break;
       default:
         break;
-      }      
-
-
+      }
     }
 
   private:
-
-    template<typename T>
+    template <typename T>
     std::vector<T> pop(std::vector<T> &buffer, unsigned int size = 1)
     {
       std::vector<T> r = std::vector<T>(buffer.begin(), buffer.begin() + size);
-      buffer.erase(buffer.begin(),buffer.begin()+size);
+      buffer.erase(buffer.begin(), buffer.begin() + size);
       return r;
     }
 
     std::vector<glTF::Extension> deserializeExtensions(json extensions)
     {
-      std::vector<glTF::Extension>vec;
-      for(uint i=0;i<extensions.size();i++){
+      std::vector<glTF::Extension> vec;
+      for (uint i = 0; i < extensions.size(); i++)
+      {
         vec.push_back({extensions[i]});
       }
       return vec;
     }
 
-    glTF::glTFData parseGLTFJSON(json glTF_data)
+    glTF::glTFModel parseGLTFJSON(json glTF_data)
     {
 #define jsonCondition(item, id) if (std::string(item.key()) == #id)
-#define jsonFunctionMacro(item,id,func) jsonCondition(item, id) {func;continue;}
-#define jsonExtensionMacro(item,dst, id) jsonFunctionMacro(item, id, dst.##id = deserializeExtensions(item.value());)
-#define jsonConvertMacro(item, dst, id, type) jsonFunctionMacro(item, id, dst.##id = item.value().get<type>();)
-#define jsonConvertCastMacro(item, dst, id, type, castType) jsonFunctionMacro(item, id, dst.##id = (castType)item.value().get<type>();)
-#define jsonArrayMacro(item, dst, id, type,i) jsonFunctionMacro( \
-    item, id, for (uint i = 0; i < item.value().size(); i++) { dst.##id.push_back(item.value()[i].get<type>()); });
+#define jsonFunctionMacro(item, id, func) \
+  jsonCondition(item, id)                 \
+  {                                       \
+    func;                                 \
+    continue;                             \
+  }
+#define jsonExtensionMacro(item, dst, id) jsonFunctionMacro(item, id, dst.id = deserializeExtensions(item.value());)
+#define jsonConvertMacro(item, dst, id, type) jsonFunctionMacro(item, id, dst.id = item.value().get<type>();)
+#define jsonConvertCastMacro(item, dst, id, type, castType) jsonFunctionMacro(item, id, dst.id = (castType)item.value().get<type>();)
+#define jsonArrayMacro(item, dst, id, type, i) jsonFunctionMacro( \
+    item, id, for (uint i = 0; i < item.value().size(); i++) { dst.id.push_back(item.value()[i].get<type>()); });
 
-      glTF::glTFData gltf;
+      glTF::glTFModel gltf;
 
       // parse json in object
       for (auto &item : glTF_data.items())
@@ -496,8 +576,40 @@ namespace VRM
             {
               jsonConvertMacro(x, accessor, bufferView, int);
               jsonConvertMacro(x, accessor, byteOffset, int);
-              jsonConvertMacro(x, accessor, type, std::string);
-              jsonConvertMacro(x, accessor, componentType, int);
+              if (std::string(x.key()) == "type")
+              {
+                if (x.value().get<std::string>() == "SCALAR")
+                {
+                  accessor.type = glTF::Accessor::Types::SCALAR;
+                }
+                else if (x.value().get<std::string>() == "VEC2")
+                {
+                  accessor.type = glTF::Accessor::Types::VEC2;
+                }
+                else if (x.value().get<std::string>() == "VEC3")
+                {
+                  accessor.type = glTF::Accessor::Types::VEC3;
+                }
+                else if (x.value().get<std::string>() == "VEC4")
+                {
+                  accessor.type = glTF::Accessor::Types::VEC4;
+                }
+                else if (x.value().get<std::string>() == "MAT2")
+                {
+                  accessor.type = glTF::Accessor::Types::MAT2;
+                }
+                else if (x.value().get<std::string>() == "MAT3")
+                {
+                  accessor.type = glTF::Accessor::Types::MAT3;
+                }
+                else if (x.value().get<std::string>() == "MAT4")
+                {
+                  accessor.type = glTF::Accessor::Types::MAT4;
+                }
+                continue;
+              }
+              // jsonConvertMacro(x, accessor, type, std::string);
+              jsonConvertCastMacro(x, accessor, componentType, int, glTF::Accessor::glComponentType);
               jsonConvertMacro(x, accessor, count, int);
               jsonArrayMacro(x, accessor, max, float, j);
               jsonArrayMacro(x, accessor, min, float, j);
@@ -531,7 +643,7 @@ namespace VRM
                   {
                     jsonConvertMacro(y, accessor.sparse.indices, bufferView, int);
                     jsonConvertMacro(y, accessor.sparse.indices, byteOffset, int);
-                    jsonConvertCastMacro(y, accessor.sparse.indices, componentType, int, VRM::glTF::Accessor::Sparse::Indices::glComponentType)
+                    jsonConvertCastMacro(y, accessor.sparse.indices, componentType, int, glTF::Accessor::Sparse::Indices::glComponentType)
                         jsonExtensionMacro(y, accessor.sparse.indices, extension);
                     jsonExtensionMacro(y, accessor.sparse.indices, extras);
                   }
@@ -582,10 +694,10 @@ namespace VRM
             glTF::Sampler sampler;
             for (auto &x : glTF_data["samplers"][i].items())
             {
-              jsonConvertCastMacro(x, sampler, magFilter, int, VRM::glTF::Sampler::glFilter);
-              jsonConvertCastMacro(x, sampler, minFilter, int, VRM::glTF::Sampler::glFilter);
-              jsonConvertCastMacro(x, sampler, wrapS, int, VRM::glTF::Sampler::glWrap);
-              jsonConvertCastMacro(x, sampler, wrapT, int, VRM::glTF::Sampler::glWrap);
+              jsonConvertCastMacro(x, sampler, magFilter, int, glTF::Sampler::glFilter);
+              jsonConvertCastMacro(x, sampler, minFilter, int, glTF::Sampler::glFilter);
+              jsonConvertCastMacro(x, sampler, wrapS, int, glTF::Sampler::glWrap);
+              jsonConvertCastMacro(x, sampler, wrapT, int, glTF::Sampler::glWrap);
               jsonConvertMacro(x, sampler, name, std::string);
               jsonExtensionMacro(x, sampler, extension);
               jsonExtensionMacro(x, sampler, extras);
@@ -914,8 +1026,8 @@ namespace VRM
                       }
                       continue;
                     }
-                    jsonExtensionMacro(y, channel.target, extension);
-                    jsonExtensionMacro(y, channel.target, extras);
+                    jsonExtensionMacro(y, channel, extension);
+                    jsonExtensionMacro(y, channel, extras);
                   }
                   animation.channels.push_back(channel);
                 }
@@ -1032,15 +1144,16 @@ namespace VRM
         if (gltf.images[i].name.empty())
         {
           std::string extraName = glTF_data["images"][i]["extra"]["name"].get<std::string>();
-          if(!extraName.empty()){
+          if (!extraName.empty())
+          {
             gltf.images[i].name = extraName;
           }
         }
       }
-    
+
       // fix unique mesh names
       // too lazy to implement
-      std::string*names=new std::string[gltf.meshes.size()];
+      std::string *names = new std::string[gltf.meshes.size()];
       for (uint i = 0; i < gltf.meshes.size(); i++)
       {
         for (uint j = 0; j < i; j++)
@@ -1054,9 +1167,7 @@ namespace VRM
       }
       delete[] names;
 
-      
-
-
+      return gltf;
     }
 
     void parseGLTF(std::vector<char> buffer)
@@ -1082,11 +1193,11 @@ namespace VRM
         u32 version;
         u32 dataSize;
       } header;
-      memcpy(&header, pop(buffer,12).data(), 12);
+      memcpy(&header, pop(buffer, 12).data(), 12);
 
       if (std::string(header.glTF) == "glTF")
         throw std::invalid_argument("not gltf");
-      if(header.version==1)
+      if (header.version == 1)
         throw std::invalid_argument("will have problems because gltf v1");
 
       struct chunck
@@ -1102,35 +1213,34 @@ namespace VRM
         chunck c;
         memcpy(&c, pop(buffer, 8).data(), 8);
         c.data = new u8[c.chunckLength];
-        memcpy(c.data,pop(buffer,c.chunckLength).data(),c.chunckLength);
+        memcpy(c.data, pop(buffer, c.chunckLength).data(), c.chunckLength);
 
         chuncks.push_back(c);
       }
 
-      if(chuncks.size()!=2){
+      if (chuncks.size() != 2)
         throw std::invalid_argument("unknown chunk count: " + chuncks.size());
-      }
-      if (chuncks[0].chuckType != 0x4E4F534A){
+      if (chuncks[0].chuckType != 0x4E4F534A)
         throw std::invalid_argument("chunk 0 is not JSON");
-      }
       if (chuncks[1].chuckType != 0x004E4942)
-      {
         throw std::invalid_argument("chunk 1 is not BIN");
-      }
-
 
       auto json = json::parse(chuncks[0].data, chuncks[0].data + chuncks[0].chunckLength);
-      this->data=parseGLTFJSON(json);
+      this->model = parseGLTFJSON(json);
+
+      if (model.buffers.size() != 1)
+        throw std::invalid_argument("only 1 buffer should be present");
+
+      model.buffers[0].buffer = new uchar[chuncks[1].chunckLength];
+      memcpy(model.buffers[0].buffer, chuncks[1].data, chuncks[1].chunckLength);
 
       // free mem
-      for(chunck c:chuncks)
+      for (chunck c : chuncks)
       {
         delete[] c.data;
       }
     }
 
     //TODO gltf v1
-
   };
 };
-

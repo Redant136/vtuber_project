@@ -13,9 +13,9 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
   endif()
-  set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+  # set(CMAKE_CXX_FLAGS "-Wall -Wextra")
   set(CMAKE_CXX_FLAGS_DEBUG "-g")
-  set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+  # set(CMAKE_CXX_FLAGS_RELEASE "-O3")
   
   
   

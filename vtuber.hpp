@@ -3,7 +3,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <opencv2/core.hpp>
-#include <opencv2/gapi.hpp>
+// #include <opencv2/gapi.hpp>
 #include <opencv2/photo.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -16,9 +16,12 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#include "vrmLoader.hpp"
+
 #include <iostream>
 #include <string>
 #include <stdlib.h>
+#include <vector>
 #include <assert.h>
 #include <functional>
 #include <fstream>
@@ -49,6 +52,16 @@ namespace vtuber
     L length = 0;
     T *arr = NULL;
     Array() = default;
+    Array(L l)
+    {
+      length = l;
+      arr = new T[l];
+    }
+    Array(L l, T arr)
+    {
+      this->length = l;
+      this->arr = arr;
+    }
     T &operator[](ullong i)
     {
       assert(arr);
@@ -297,6 +310,139 @@ namespace vtuber
     }
   };
 
+  class VModel
+  {
+  public:
+    glTF::glTFModel model;
+    Array<uint> gltfBufferViewVBO;
+    Array<Array<uint>>gltfMeshPrimitiveVAO;
+    Array<uint>gltfImageTextureIndex;
+
+    VModel()
+    {
+    }
+    VModel(std::string path)
+    {
+      loadModel(path);
+    }
+    VModel(glTF::glTFModel model)
+    {
+      this->model = model;
+    }
+    void loadModel(std::string path)
+    {
+      Importer importer;
+      importer.import(path);
+      model = importer.model;
+
+      gltfBufferViewVBO = Array<uint>(model.buffers.size());
+      for (uint i = 0; i < model.buffers.size(); i++)
+      {
+        const glTF::BufferView &bufferView = model.bufferViews[i];
+
+        int sparse_accessor = -1;
+        for (uint a_i = 0; a_i < model.accessors.size(); a_i++)
+        {
+          const auto &accessor = model.accessors[a_i];
+          if (accessor.bufferView == i)
+          {
+            if (accessor.sparse.count > 0)
+            {
+              sparse_accessor = a_i;
+              break;
+            }
+          }
+        }
+
+        const glTF::Buffer &buffer = model.buffers[bufferView.buffer];
+        uint VBO;
+        glGenBuffers(1, &VBO);
+        glBindBuffer(bufferView.target, VBO);
+
+        if (sparse_accessor < 0)
+          glBufferData(bufferView.target, bufferView.byteLength,
+                       buffer.buffer + bufferView.byteOffset,
+                       GL_STATIC_DRAW);
+        else
+        {
+          const auto& accessor = model.accessors[sparse_accessor];
+          // copy the buffer to a temporary one for sparse patching
+          uchar *tmp_buffer = new uchar[bufferView.byteLength];
+          memcpy(tmp_buffer, buffer.buffer + bufferView.byteOffset,
+                 bufferView.byteLength);
+
+          const uint size_of_object_in_buffer =
+              glTF::gltf_sizeof(accessor.componentType);
+          const uint size_of_sparse_indices =
+              glTF::gltf_sizeof(accessor.sparse.indices.componentType);
+
+          const auto &indices_buffer_view =
+              model.bufferViews[accessor.sparse.indices.bufferView];
+          const auto &indices_buffer = model.buffers[indices_buffer_view.buffer];
+
+          const auto &values_buffer_view =
+              model.bufferViews[accessor.sparse.values.bufferView];
+          const auto &values_buffer = model.buffers[values_buffer_view.buffer];
+
+          for (uint sparse_index = 0; sparse_index < accessor.sparse.count;
+               sparse_index++)
+          {
+            int index = 0;
+            uchar *data = indices_buffer.buffer +
+                          indices_buffer_view.byteOffset +
+                          accessor.sparse.indices.byteOffset +
+                          (sparse_index * size_of_sparse_indices);
+            switch (accessor.sparse.indices.componentType)
+            {
+              case GLTF_COMPONENT_BYTE:
+              case GLTF_COMPONENT_UBYTE:
+                index = (int)*(uchar *)(data);
+                break;
+              case GLTF_COMPONENT_SHORT:
+              case GLTF_COMPONENT_USHORT:
+                index = (int)*(ushort *)(data);
+                break;
+              case GLTF_COMPONENT_INT:
+              case GLTF_COMPONENT_UINT:
+                index = (int)*(uint *)(data);
+                break;
+            }
+            const uchar *read_from =
+                values_buffer.buffer +
+                (values_buffer_view.byteOffset +
+                 accessor.sparse.values.byteOffset) +
+                (sparse_index * (size_of_object_in_buffer * glTF::gltf_num_components(accessor.type)));
+
+            uchar *write_to =
+                tmp_buffer + index * (size_of_object_in_buffer * glTF::gltf_num_components(accessor.type));
+
+            memcpy(write_to, read_from, size_of_object_in_buffer * glTF::gltf_num_components(accessor.type));
+          }
+
+          // debug:
+          /*for(size_t p = 0; p < bufferView.byteLength/sizeof(float); p++)
+        {
+          float* b = (float*)tmp_buffer;
+          std::cout << "modified_buffer [" << p << "] = " << b[p] << '\n';
+        }*/
+
+          glBufferData(bufferView.target, bufferView.byteLength, tmp_buffer,
+                       GL_STATIC_DRAW);
+          delete[] tmp_buffer;
+        }
+        glBindBuffer(bufferView.target, 0);
+
+        gltfBufferViewVBO[i] = VBO;
+      }
+    }
+    void draw(Shader &shader)
+    {
+    }
+  };
+
+#define vmodeltest
+#ifdef vmodeltest
+#define VModel VModel2
   class VModel
   {
   public:
@@ -552,7 +698,7 @@ namespace vtuber
       return textures;
     }
   };
-
+#endif
   static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
   {
     glfwMakeContextCurrent(window);

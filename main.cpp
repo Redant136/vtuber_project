@@ -220,8 +220,8 @@ float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
 int main(){
-  
-  VRM::Importer importer=VRM::Importer();
+
+  vtuber::Importer importer = vtuber::Importer();
   importer.import(VMODEL);
 
   VModel vmodel;
