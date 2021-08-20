@@ -221,19 +221,18 @@ float lastFrame = 0.0f;
 
 int main(){
 
-  vtuber::Importer importer = vtuber::Importer();
-  importer.import(VMODEL);
+  // vtuber::Importer importer = vtuber::Importer();
+  // importer.import(VMODEL);
 
   VModel vmodel;
   Shader shader;
-  return 0;
   launch(
       [&vmodel, &shader](GLFWwindow *window)
       {
         vmodel.loadModel(VMODEL);
         shader = Shader(VERTEX_SHADER, FRAGMENT_SHADER);
 
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         glfwSetCursorPosCallback(window, [](GLFWwindow *window, double xpos, double ypos)
                                  {
                                    if (firstMouse)
@@ -253,7 +252,7 @@ int main(){
                                  });
         glEnable(GL_DEPTH_TEST);
 
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
       },
 
       [&vmodel, &shader](GLFWwindow *window)

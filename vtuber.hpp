@@ -335,8 +335,8 @@ namespace vtuber
       importer.import(path);
       model = importer.model;
 
-      gltfBufferViewVBO = Array<uint>(model.buffers.size());
-      for (uint i = 0; i < model.buffers.size(); i++)
+      gltfBufferViewVBO = Array<uint>(model.bufferViews.size());
+      for (uint i = 0; i < model.bufferViews.size(); i++)
       {
         const glTF::BufferView &bufferView = model.bufferViews[i];
 
@@ -434,13 +434,112 @@ namespace vtuber
 
         gltfBufferViewVBO[i] = VBO;
       }
+
+      gltfMeshPrimitiveVAO = Array<Array<uint>>(model.meshes.size());
+      for (uint i = 0; i < model.meshes.size(); i++)
+      {
+        const glTF::Mesh &mesh = model.meshes[i];
+        Array<uint> meshVAO = Array<uint>(mesh.primitives.size());
+        for (uint j = 0; j < mesh.primitives.size(); j++)
+        {
+          const glTF::Mesh::Primitive &primitive = mesh.primitives[j];
+          uint VAO;
+          glGenVertexArrays(1, &VAO);
+          glBindVertexArray(VAO);
+          for (uint att = 0; att < sizeof(glTF::Mesh::Primitive::Attributes) / sizeof(int); att++)
+          {
+            int *attribute = ((int *)&primitive.attributes) + att;
+            if (!(attribute == &primitive.attributes.POSITION ||
+                  attribute == &primitive.attributes.NORMAL ||
+                  attribute == &primitive.attributes.TEXCOORD_0))
+            {
+              continue;
+            }
+            assert(*attribute >= 0);
+            const glTF::Accessor &accessor = model.accessors[*attribute];
+            glBindBuffer(GL_ARRAY_BUFFER, gltfBufferViewVBO[accessor.bufferView]);
+
+            uint attribIndex = 0;
+            if (attribute == &primitive.attributes.POSITION)
+              attribIndex = 0;
+            else if (attribute == &primitive.attributes.NORMAL)
+              attribIndex = 1;
+            else if (attribute == &primitive.attributes.TEXCOORD_0)
+              attribIndex = 2;
+
+            uint byteStride = 0;
+            if (model.bufferViews[accessor.bufferView].byteStride == 0)
+            {
+              int componentSizeInBytes = glTF::gltf_sizeof(accessor.componentType);
+              int numComponents = glTF::gltf_num_components(accessor.type);
+              if (componentSizeInBytes <= 0)
+                byteStride = -1;
+              else if (numComponents <= 0)
+                byteStride = -1;
+              else
+                byteStride = componentSizeInBytes * numComponents;
+            }
+            else
+            {
+              int componentSizeInBytes = glTF::gltf_sizeof(accessor.componentType);
+              if (componentSizeInBytes <= 0)
+                byteStride = -1;
+              else if ((model.bufferViews[accessor.bufferView].byteStride % componentSizeInBytes) != 0)
+                byteStride = -1;
+              else
+                byteStride = model.bufferViews[accessor.bufferView].byteStride;
+            }
+
+            glVertexAttribPointer(attribIndex, glTF::gltf_num_components(accessor.type),
+                                  accessor.componentType,
+                                  accessor.normalized ? GL_TRUE : GL_FALSE,
+                                  byteStride, reinterpret_cast<void *>(accessor.byteOffset));
+            glEnableVertexAttribArray(attribIndex);
+          }
+          meshVAO[j] = VAO;
+        }
+        gltfMeshPrimitiveVAO[i] = meshVAO;
+      }
     }
     void draw(Shader &shader)
     {
+      std::function<void(const glTF::glTFModel &, const glTF::Node &)> drawNode = [this, &drawNode](const glTF::glTFModel &model, const glTF::Node node)
+      {
+        if (node.mesh > -1)
+        {
+          assert(node.mesh < model.meshes.size());
+          
+          const glTF::Mesh &mesh = model.meshes[node.mesh];
+          for (uint i = 0; i < mesh.primitives.size(); i++)
+          {
+            const glTF::Mesh::Primitive &primitive = mesh.primitives[i];
+            glBindVertexArray(gltfMeshPrimitiveVAO[node.mesh][i]);
+            const glTF::Accessor &indexAccessor =
+                model.accessors[primitive.indices];
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gltfBufferViewVBO[indexAccessor.bufferView]);
+
+            glDrawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType,
+                           reinterpret_cast<void*>(indexAccessor.byteOffset));
+          }
+        }
+
+        for (size_t i = 0; i < node.children.size(); i++)
+        {
+          assert(node.children[i] < model.nodes.size());
+          drawNode(model, model.nodes[node.children[i]]);
+        }
+      };
+
+      int scene_to_display = model.scene > -1 ? model.scene : 0;
+      const glTF::Scene &scene = model.scenes[scene_to_display];
+      for (size_t i = 0; i < scene.nodes.size(); i++)
+      {
+        drawNode(model, model.nodes[scene.nodes[i]]);
+      }
     }
   };
 
-#define vmodeltest
+// #define vmodeltest
 #ifdef vmodeltest
 #define VModel VModel2
   class VModel

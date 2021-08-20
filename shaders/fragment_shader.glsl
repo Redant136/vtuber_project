@@ -5,23 +5,16 @@ in vec2 TexCoords;
 
 // uniform sampler2D Texture;
 
-uniform sampler2D texture_diffuse1;
-uniform sampler2D texture_diffuse2;
-uniform sampler2D texture_diffuse3;
-uniform sampler2D texture_specular1;
-uniform sampler2D texture_specular2;
-uniform sampler2D texture_specular3;
-uniform sampler2D texture_normal1;
-uniform sampler2D texture_normal2;
-uniform sampler2D texture_normal3;
-uniform sampler2D texture_height1;
-uniform sampler2D texture_height2;
-uniform sampler2D texture_height3;
+uniform sampler2D texture_diffuse;
+uniform sampler2D texture_specular;
+uniform sampler2D texture_normal;
+uniform sampler2D texture_height;
 
 
 void main()
 {
-  FragColor = texture(texture_diffuse1, TexCoords);
+  FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+  // FragColor = texture(texture_diffuse, TexCoords);
   // FragColor = texture(Texture, TexCoords);
 
 }

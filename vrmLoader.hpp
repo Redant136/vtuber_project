@@ -12,7 +12,7 @@
 
 #include <nlohmann/json.hpp>
 
-using json = nlohmann::json;
+typedef nlohmann::json json;
 
 namespace vtuber
 {
@@ -70,7 +70,7 @@ namespace vtuber
       int byteLength = 0;
       int byteStride = 0;
       int target = 0;
-      string name = 0;
+      string name = "";
       std::vector<Extension> extension;
       std::vector<Extension> extras;
     };
@@ -321,15 +321,15 @@ namespace vtuber
           int NORMAL = -1;
           int TANGENT = -1;
         };
-        int mode = 0;
+        int mode = 4;
         int indices = -1;
         struct Attributes
         {
           int POSITION = -1;
           int NORMAL = -1;
           int TANGENT = -1;
-          int TEX_COORD_0 = -1;
-          int TEX_COORD_1 = -1;
+          int TEXCOORD_0 = -1;
+          int TEXCOORD_1 = -1;
           int COLOR_0 = -1;
           int JOINTS_0 = -1;
           int WEIGHTS_0 = -1;
@@ -446,7 +446,8 @@ namespace vtuber
           return 9;
         case Accessor::Types::MAT4:
           return 16;
-
+        default:
+          return 0;
       }
     }
   }
@@ -870,8 +871,8 @@ namespace vtuber
                         jsonConvertMacro(z, primitive.attributes, POSITION, int);
                         jsonConvertMacro(z, primitive.attributes, NORMAL, int);
                         jsonConvertMacro(z, primitive.attributes, TANGENT, int);
-                        jsonConvertMacro(z, primitive.attributes, TEX_COORD_0, int);
-                        jsonConvertMacro(z, primitive.attributes, TEX_COORD_1, int);
+                        jsonConvertMacro(z, primitive.attributes, TEXCOORD_0, int);
+                        jsonConvertMacro(z, primitive.attributes, TEXCOORD_1, int);
                         jsonConvertMacro(z, primitive.attributes, COLOR_0, int);
                         jsonConvertMacro(z, primitive.attributes, JOINTS_0, int);
                         jsonConvertMacro(z, primitive.attributes, WEIGHTS_0, int);
@@ -1139,17 +1140,17 @@ namespace vtuber
 #undef jsonCondition
 
       // fix image name of older versions
-      for (uint i = 0; i < gltf.images.size(); i++)
-      {
-        if (gltf.images[i].name.empty())
-        {
-          std::string extraName = glTF_data["images"][i]["extra"]["name"].get<std::string>();
-          if (!extraName.empty())
-          {
-            gltf.images[i].name = extraName;
-          }
-        }
-      }
+      // for (uint i = 0; i < gltf.images.size(); i++)
+      // {
+      //   if (gltf.images[i].name.empty())
+      //   {
+      //     std::string extraName = glTF_data["images"][i]["extra"]["name"].get<std::string>();
+      //     if (!extraName.empty())
+      //     {
+      //       gltf.images[i].name = extraName;
+      //     }
+      //   }
+      // }
 
       // fix unique mesh names
       // too lazy to implement
