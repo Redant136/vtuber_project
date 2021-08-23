@@ -101,6 +101,7 @@
     "*.tcc": "cpp",
     "string_view": "cpp",
     "ranges": "cpp",
-    "*.txx": "cpp"
+    "*.txx": "cpp",
+    "memory_resource": "cpp"
   }
 }

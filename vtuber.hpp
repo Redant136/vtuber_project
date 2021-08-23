@@ -2,8 +2,8 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
 #include <opencv2/core.hpp>
-// #include <opencv2/gapi.hpp>
 #include <opencv2/photo.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -12,9 +12,12 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+// #include <assimp/Importer.hpp>
+// #include <assimp/scene.h>
+// #include <assimp/postprocess.h>
 
 #include "vrmLoader.hpp"
 
@@ -34,9 +37,11 @@
 #define VERTEX_SHADER "shaders/vertex_shader.glsl"
 #define FRAGMENT_SHADER "shaders/fragment_shader.glsl"
 
-#define convertVec2(dest, src) dest.x=src.x;dest.y=src.y;
-#define convertVec3(dest, src) convertVec2(dest, src)dest.z=src.z;
-#define convertVec4(dest, src) convertVec3(dest, src)dest.w=src.w;
+#define convertVec2(dest, src) \
+  dest.x = src.x;              \
+  dest.y = src.y;
+#define convertVec3(dest, src) convertVec2(dest, src) dest.z = src.z;
+#define convertVec4(dest, src) convertVec3(dest, src) dest.w = src.w;
 
 namespace vtuber
 {
@@ -46,7 +51,8 @@ namespace vtuber
   typedef unsigned long ulong;
   typedef unsigned long long ullong;
   typedef long long llong;
-  template <typename T, typename L = size_t>
+  // glm::vec2 a;
+  template <typename T, typename L = ullong>
   struct Array
   {
     L length = 0;
@@ -68,7 +74,11 @@ namespace vtuber
       assert(i < length + 1);
       return arr[i];
     }
-    Array<T> clone()
+    T *operator+(ullong i)
+    {
+      return arr + i;
+    }
+    Array<T, L> clone()
     {
       T *a = new T[length];
       memcpy(a, arr, sizeof(T) * length);
@@ -85,69 +95,12 @@ namespace vtuber
     return ((float)rand()) / RAND_MAX;
   }
 
-  struct Vertex
-  {
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec2 texCoords;
-    glm::vec3 tangent;
-    glm::vec3 bitangent;
-  };
-  struct Texture_gl
-  {
-    uint id;
-    std::string type;
-  };
-  struct Mesh
-  {
-  public:
-    std::vector<Vertex> vertices;
-    std::vector<uint> indices;
-    std::vector<Texture_gl> textures;
-    uint VAO, VBO, EBO;
-
-    Mesh(std::vector<Vertex> vertices,std::vector<uint> indices,std::vector<Texture_gl> textures)
-    {
-      this->vertices = vertices;
-      this->indices = indices;
-      this->textures = textures;
-
-      glGenVertexArrays(1, &VAO);
-      glGenBuffers(1, &VBO);
-      glGenBuffers(1, &EBO);
-
-      glBindVertexArray(VAO);
-      glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
-
-      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-      glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint), &indices[0], GL_STATIC_DRAW);
-
-      // vertex positions
-      glEnableVertexAttribArray(0);
-      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)0);
-      // vertex normals
-      glEnableVertexAttribArray(1);
-      glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
-      // vertex texture coords
-      glEnableVertexAttribArray(2);
-      glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, texCoords));
-      // vertex tangent
-      glEnableVertexAttribArray(3);
-      glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, tangent));
-      // vertex bitangent
-      glEnableVertexAttribArray(4);
-      glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, bitangent));
-
-      glBindVertexArray(0);
-    }
-  };
   class Shader
   {
   public:
     uint ID;
-    Shader():ID(0){
+    Shader() : ID(0)
+    {
     }
     Shader(const char *vertexPath, const char *fragmentPath, const char *geometryPath = nullptr)
     {
@@ -315,8 +268,8 @@ namespace vtuber
   public:
     glTF::glTFModel model;
     Array<uint> gltfBufferViewVBO;
-    Array<Array<uint>>gltfMeshPrimitiveVAO;
-    Array<uint>gltfImageTextureIndex;
+    Array<uint> gltfMeshVAO;
+    Array<uint> gltfImageTextureIndex;
 
     VModel()
     {
@@ -328,6 +281,15 @@ namespace vtuber
     VModel(glTF::glTFModel model)
     {
       this->model = model;
+    }
+    ~VModel()
+    {
+      glDeleteVertexArrays(gltfMeshVAO.length, gltfMeshVAO.arr);
+      glDeleteBuffers(gltfBufferViewVBO.length, gltfBufferViewVBO.arr);
+      glDeleteTextures(gltfImageTextureIndex.length, gltfImageTextureIndex.arr);
+      gltfMeshVAO.free();
+      gltfBufferViewVBO.free();
+      gltfImageTextureIndex.free();
     }
     void loadModel(std::string path)
     {
@@ -365,7 +327,7 @@ namespace vtuber
                        GL_STATIC_DRAW);
         else
         {
-          const auto& accessor = model.accessors[sparse_accessor];
+          const auto &accessor = model.accessors[sparse_accessor];
           // copy the buffer to a temporary one for sparse patching
           uchar *tmp_buffer = new uchar[bufferView.byteLength];
           memcpy(tmp_buffer, buffer.buffer + bufferView.byteOffset,
@@ -394,18 +356,18 @@ namespace vtuber
                           (sparse_index * size_of_sparse_indices);
             switch (accessor.sparse.indices.componentType)
             {
-              case GLTF_COMPONENT_BYTE:
-              case GLTF_COMPONENT_UBYTE:
-                index = (int)*(uchar *)(data);
-                break;
-              case GLTF_COMPONENT_SHORT:
-              case GLTF_COMPONENT_USHORT:
-                index = (int)*(ushort *)(data);
-                break;
-              case GLTF_COMPONENT_INT:
-              case GLTF_COMPONENT_UINT:
-                index = (int)*(uint *)(data);
-                break;
+            case GLTF_COMPONENT_BYTE:
+            case GLTF_COMPONENT_UBYTE:
+              index = (int)*(uchar *)(data);
+              break;
+            case GLTF_COMPONENT_SHORT:
+            case GLTF_COMPONENT_USHORT:
+              index = (int)*(ushort *)(data);
+              break;
+            case GLTF_COMPONENT_INT:
+            case GLTF_COMPONENT_UINT:
+              index = (int)*(uint *)(data);
+              break;
             }
             const uchar *read_from =
                 values_buffer.buffer +
@@ -435,17 +397,16 @@ namespace vtuber
         gltfBufferViewVBO[i] = VBO;
       }
 
-      gltfMeshPrimitiveVAO = Array<Array<uint>>(model.meshes.size());
+      gltfMeshVAO = Array<uint>(model.meshes.size());
       for (uint i = 0; i < model.meshes.size(); i++)
       {
         const glTF::Mesh &mesh = model.meshes[i];
-        Array<uint> meshVAO = Array<uint>(mesh.primitives.size());
+        uint VAO;
+        glGenVertexArrays(1, &VAO);
+        glBindVertexArray(VAO);
         for (uint j = 0; j < mesh.primitives.size(); j++)
         {
           const glTF::Mesh::Primitive &primitive = mesh.primitives[j];
-          uint VAO;
-          glGenVertexArrays(1, &VAO);
-          glBindVertexArray(VAO);
           for (uint att = 0; att < sizeof(glTF::Mesh::Primitive::Attributes) / sizeof(int); att++)
           {
             int *attribute = ((int *)&primitive.attributes) + att;
@@ -496,9 +457,53 @@ namespace vtuber
                                   byteStride, reinterpret_cast<void *>(accessor.byteOffset));
             glEnableVertexAttribArray(attribIndex);
           }
-          meshVAO[j] = VAO;
         }
-        gltfMeshPrimitiveVAO[i] = meshVAO;
+        gltfMeshVAO[i] = VAO;
+      }
+
+      gltfImageTextureIndex = Array<uint>(model.images.size());
+      for (uint i = 0; i < model.images.size(); i++)
+      {
+        const glTF::Image &image = model.images[i];
+        const glTF::BufferView &bufferView = model.bufferViews[image.bufferView];
+
+        int width, height, channels;
+        uchar *im = stbi_load_from_memory(model.buffers[bufferView.buffer].buffer + bufferView.byteOffset,
+                                          bufferView.byteLength, &width, &height, &channels, 0);
+        GLuint tex;
+        glGenTextures(1, &tex);
+        glBindTexture(GL_TEXTURE_2D, tex);
+
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        // TODO(ANT) why doesnt this work??
+        // glTexBuffer(GL_TEXTURE_2D, GL_RGB, gltfBufferViewVBO[image.bufferView]);
+        glDeleteBuffers(1, gltfBufferViewVBO + image.bufferView);
+        gltfBufferViewVBO[image.bufferView] = 0;
+        if (channels == 1)
+        {
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RED,
+                       GL_UNSIGNED_BYTE, im);
+        }
+        else if (channels == 3)
+        {
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+                       GL_UNSIGNED_BYTE, im);
+        }
+        else if (channels == 4)
+        {
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+                       GL_UNSIGNED_BYTE, im);
+        }
+
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        stbi_image_free(im);
+
+        gltfImageTextureIndex[i] = tex;
       }
     }
     void draw(Shader &shader)
@@ -508,19 +513,59 @@ namespace vtuber
         if (node.mesh > -1)
         {
           assert(node.mesh < model.meshes.size());
-          
+
           const glTF::Mesh &mesh = model.meshes[node.mesh];
+          glBindVertexArray(gltfMeshVAO[node.mesh]);
+          uint sampler_obj;
+          glGenSamplers(1, &sampler_obj);
           for (uint i = 0; i < mesh.primitives.size(); i++)
           {
             const glTF::Mesh::Primitive &primitive = mesh.primitives[i];
-            glBindVertexArray(gltfMeshPrimitiveVAO[node.mesh][i]);
             const glTF::Accessor &indexAccessor =
                 model.accessors[primitive.indices];
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gltfBufferViewVBO[indexAccessor.bufferView]);
 
+            if (primitive.material >= 0)
+            {
+              const glTF::Material &material = model.materials[primitive.material];
+
+              if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
+              {
+                const glTF::Texture &texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
+
+                const glTF::Sampler &sampler = model.samplers[texture.sampler];
+                glSamplerParameterf(sampler_obj, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
+                glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
+                glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
+                glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
+
+                glActiveTexture(GL_TEXTURE0);
+
+                glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
+                glBindSampler(GL_TEXTURE_2D, sampler_obj);
+              }
+              // if (material.emissiveTexture.index >= 0)
+              // {
+              //   const glTF::Texture &texture = model.textures[material.emissiveTexture.index];
+
+              //   const glTF::Sampler&sampler=model.samplers[texture.sampler];
+              //   glSamplerParameterf(sampler_obj,GL_TEXTURE_MIN_FILTER,sampler.minFilter);
+              //   glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
+              //   glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
+              //   glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
+
+              //   glActiveTexture(GL_TEXTURE0);
+
+              //   glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
+              //   glBindSampler(GL_TEXTURE_2D,sampler_obj);
+              // }
+            }
+
             glDrawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType,
-                           reinterpret_cast<void*>(indexAccessor.byteOffset));
+                           reinterpret_cast<void *>(indexAccessor.byteOffset));
           }
+
+          glDeleteSamplers(1, &sampler_obj);
         }
 
         for (size_t i = 0; i < node.children.size(); i++)
@@ -545,6 +590,65 @@ namespace vtuber
   class VModel
   {
   public:
+    struct Vertex
+    {
+      glm::vec3 position;
+      glm::vec3 normal;
+      glm::vec2 texCoords;
+      glm::vec3 tangent;
+      glm::vec3 bitangent;
+    };
+    struct Texture_gl
+    {
+      uint id;
+      std::string type;
+    };
+    struct Mesh
+    {
+    public:
+      std::vector<Vertex> vertices;
+      std::vector<uint> indices;
+      std::vector<Texture_gl> textures;
+      uint VAO, VBO, EBO;
+
+      Mesh(std::vector<Vertex> vertices, std::vector<uint> indices, std::vector<Texture_gl> textures)
+      {
+        this->vertices = vertices;
+        this->indices = indices;
+        this->textures = textures;
+
+        glGenVertexArrays(1, &VAO);
+        glGenBuffers(1, &VBO);
+        glGenBuffers(1, &EBO);
+
+        glBindVertexArray(VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint), &indices[0], GL_STATIC_DRAW);
+
+        // vertex positions
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)0);
+        // vertex normals
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
+        // vertex texture coords
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, texCoords));
+        // vertex tangent
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, tangent));
+        // vertex bitangent
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, bitangent));
+
+        glBindVertexArray(0);
+      }
+    };
+
     std::vector<Mesh> meshes;
 
     VModel()
@@ -555,15 +659,16 @@ namespace vtuber
       loadModel(path);
     }
 
-    void loadModel(std::string path){
+    void loadModel(std::string path)
+    {
       Assimp::Importer import;
       const aiScene *scene = import.ReadFile(path,
-      aiProcess_Triangulate |
-      aiProcess_GenSmoothNormals |
-      aiProcess_FlipUVs |
-      aiProcess_CalcTangentSpace |
-      aiProcess_EmbedTextures|
-      aiProcess_SortByPType);
+                                             aiProcess_Triangulate |
+                                                 aiProcess_GenSmoothNormals |
+                                                 aiProcess_FlipUVs |
+                                                 aiProcess_CalcTangentSpace |
+                                                 aiProcess_EmbedTextures |
+                                                 aiProcess_SortByPType);
 
       if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
       {
@@ -574,7 +679,8 @@ namespace vtuber
       processNode(scene->mRootNode, scene);
     }
 
-    void draw(Shader&shader){
+    void draw(Shader &shader)
+    {
       for (uint i = 0; i < meshes.size(); i++)
       {
         unsigned int diffuseNr = 1;
@@ -586,16 +692,20 @@ namespace vtuber
           glActiveTexture(GL_TEXTURE0 + j);
           std::string number;
           std::string name = meshes[i].textures[j].type;
-          if (name == "texture_diffuse"){
+          if (name == "texture_diffuse")
+          {
             number = std::to_string(diffuseNr++);
           }
-          else if (name == "texture_specular"){
+          else if (name == "texture_specular")
+          {
             number = std::to_string(specularNr++);
           }
-          else if (name == "texture_normal"){
+          else if (name == "texture_normal")
+          {
             number = std::to_string(normalNr++);
           }
-          else if (name == "texture_height"){
+          else if (name == "texture_height")
+          {
             number = std::to_string(heightNr++);
           }
 
@@ -604,7 +714,7 @@ namespace vtuber
           glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), j);
           glBindTexture(GL_TEXTURE_2D, meshes[i].textures[j].id);
 
-//--------------------------------------
+          //--------------------------------------
 
           // glActiveTexture(GL_TEXTURE0 + j); // active proper texture unit before binding
 
@@ -619,6 +729,7 @@ namespace vtuber
         glActiveTexture(GL_TEXTURE0);
       }
     }
+
   private:
     std::vector<Texture_gl> loaded_textures;
     void processNode(aiNode *node, const aiScene *scene)
@@ -685,10 +796,10 @@ namespace vtuber
       textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
       return Mesh(vertices, indices, textures);
     }
-    std::vector<Texture_gl> loadMaterialTexture(const aiMaterial *material,const aiTextureType type, const aiScene *scene)
+    std::vector<Texture_gl> loadMaterialTexture(const aiMaterial *material, const aiTextureType type, const aiScene *scene)
     {
-      std::vector<Texture_gl>textures;
-      for (uint i = 0; i < material->GetTextureCount(type);i++)
+      std::vector<Texture_gl> textures;
+      for (uint i = 0; i < material->GetTextureCount(type); i++)
       {
         aiString texture_file;
         material->Get(AI_MATKEY_TEXTURE(type, i), texture_file);
@@ -703,7 +814,7 @@ namespace vtuber
             break;
           }
         }
-        if(!included)
+        if (!included)
         {
           uint textureID;
           glGenTextures(1, &textureID);
@@ -713,7 +824,7 @@ namespace vtuber
             if (texture->mHeight > 0)
             {
               glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texture->mWidth, texture->mHeight, 0, GL_BGRA, GL_UNSIGNED_BYTE,
-                          texture->pcData);
+                           texture->pcData);
               glGenerateMipmap(GL_TEXTURE_2D);
               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (texture->achFormatHint[0] & 0x01) ? GL_REPEAT : GL_CLAMP_TO_EDGE);
               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (texture->achFormatHint[0] & 0x01) ? GL_REPEAT : GL_CLAMP_TO_EDGE);
@@ -724,29 +835,29 @@ namespace vtuber
             {
               // if(std::string(texture->achFormatHint)=="png")
               // {
-                cv::Mat image(1, texture->mWidth, CV_8UC1, (void *)texture->pcData);
-                image = cv::imdecode(image, cv::IMREAD_ANYCOLOR);
+              cv::Mat image(1, texture->mWidth, CV_8UC1, (void *)texture->pcData);
+              image = cv::imdecode(image, cv::IMREAD_ANYCOLOR);
 
-                // std::cout<<image.channels()<<std::endl;
-                // cv::Mat shown=image.clone();
-                // cv::resize(shown, shown, cv::Size(), 0.25, 0.25);
-                // cv::imshow(texture_file.C_Str(), shown);
+              // std::cout<<image.channels()<<std::endl;
+              // cv::Mat shown=image.clone();
+              // cv::resize(shown, shown, cv::Size(), 0.25, 0.25);
+              // cv::imshow(texture_file.C_Str(), shown);
 
-                cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-                // cv::flip(image, decodedImage, 0);
+              cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+              // cv::flip(image, decodedImage, 0);
 
-                if (!image.empty())
-                {
-                  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, image.ptr());
-                }
-                else
-                {
-                  std::cout << "Could not decode embeded texture '" << texture_file.C_Str() << "'" << std::endl;
-                }
+              if (!image.empty())
+              {
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, image.ptr());
+              }
+              else
+              {
+                std::cout << "Could not decode embeded texture '" << texture_file.C_Str() << "'" << std::endl;
+              }
               // }
             }
           }
@@ -804,7 +915,7 @@ namespace vtuber
     glViewport(0, 0, width, height);
   }
 
-  void launch(std::function<void(GLFWwindow *)> init, std::function<void(GLFWwindow*)> draw)
+  void launch(std::function<void(GLFWwindow *)> init, std::function<void(GLFWwindow *)> draw)
   {
     if (!glfwInit())
     {

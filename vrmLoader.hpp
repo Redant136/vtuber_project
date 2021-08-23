@@ -334,7 +334,7 @@ namespace vtuber
           int JOINTS_0 = -1;
           int WEIGHTS_0 = -1;
         } attributes;
-        int material = 0;
+        int material = -1;
         std::vector<MorphTarget> targets;
         std::vector<Extension> extension;
         std::vector<Extension> extras;
