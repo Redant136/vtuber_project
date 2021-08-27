@@ -1,29 +1,34 @@
 # TODO
 
 
-
-
-
-free pointers
-opengl
-loader pointers
-
-
-[x] load glb
+## load glb
+### needed
   [x] cannot be bothered to explain all the steps as I made this afterwards
-[x] display glb
+### wants
+  [ ] test gltf loader
+  [ ] gltf buffers
+  [ ] textures that are not bfviews
+
+## display glb
+### needed
   [x] load data to opengl
   [x] render skeletal view
   [x] load texture data to opengl
   [x] render textures
+### wants
+  [ ] normal texture
+  [ ] occlusion texture
+  [ ] roughness texture
+  [ ] https://learnopengl.com/Advanced-OpenGL/Instancing
+### if time
   [ ] reflection textures
-[ ] load vrm
+  [ ] when material uses multiple texcoords ie texcoord_1
+  [ ] texture double sided (gl_FrontFacing)
+
+## load vrm
   [ ] extensions/extra glb storage
-[ ] display vrm
+## display vrm
 
 # extra
-[ ] load gltf v1
-[x] close mem leaks
-  [x] loader
-  [x] opengl
+  [ ] load gltf v1
 

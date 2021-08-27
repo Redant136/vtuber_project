@@ -42,6 +42,7 @@
   dest.y = src.y;
 #define convertVec3(dest, src) convertVec2(dest, src) dest.z = src.z;
 #define convertVec4(dest, src) convertVec3(dest, src) dest.w = src.w;
+#define print(x) std::cout<<x<<std::endl;
 
 namespace vtuber
 {
@@ -407,26 +408,20 @@ namespace vtuber
         for (uint j = 0; j < mesh.primitives.size(); j++)
         {
           const glTF::Mesh::Primitive &primitive = mesh.primitives[j];
-          for (uint att = 0; att < sizeof(glTF::Mesh::Primitive::Attributes) / sizeof(int); att++)
+
+          struct
           {
-            int *attribute = ((int *)&primitive.attributes) + att;
-            if (!(attribute == &primitive.attributes.POSITION ||
-                  attribute == &primitive.attributes.NORMAL ||
-                  attribute == &primitive.attributes.TEXCOORD_0))
-            {
-              continue;
-            }
-            assert(*attribute >= 0);
-            const glTF::Accessor &accessor = model.accessors[*attribute];
+            std::string accName;
+            int attribIndex;
+          } attribs[3] = {{"POSITION", 0}, {"NORMAL", 1}, {"TEXCOORD", 2}};
+
+          // TODO(ANT) add support for texcoord_1 and _2 
+          for (uint k = 0; k < sizeof(attribs) / sizeof(attribs[0]); k++)
+          {
+            const glTF::Accessor &accessor = model.accessors[glTF::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName, 0)];
             glBindBuffer(GL_ARRAY_BUFFER, gltfBufferViewVBO[accessor.bufferView]);
 
-            uint attribIndex = 0;
-            if (attribute == &primitive.attributes.POSITION)
-              attribIndex = 0;
-            else if (attribute == &primitive.attributes.NORMAL)
-              attribIndex = 1;
-            else if (attribute == &primitive.attributes.TEXCOORD_0)
-              attribIndex = 2;
+            uint attribIndex = attribs[k].attribIndex;
 
             uint byteStride = 0;
             if (model.bufferViews[accessor.bufferView].byteStride == 0)
@@ -544,21 +539,21 @@ namespace vtuber
                 glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
                 glBindSampler(GL_TEXTURE_2D, sampler_obj);
               }
-              // if (material.emissiveTexture.index >= 0)
-              // {
-              //   const glTF::Texture &texture = model.textures[material.emissiveTexture.index];
+              if (material.emissiveTexture.index >= 0)
+              {
+                const glTF::Texture &texture = model.textures[material.emissiveTexture.index];
 
-              //   const glTF::Sampler&sampler=model.samplers[texture.sampler];
-              //   glSamplerParameterf(sampler_obj,GL_TEXTURE_MIN_FILTER,sampler.minFilter);
-              //   glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
-              //   glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
-              //   glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
+                const glTF::Sampler&sampler=model.samplers[texture.sampler];
+                glSamplerParameterf(sampler_obj,GL_TEXTURE_MIN_FILTER,sampler.minFilter);
+                glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
+                glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
+                glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
 
-              //   glActiveTexture(GL_TEXTURE0);
+                glActiveTexture(GL_TEXTURE4);
 
-              //   glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
-              //   glBindSampler(GL_TEXTURE_2D,sampler_obj);
-              // }
+                glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
+                glBindSampler(GL_TEXTURE_2D,sampler_obj);
+              }
             }
 
             glDrawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType,

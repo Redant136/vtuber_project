@@ -10,11 +10,11 @@ set(CMAKE_C_STANDARD_REQUIRED True)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
   message(STATUS "GCC detected, adding compile flags")
-  if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
-  endif()
+  # if(NOT CMAKE_BUILD_TYPE)
+  #   set(CMAKE_BUILD_TYPE Debug)
+  # endif()
   # set(CMAKE_CXX_FLAGS "-Wall -Wextra")
-  set(CMAKE_CXX_FLAGS_DEBUG "-g")
+  # set(CMAKE_CXX_FLAGS_DEBUG "-g")
   # set(CMAKE_CXX_FLAGS_RELEASE "-O3")
   
   
@@ -41,4 +41,5 @@ add_executable(vtuber main.cpp)
 file(COPY models DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})
 
+TARGET_LINK_LIBRARIES(vtuber PRIVATE ${CMAKE_DL_LIBS})
 add_subdirectory(extern)

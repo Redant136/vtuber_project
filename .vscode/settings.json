@@ -103,5 +103,6 @@
     "ranges": "cpp",
     "*.txx": "cpp",
     "memory_resource": "cpp"
-  }
+  },
+  "git.ignoreLimitWarning": true
 }

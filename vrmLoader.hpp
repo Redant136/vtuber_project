@@ -188,7 +188,7 @@ namespace vtuber
       struct TextureInfo
       {
         int index = -1;
-        int texCoord;
+        int texCoord = 0;
         std::vector<Extension> extension;
         std::vector<Extension> extras;
       };
@@ -405,6 +405,30 @@ namespace vtuber
       std::vector<Extension> extension;
       std::vector<Extension> extras;
     };
+
+    uint getMeshPrimitiveAttribVal(const Mesh::Primitive::Attributes& attribute, std::string name, uint index)
+    {
+      int *attrib = (int*)&attribute;
+#define _concatNames(a,b) a##b
+#define parseAttribAlt(att_name) if(name==#att_name){attrib=(int*)(&attribute._concatNames(att_name,_0));}
+#define parseAttrib(att_name) if(name==#att_name){attrib=(int*)(&attribute.att_name);}
+      parseAttrib(POSITION)
+      else parseAttrib(NORMAL)
+      else parseAttrib(TANGENT)
+      else parseAttribAlt(TEXCOORD)
+      else parseAttribAlt(COLOR)
+      else parseAttribAlt(JOINTS)
+      else parseAttribAlt(WEIGHTS)
+      else
+      {
+        std::cout<<"no such attribute"<<std::endl;  
+      }
+#undef parseAttrib
+#undef parseAttribAlt
+#undef _concatNames
+      attrib += index;
+      return *attrib;
+    }
 
     uint gltf_sizeof(int type)
     {

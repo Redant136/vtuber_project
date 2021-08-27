@@ -1,6 +1,10 @@
 add_subdirectory(glad/)
 target_link_libraries(vtuber PRIVATE glad)
 
+find_package(OpenGL REQUIRED)
+target_link_libraries(vtuber PRIVATE OpenGL::GL)
+
+
 find_package(glfw REQUIRED NAMES glfw glfw3)
 if(glfw_FOUND)
   target_link_libraries(vtuber PRIVATE glfw)
@@ -9,8 +13,8 @@ else()
   target_link_libraries(vtuber PRIVATE glfw)
 endif()
 
-add_subdirectory(assimp)
-target_link_libraries(vtuber PRIVATE assimp)
+# add_subdirectory(assimp)
+# target_link_libraries(vtuber PRIVATE assimp)
 
 add_subdirectory(glm)
 target_link_libraries(vtuber PRIVATE glm::glm)
@@ -22,10 +26,8 @@ target_link_libraries(vtuber PRIVATE nlohmann_json::nlohmann_json)
 
 find_package(OpenCV)
 if(NOT OpenCV_FOUND)
-  find_package(OpenCV REQUIRED PATHS "${CMAKE_BINARY_DIR}/..")
+  find_package(OpenCV REQUIRED PATHS "${CMAKE_BINARY_DIR}/../extern")
 endif()
-
 target_link_libraries(vtuber PRIVATE ${OpenCV_LIBS})
 # target_link_libraries(vtuber PRIVATE ${OpenCV_LIBS} "--static")
 target_include_directories(vtuber PRIVATE ${OpenCV_INCLUDE_DIRS})
-
