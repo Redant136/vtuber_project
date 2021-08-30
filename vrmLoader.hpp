@@ -1,14 +1,9 @@
 #pragma once
 
 #include <fstream>
-#include <vector>
-#include <string>
-#include <stdexcept>
 #include <cstdint>
-#include <iostream>
 
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -16,21 +11,14 @@ typedef nlohmann::json json;
 
 namespace vtuber
 {
-  typedef unsigned char uchar;
-  typedef unsigned short ushort;
-  typedef unsigned int uint;
-  typedef unsigned long ulong;
-  typedef unsigned long long ullong;
-  typedef long long llong;
-
-  enum Filetype
+  enum class Filetype
   {
     glb,
     vrm = glb,
     gltf
   };
 
-  namespace glTF
+  namespace gltf
   {
 #define GLTF_COMPONENT_BYTE (5120)
 #define GLTF_COMPONENT_UBYTE (5121)
@@ -50,12 +38,6 @@ namespace vtuber
     struct Buffer
     {
       uchar *buffer;
-      bool bufferOwner = false;
-      ~Buffer()
-      {
-        if (bufferOwner)
-          delete[] buffer;
-      }
       //----------------
       string uri = "";
       int byteLength = 0;
@@ -394,7 +376,7 @@ namespace vtuber
       std::vector<Node> nodes;
       std::vector<Skin> skins;
 
-      int scene;
+      int scene = -1;
       std::vector<Scene> scenes;
 
       std::vector<Animation> animations;
@@ -421,7 +403,8 @@ namespace vtuber
       else parseAttribAlt(WEIGHTS)
       else
       {
-        std::cout<<"no such attribute"<<std::endl;  
+        std::cout<<"no such attribute"<<std::endl;
+        assert(0);
       }
 #undef parseAttrib
 #undef parseAttribAlt
@@ -479,10 +462,11 @@ namespace vtuber
   class Importer
   {
   public:
-    glTF::glTFModel model;
+    gltf::glTFModel model;
 
-    void import(std::string path, Filetype type = glb)
+    void import(std::string path, Filetype type = Filetype::glb)
     {
+      this->path = path;
       std::ifstream input(path, std::ios::binary);
       std::vector<char> bytes(
           (std::istreambuf_iterator<char>(input)),
@@ -492,10 +476,10 @@ namespace vtuber
 
       switch (type)
       {
-      case glb:
+      case Filetype::glb:
         parseGLB(bytes);
         break;
-      case gltf:
+      case Filetype::gltf:
         parseGLTF(bytes);
         break;
       default:
@@ -504,6 +488,8 @@ namespace vtuber
     }
 
   private:
+    std::string path = "";
+
     template <typename T>
     std::vector<T> pop(std::vector<T> &buffer, unsigned int size = 1)
     {
@@ -512,17 +498,20 @@ namespace vtuber
       return r;
     }
 
-    std::vector<glTF::Extension> deserializeExtensions(json extensions)
+    std::vector<gltf::Extension> deserializeExtensions(json extensions)
     {
-      std::vector<glTF::Extension> vec;
+      // TODO(ANT) fix this and research
+      std::vector<gltf::Extension> vec;
       for (uint i = 0; i < extensions.size(); i++)
       {
-        vec.push_back({extensions[i]});
+        // glTF::Extension ext;
+        // ext.data=extensions[i];
+        // vec.push_back(ext);
       }
       return vec;
     }
 
-    glTF::glTFModel parseGLTFJSON(json glTF_data)
+    gltf::glTFModel parseGLTFJSON(json glTF_data)
     {
 #define jsonCondition(item, id) if (std::string(item.key()) == #id)
 #define jsonFunctionMacro(item, id, func) \
@@ -537,7 +526,7 @@ namespace vtuber
 #define jsonArrayMacro(item, dst, id, type, i) jsonFunctionMacro( \
     item, id, for (uint i = 0; i < item.value().size(); i++) { dst.id.push_back(item.value()[i].get<type>()); });
 
-      glTF::glTFModel gltf;
+      gltf::glTFModel gltf;
 
       // parse json in object
       for (auto &item : glTF_data.items())
@@ -559,7 +548,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["buffers"].size(); i++)
           {
-            glTF::Buffer buffer;
+            gltf::Buffer buffer;
             for (auto &x : glTF_data["buffers"][i].items())
             {
               jsonConvertMacro(x, buffer, uri, std::string);
@@ -576,7 +565,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["bufferViews"].size(); i++)
           {
-            glTF::BufferView bufferV;
+            gltf::BufferView bufferV;
             for (auto &x : glTF_data["bufferViews"][i].items())
             {
               jsonConvertMacro(x, bufferV, buffer, int);
@@ -596,7 +585,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["accessors"].size(); i++)
           {
-            glTF::Accessor accessor;
+            gltf::Accessor accessor;
             for (auto &x : glTF_data["accessors"][i].items())
             {
               jsonConvertMacro(x, accessor, bufferView, int);
@@ -605,36 +594,36 @@ namespace vtuber
               {
                 if (x.value().get<std::string>() == "SCALAR")
                 {
-                  accessor.type = glTF::Accessor::Types::SCALAR;
+                  accessor.type = gltf::Accessor::Types::SCALAR;
                 }
                 else if (x.value().get<std::string>() == "VEC2")
                 {
-                  accessor.type = glTF::Accessor::Types::VEC2;
+                  accessor.type = gltf::Accessor::Types::VEC2;
                 }
                 else if (x.value().get<std::string>() == "VEC3")
                 {
-                  accessor.type = glTF::Accessor::Types::VEC3;
+                  accessor.type = gltf::Accessor::Types::VEC3;
                 }
                 else if (x.value().get<std::string>() == "VEC4")
                 {
-                  accessor.type = glTF::Accessor::Types::VEC4;
+                  accessor.type = gltf::Accessor::Types::VEC4;
                 }
                 else if (x.value().get<std::string>() == "MAT2")
                 {
-                  accessor.type = glTF::Accessor::Types::MAT2;
+                  accessor.type = gltf::Accessor::Types::MAT2;
                 }
                 else if (x.value().get<std::string>() == "MAT3")
                 {
-                  accessor.type = glTF::Accessor::Types::MAT3;
+                  accessor.type = gltf::Accessor::Types::MAT3;
                 }
                 else if (x.value().get<std::string>() == "MAT4")
                 {
-                  accessor.type = glTF::Accessor::Types::MAT4;
+                  accessor.type = gltf::Accessor::Types::MAT4;
                 }
                 continue;
               }
               // jsonConvertMacro(x, accessor, type, std::string);
-              jsonConvertCastMacro(x, accessor, componentType, int, glTF::Accessor::glComponentType);
+              jsonConvertCastMacro(x, accessor, componentType, int, gltf::Accessor::glComponentType);
               jsonConvertMacro(x, accessor, count, int);
               jsonArrayMacro(x, accessor, max, float, j);
               jsonArrayMacro(x, accessor, min, float, j);
@@ -668,7 +657,7 @@ namespace vtuber
                   {
                     jsonConvertMacro(y, accessor.sparse.indices, bufferView, int);
                     jsonConvertMacro(y, accessor.sparse.indices, byteOffset, int);
-                    jsonConvertCastMacro(y, accessor.sparse.indices, componentType, int, glTF::Accessor::Sparse::Indices::glComponentType)
+                    jsonConvertCastMacro(y, accessor.sparse.indices, componentType, int, gltf::Accessor::Sparse::Indices::glComponentType)
                         jsonExtensionMacro(y, accessor.sparse.indices, extension);
                     jsonExtensionMacro(y, accessor.sparse.indices, extras);
                   }
@@ -699,7 +688,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["textures"].size(); i++)
           {
-            glTF::Texture texture;
+            gltf::Texture texture;
             for (auto &x : glTF_data["textures"][i].items())
             {
               jsonConvertMacro(x, texture, sampler, int);
@@ -716,13 +705,13 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["samplers"].size(); i++)
           {
-            glTF::Sampler sampler;
+            gltf::Sampler sampler;
             for (auto &x : glTF_data["samplers"][i].items())
             {
-              jsonConvertCastMacro(x, sampler, magFilter, int, glTF::Sampler::glFilter);
-              jsonConvertCastMacro(x, sampler, minFilter, int, glTF::Sampler::glFilter);
-              jsonConvertCastMacro(x, sampler, wrapS, int, glTF::Sampler::glWrap);
-              jsonConvertCastMacro(x, sampler, wrapT, int, glTF::Sampler::glWrap);
+              jsonConvertCastMacro(x, sampler, magFilter, int, gltf::Sampler::glFilter);
+              jsonConvertCastMacro(x, sampler, minFilter, int, gltf::Sampler::glFilter);
+              jsonConvertCastMacro(x, sampler, wrapS, int, gltf::Sampler::glWrap);
+              jsonConvertCastMacro(x, sampler, wrapT, int, gltf::Sampler::glWrap);
               jsonConvertMacro(x, sampler, name, std::string);
               jsonExtensionMacro(x, sampler, extension);
               jsonExtensionMacro(x, sampler, extras);
@@ -735,7 +724,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["images"].size(); i++)
           {
-            glTF::Image image;
+            gltf::Image image;
             for (auto &x : glTF_data["images"][i].items())
             {
               jsonConvertMacro(x, image, name, std::string);
@@ -753,7 +742,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["materials"].size(); i++)
           {
-            glTF::Material material;
+            gltf::Material material;
             for (auto &x : glTF_data["materials"][i].items())
             {
               jsonConvertMacro(x, material, name, std::string);
@@ -850,15 +839,15 @@ namespace vtuber
               {
                 if (x.value().get<std::string>() == "OPAQUE")
                 {
-                  material.alphaMode = glTF::Material::AlphaMode::OPAQUE;
+                  material.alphaMode = gltf::Material::AlphaMode::OPAQUE;
                 }
                 else if (x.value().get<std::string>() == "MASK")
                 {
-                  material.alphaMode = glTF::Material::AlphaMode::MASK;
+                  material.alphaMode = gltf::Material::AlphaMode::MASK;
                 }
                 else if (x.value().get<std::string>() == "BLEND")
                 {
-                  material.alphaMode = glTF::Material::AlphaMode::BLEND;
+                  material.alphaMode = gltf::Material::AlphaMode::BLEND;
                 }
                 continue;
               }
@@ -875,7 +864,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["meshes"].size(); i++)
           {
-            glTF::Mesh mesh;
+            gltf::Mesh mesh;
             for (auto &x : glTF_data["meshes"][i].items())
             {
               jsonConvertMacro(x, mesh, name, std::string);
@@ -883,7 +872,7 @@ namespace vtuber
               {
                 for (uint j = 0; j < x.value().size(); j++)
                 {
-                  glTF::Mesh::Primitive primitive;
+                  gltf::Mesh::Primitive primitive;
                   for (auto &y : x.value()[j].items())
                   {
                     jsonConvertMacro(y, primitive, mode, int);
@@ -907,7 +896,7 @@ namespace vtuber
                     {
                       for (uint k = 0; k < y.value().size(); k++)
                       {
-                        glTF::Mesh::Primitive::MorphTarget target;
+                        gltf::Mesh::Primitive::MorphTarget target;
                         for (auto &z : y.value()[k].items())
                         {
                           jsonConvertMacro(z, target, POSITION, int);
@@ -945,7 +934,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["nodes"].size(); i++)
           {
-            glTF::Node node;
+            gltf::Node node;
             for (auto &x : glTF_data["nodes"][i].items())
             {
 
@@ -970,7 +959,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["skins"].size(); i++)
           {
-            glTF::Skin skin;
+            gltf::Skin skin;
             for (auto &x : glTF_data["skins"][i].items())
             {
               jsonConvertMacro(x, skin, name, std::string);
@@ -993,7 +982,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["scenes"].size(); i++)
           {
-            glTF::Scene scene;
+            gltf::Scene scene;
             for (auto &x : glTF_data["scenes"][i].items())
             {
               jsonConvertMacro(x, scene, name, std::string);
@@ -1009,7 +998,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["animations"].size(); i++)
           {
-            glTF::Animation animation;
+            gltf::Animation animation;
             for (auto &x : glTF_data["animations"][i].items())
             {
               jsonConvertMacro(x, animation, name, std::string);
@@ -1017,7 +1006,7 @@ namespace vtuber
               {
                 for (uint j = 0; j < x.value().size(); j++)
                 {
-                  glTF::Animation::AnimationChannel channel;
+                  gltf::Animation::AnimationChannel channel;
                   for (auto &y : x.value()[j].items())
                   {
                     jsonConvertMacro(y, channel, sampler, int);
@@ -1030,19 +1019,19 @@ namespace vtuber
                         {
                           if (z.value().get<std::string>() == "translation")
                           {
-                            channel.target.path = glTF::Animation::AnimationChannel::AnimationTarget::translation;
+                            channel.target.path = gltf::Animation::AnimationChannel::AnimationTarget::translation;
                           }
                           else if (z.value().get<std::string>() == "rotation")
                           {
-                            channel.target.path = glTF::Animation::AnimationChannel::AnimationTarget::rotation;
+                            channel.target.path = gltf::Animation::AnimationChannel::AnimationTarget::rotation;
                           }
                           else if (z.value().get<std::string>() == "scale")
                           {
-                            channel.target.path = glTF::Animation::AnimationChannel::AnimationTarget::scale;
+                            channel.target.path = gltf::Animation::AnimationChannel::AnimationTarget::scale;
                           }
                           else if (z.value().get<std::string>() == "weights")
                           {
-                            channel.target.path = glTF::Animation::AnimationChannel::AnimationTarget::weights;
+                            channel.target.path = gltf::Animation::AnimationChannel::AnimationTarget::weights;
                           }
                           continue;
                         }
@@ -1062,7 +1051,7 @@ namespace vtuber
               {
                 for (uint j = 0; j < x.value().size(); j++)
                 {
-                  glTF::Animation::AnimationSampler sampler;
+                  gltf::Animation::AnimationSampler sampler;
                   for (auto &y : x.value()[j].items())
                   {
                     jsonConvertMacro(y, sampler, input, int);
@@ -1070,15 +1059,15 @@ namespace vtuber
                     {
                       if (y.value().get<std::string>() == "LINEAR")
                       {
-                        sampler.interpolation = glTF::Animation::AnimationSampler::LINEAR;
+                        sampler.interpolation = gltf::Animation::AnimationSampler::LINEAR;
                       }
                       else if (y.value().get<std::string>() == "STEP")
                       {
-                        sampler.interpolation = glTF::Animation::AnimationSampler::STEP;
+                        sampler.interpolation = gltf::Animation::AnimationSampler::STEP;
                       }
                       else if (y.value().get<std::string>() == "CUBICSPLINE")
                       {
-                        sampler.interpolation = glTF::Animation::AnimationSampler::CUBICSPLINE;
+                        sampler.interpolation = gltf::Animation::AnimationSampler::CUBICSPLINE;
                       }
                       continue;
                     }
@@ -1101,7 +1090,7 @@ namespace vtuber
         {
           for (uint i = 0; i < glTF_data["cameras"].size(); i++)
           {
-            glTF::Camera camera;
+            gltf::Camera camera;
             for (auto &x : glTF_data["cameras"][i].items())
             {
               jsonConvertMacro(x, camera, name, std::string);
@@ -1135,11 +1124,11 @@ namespace vtuber
               {
                 if (x.value().get<std::string>() == "Perspective")
                 {
-                  camera.type = glTF::Camera::Perspective;
+                  camera.type = gltf::Camera::Perspective;
                 }
                 else if (x.value().get<std::string>() == "Orthographic")
                 {
-                  camera.type = glTF::Camera::Orthographic;
+                  camera.type = gltf::Camera::Orthographic;
                 }
                 continue;
               }
@@ -1197,6 +1186,47 @@ namespace vtuber
 
     void parseGLTF(std::vector<char> buffer)
     {
+      auto json = json::parse(buffer.begin(), buffer.end());
+      this->model = parseGLTFJSON(json);
+
+      std::string dir = "./";
+      {
+        char sep = '/';
+#ifdef _WIN32
+        sep = '\\';
+#endif
+        size_t sepIndex = path.rfind(sep, path.length());
+        if (sepIndex != std::string::npos)
+        {
+          dir = path.substr(0, sepIndex);
+        }
+      }
+      
+      for (uint i = 0; i < model.buffers.size(); i++)
+      {
+        if (model.buffers[i].uri.find("data:") == 0) // data URI
+        {
+          if (model.buffers[i].uri.find("base64") == std::string::npos){
+            assert(0 && "can only decode base64");
+          }
+          std::string data = model.buffers[i].uri.substr(model.buffers[i].uri.find(",")+1);
+          data = base64::decode(data);
+          model.buffers[i].buffer=new uchar[data.length()];
+          memcpy(model.buffers[i].buffer,data.data(),data.length());
+        }
+        else // file based
+        {
+          std::string file = dir + model.buffers[i].uri;
+          std::ifstream input(file, std::ios::binary);
+          std::vector<char> bytes(
+              (std::istreambuf_iterator<char>(input)),
+              (std::istreambuf_iterator<char>()));
+          input.close();
+
+          model.buffers[i].buffer=new uchar[bytes.size()];
+          memcpy(model.buffers[i].buffer,bytes.data(),bytes.size());
+        }
+      }
     }
 
     void parseGLB(std::vector<char> buffer)

@@ -15,87 +15,28 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// #include <assimp/Importer.hpp>
-// #include <assimp/scene.h>
-// #include <assimp/postprocess.h>
-
+#define CHEVAN_UTILS_incl
+#define CHEVAN_UTILS_B64
+#define CHEVAN_UTILS_MATH_V2 glm::vec2
+#define CHEVAN_UTILS_MATH_V3 glm::vec3
+#define CHEVAN_UTILS_MATH_V4 glm::vec4
+#define CHEVAN_UTILS_math
+#define CHEVAN_UTILS_PRINT
+#include "utils.hpp"
+using namespace chevan_utils;
 #include "vrmLoader.hpp"
-
-#include <iostream>
-#include <string>
-#include <stdlib.h>
-#include <vector>
-#include <assert.h>
-#include <functional>
-#include <fstream>
 
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
 #ifndef VMODEL
 #define VMODEL "models/male1.glb"
 #endif
-#define VERTEX_SHADER "shaders/vertex_shader.glsl"
-#define FRAGMENT_SHADER "shaders/fragment_shader.glsl"
+#define VERTEX_SHADER "shaders/vertex_shader.vert"
+#define FRAGMENT_SHADER "shaders/fragment_shader.frag"
 
-#define convertVec2(dest, src) \
-  dest.x = src.x;              \
-  dest.y = src.y;
-#define convertVec3(dest, src) convertVec2(dest, src) dest.z = src.z;
-#define convertVec4(dest, src) convertVec3(dest, src) dest.w = src.w;
-#define print(x) std::cout<<x<<std::endl;
 
 namespace vtuber
 {
-  typedef unsigned char uchar;
-  typedef unsigned short ushort;
-  typedef unsigned int uint;
-  typedef unsigned long ulong;
-  typedef unsigned long long ullong;
-  typedef long long llong;
-  // glm::vec2 a;
-  template <typename T, typename L = ullong>
-  struct Array
-  {
-    L length = 0;
-    T *arr = NULL;
-    Array() = default;
-    Array(L l)
-    {
-      length = l;
-      arr = new T[l];
-    }
-    Array(L l, T arr)
-    {
-      this->length = l;
-      this->arr = arr;
-    }
-    T &operator[](ullong i)
-    {
-      assert(arr);
-      assert(i < length + 1);
-      return arr[i];
-    }
-    T *operator+(ullong i)
-    {
-      return arr + i;
-    }
-    Array<T, L> clone()
-    {
-      T *a = new T[length];
-      memcpy(a, arr, sizeof(T) * length);
-      return {length, a};
-    }
-    void free()
-    {
-      delete[] arr;
-      arr = NULL;
-    }
-  };
-  static inline float randf()
-  {
-    return ((float)rand()) / RAND_MAX;
-  }
-
   class Shader
   {
   public:
@@ -267,7 +208,8 @@ namespace vtuber
   class VModel
   {
   public:
-    glTF::glTFModel model;
+    gltf::glTFModel model;
+    Array<uchar *> gltfBuffers;
     Array<uint> gltfBufferViewVBO;
     Array<uint> gltfMeshVAO;
     Array<uint> gltfImageTextureIndex;
@@ -279,7 +221,7 @@ namespace vtuber
     {
       loadModel(path);
     }
-    VModel(glTF::glTFModel model)
+    VModel(gltf::glTFModel model)
     {
       this->model = model;
     }
@@ -292,16 +234,25 @@ namespace vtuber
       gltfBufferViewVBO.free();
       gltfImageTextureIndex.free();
     }
-    void loadModel(std::string path)
+    void loadModel(std::string path, const Filetype type = Filetype::vrm)
     {
       Importer importer;
-      importer.import(path);
+      importer.import(path, type);
       model = importer.model;
+
+      gltfBuffers = Array<uchar *>(model.buffers.size());
+      for(uint i=0;i<model.buffers.size();i++){
+        const gltf::Buffer&buffer=model.buffers[i];
+        gltfBuffers[i] = new uchar[buffer.byteLength];
+        memcpy(gltfBuffers[i],buffer.buffer,buffer.byteLength);
+      }
+
+      updateMorph();
 
       gltfBufferViewVBO = Array<uint>(model.bufferViews.size());
       for (uint i = 0; i < model.bufferViews.size(); i++)
       {
-        const glTF::BufferView &bufferView = model.bufferViews[i];
+        const gltf::BufferView &bufferView = model.bufferViews[i];
 
         int sparse_accessor = -1;
         for (uint a_i = 0; a_i < model.accessors.size(); a_i++)
@@ -317,27 +268,26 @@ namespace vtuber
           }
         }
 
-        const glTF::Buffer &buffer = model.buffers[bufferView.buffer];
         uint VBO;
         glGenBuffers(1, &VBO);
         glBindBuffer(bufferView.target, VBO);
 
         if (sparse_accessor < 0)
           glBufferData(bufferView.target, bufferView.byteLength,
-                       buffer.buffer + bufferView.byteOffset,
+                       gltfBuffers[bufferView.buffer] + bufferView.byteOffset,
                        GL_STATIC_DRAW);
         else
         {
           const auto &accessor = model.accessors[sparse_accessor];
           // copy the buffer to a temporary one for sparse patching
           uchar *tmp_buffer = new uchar[bufferView.byteLength];
-          memcpy(tmp_buffer, buffer.buffer + bufferView.byteOffset,
+          memcpy(tmp_buffer, gltfBuffers[i] + bufferView.byteOffset,
                  bufferView.byteLength);
 
           const uint size_of_object_in_buffer =
-              glTF::gltf_sizeof(accessor.componentType);
+              gltf::gltf_sizeof(accessor.componentType);
           const uint size_of_sparse_indices =
-              glTF::gltf_sizeof(accessor.sparse.indices.componentType);
+              gltf::gltf_sizeof(accessor.sparse.indices.componentType);
 
           const auto &indices_buffer_view =
               model.bufferViews[accessor.sparse.indices.bufferView];
@@ -374,20 +324,13 @@ namespace vtuber
                 values_buffer.buffer +
                 (values_buffer_view.byteOffset +
                  accessor.sparse.values.byteOffset) +
-                (sparse_index * (size_of_object_in_buffer * glTF::gltf_num_components(accessor.type)));
+                (sparse_index * (size_of_object_in_buffer * gltf::gltf_num_components(accessor.type)));
 
             uchar *write_to =
-                tmp_buffer + index * (size_of_object_in_buffer * glTF::gltf_num_components(accessor.type));
+                tmp_buffer + index * (size_of_object_in_buffer * gltf::gltf_num_components(accessor.type));
 
-            memcpy(write_to, read_from, size_of_object_in_buffer * glTF::gltf_num_components(accessor.type));
+            memcpy(write_to, read_from, size_of_object_in_buffer * gltf::gltf_num_components(accessor.type));
           }
-
-          // debug:
-          /*for(size_t p = 0; p < bufferView.byteLength/sizeof(float); p++)
-        {
-          float* b = (float*)tmp_buffer;
-          std::cout << "modified_buffer [" << p << "] = " << b[p] << '\n';
-        }*/
 
           glBufferData(bufferView.target, bufferView.byteLength, tmp_buffer,
                        GL_STATIC_DRAW);
@@ -401,24 +344,26 @@ namespace vtuber
       gltfMeshVAO = Array<uint>(model.meshes.size());
       for (uint i = 0; i < model.meshes.size(); i++)
       {
-        const glTF::Mesh &mesh = model.meshes[i];
+        const gltf::Mesh &mesh = model.meshes[i];
         uint VAO;
         glGenVertexArrays(1, &VAO);
         glBindVertexArray(VAO);
         for (uint j = 0; j < mesh.primitives.size(); j++)
         {
-          const glTF::Mesh::Primitive &primitive = mesh.primitives[j];
+          const gltf::Mesh::Primitive &primitive = mesh.primitives[j];
 
           struct
           {
             std::string accName;
             int attribIndex;
-          } attribs[3] = {{"POSITION", 0}, {"NORMAL", 1}, {"TEXCOORD", 2}};
+          } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TEXCOORD", 2}};
 
           // TODO(ANT) add support for texcoord_1 and _2 
           for (uint k = 0; k < sizeof(attribs) / sizeof(attribs[0]); k++)
           {
-            const glTF::Accessor &accessor = model.accessors[glTF::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName, 0)];
+            if (gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName, 0)==-1)
+              continue;
+            const gltf::Accessor &accessor = model.accessors[gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName, 0)];
             glBindBuffer(GL_ARRAY_BUFFER, gltfBufferViewVBO[accessor.bufferView]);
 
             uint attribIndex = attribs[k].attribIndex;
@@ -426,8 +371,8 @@ namespace vtuber
             uint byteStride = 0;
             if (model.bufferViews[accessor.bufferView].byteStride == 0)
             {
-              int componentSizeInBytes = glTF::gltf_sizeof(accessor.componentType);
-              int numComponents = glTF::gltf_num_components(accessor.type);
+              int componentSizeInBytes = gltf::gltf_sizeof(accessor.componentType);
+              int numComponents = gltf::gltf_num_components(accessor.type);
               if (componentSizeInBytes <= 0)
                 byteStride = -1;
               else if (numComponents <= 0)
@@ -437,7 +382,7 @@ namespace vtuber
             }
             else
             {
-              int componentSizeInBytes = glTF::gltf_sizeof(accessor.componentType);
+              int componentSizeInBytes = gltf::gltf_sizeof(accessor.componentType);
               if (componentSizeInBytes <= 0)
                 byteStride = -1;
               else if ((model.bufferViews[accessor.bufferView].byteStride % componentSizeInBytes) != 0)
@@ -446,7 +391,7 @@ namespace vtuber
                 byteStride = model.bufferViews[accessor.bufferView].byteStride;
             }
 
-            glVertexAttribPointer(attribIndex, glTF::gltf_num_components(accessor.type),
+            glVertexAttribPointer(attribIndex, gltf::gltf_num_components(accessor.type),
                                   accessor.componentType,
                                   accessor.normalized ? GL_TRUE : GL_FALSE,
                                   byteStride, reinterpret_cast<void *>(accessor.byteOffset));
@@ -459,8 +404,8 @@ namespace vtuber
       gltfImageTextureIndex = Array<uint>(model.images.size());
       for (uint i = 0; i < model.images.size(); i++)
       {
-        const glTF::Image &image = model.images[i];
-        const glTF::BufferView &bufferView = model.bufferViews[image.bufferView];
+        const gltf::Image &image = model.images[i];
+        const gltf::BufferView &bufferView = model.bufferViews[image.bufferView];
 
         int width, height, channels;
         uchar *im = stbi_load_from_memory(model.buffers[bufferView.buffer].buffer + bufferView.byteOffset,
@@ -503,32 +448,32 @@ namespace vtuber
     }
     void draw(Shader &shader)
     {
-      std::function<void(const glTF::glTFModel &, const glTF::Node &)> drawNode = [this, &drawNode](const glTF::glTFModel &model, const glTF::Node node)
+      std::function<void(const gltf::glTFModel &, const gltf::Node &)> drawNode = [this, &drawNode](const gltf::glTFModel &model, const gltf::Node node)
       {
         if (node.mesh > -1)
         {
           assert(node.mesh < model.meshes.size());
 
-          const glTF::Mesh &mesh = model.meshes[node.mesh];
+          const gltf::Mesh &mesh = model.meshes[node.mesh];
           glBindVertexArray(gltfMeshVAO[node.mesh]);
           uint sampler_obj;
           glGenSamplers(1, &sampler_obj);
           for (uint i = 0; i < mesh.primitives.size(); i++)
           {
-            const glTF::Mesh::Primitive &primitive = mesh.primitives[i];
-            const glTF::Accessor &indexAccessor =
+            const gltf::Mesh::Primitive &primitive = mesh.primitives[i];
+            const gltf::Accessor &indexAccessor =
                 model.accessors[primitive.indices];
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gltfBufferViewVBO[indexAccessor.bufferView]);
 
             if (primitive.material >= 0)
             {
-              const glTF::Material &material = model.materials[primitive.material];
+              const gltf::Material &material = model.materials[primitive.material];
 
               if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
               {
-                const glTF::Texture &texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
+                const gltf::Texture &texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
 
-                const glTF::Sampler &sampler = model.samplers[texture.sampler];
+                const gltf::Sampler &sampler = model.samplers[texture.sampler];
                 glSamplerParameterf(sampler_obj, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
                 glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
                 glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
@@ -541,9 +486,9 @@ namespace vtuber
               }
               if (material.emissiveTexture.index >= 0)
               {
-                const glTF::Texture &texture = model.textures[material.emissiveTexture.index];
+                const gltf::Texture &texture = model.textures[material.emissiveTexture.index];
 
-                const glTF::Sampler&sampler=model.samplers[texture.sampler];
+                const gltf::Sampler&sampler=model.samplers[texture.sampler];
                 glSamplerParameterf(sampler_obj,GL_TEXTURE_MIN_FILTER,sampler.minFilter);
                 glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
                 glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
@@ -571,10 +516,58 @@ namespace vtuber
       };
 
       int scene_to_display = model.scene > -1 ? model.scene : 0;
-      const glTF::Scene &scene = model.scenes[scene_to_display];
+      const gltf::Scene &scene = model.scenes[scene_to_display];
       for (size_t i = 0; i < scene.nodes.size(); i++)
       {
         drawNode(model, model.nodes[scene.nodes[i]]);
+      }
+    }
+    void updateMorph() // time consuming
+    {
+      for (uint i = 0; i < model.buffers.size(); i++)
+      {
+        memcpy(gltfBuffers[i], model.buffers[i].buffer, model.buffers[i].byteLength);
+      }
+      for (gltf::Mesh &mesh : model.meshes)
+      {
+        const std::vector<float> &weights = mesh.weights;
+        for (gltf::Mesh::Primitive& primitive:mesh.primitives)
+        {
+          for (uint i = 0; i < primitive.targets.size(); i++)
+          {
+            float weight = weights[i];
+            const gltf::Mesh::Primitive::MorphTarget &target = primitive.targets[i];
+            if (target.POSITION != -1 && primitive.attributes.POSITION != -1)
+            {
+              glm::vec3 position;
+              glm::vec3 target_morph;
+
+              const gltf::Accessor &target_acc = model.accessors[target.POSITION];
+              const gltf::BufferView &target_bfView = model.bufferViews[target_acc.bufferView];
+              memcpy(&target_morph,gltfBuffers[target_bfView.buffer] + target_bfView.byteOffset, sizeof(float) * 3);
+
+              const gltf::Accessor &att_acc = model.accessors[primitive.attributes.POSITION];
+              const gltf::BufferView &att_bfView = model.bufferViews[att_acc.bufferView];
+              memcpy(&position, gltfBuffers[att_bfView.buffer] + att_bfView.byteOffset, sizeof(float) * 3);
+
+
+              printVec3(position);
+            }
+          }
+        }
+      }
+    }
+    void update()
+    {
+      // TODO(ANT) inverse kinematics
+
+
+      for (uint i = 0; i < model.accessors.size(); i++)
+      {
+        const gltf::Accessor &accessor = model.accessors[i];
+
+        // bufferSubData
+        // morph accessor is displacement
       }
     }
   };

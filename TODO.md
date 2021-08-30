@@ -1,34 +1,37 @@
 # TODO
 
 
-## load glb
-### needed
-  [x] cannot be bothered to explain all the steps as I made this afterwards
-### wants
-  [ ] test gltf loader
-  [ ] gltf buffers
-  [ ] textures that are not bfviews
 
-## display glb
-### needed
-  [x] load data to opengl
-  [x] render skeletal view
-  [x] load texture data to opengl
-  [x] render textures
-### wants
-  [ ] normal texture
-  [ ] occlusion texture
-  [ ] roughness texture
-  [ ] https://learnopengl.com/Advanced-OpenGL/Instancing
-### if time
-  [ ] reflection textures
-  [ ] when material uses multiple texcoords ie texcoord_1
-  [ ] texture double sided (gl_FrontFacing)
+## completed
+[x] load glb (took lot more effort than explained here, created this afterwards)
+[x] (glb rendering) load data to opengl
+[x] (glb rendering) render skeletal view
+[x] (glb rendering) load texture data to opengl
+[x] (glb rendering) render textures
+[x] (research) how does one vao per mesh works
+[x] (gltf loading) gltf buffers
 
-## load vrm
-  [ ] extensions/extra glb storage
-## display vrm
+## working on
+[ ] (animtions) morph targets
 
-# extra
-  [ ] load gltf v1
+## upcoming
+[ ] (gltf loading) test gltf loader
+[ ] (housekeeping) gltf buffer mem leak
+[ ] (animations) inverse kinematics
+[ ] (glb loading) extensions/extra glb storage
+[ ] (research) quaternions
+[ ] (glb rendering) lighting : https://learnopengl.com/Lighting/Colors
+[ ] (glb rendering) normal texture
+[ ] (glb rendering) occlusion texture
+[ ] (glb rendering) roughness texture
+
+## wants
+[ ] (gltf loading) textures that are not bfviews
+[ ] (glb rendering) https://learnopengl.com/Advanced-OpenGL/Instancing
+
+## quality of life
+[ ] (glb rendering) reflection textures
+[ ] (glb rendering) when material uses multiple texcoords ie texcoord_1 (make larger VAO)
+[ ] (glb rendering) texture double sided (gl_FrontFacing)
+[ ] (gltf loading) load gltf v1
 

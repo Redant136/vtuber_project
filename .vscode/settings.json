@@ -102,7 +102,13 @@
     "string_view": "cpp",
     "ranges": "cpp",
     "*.txx": "cpp",
-    "memory_resource": "cpp"
+    "memory_resource": "cpp",
+    "cwctype": "cpp",
+    "any": "cpp",
+    "strstream": "cpp",
+    "numbers": "cpp",
+    "semaphore": "cpp",
+    "cfenv": "cpp"
   },
   "git.ignoreLimitWarning": true
 }
