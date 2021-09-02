@@ -1,7 +1,7 @@
 #pragma once
 #ifndef CHEVAN_UTILS_H
 #define CHEVAN_UTILS_H
-#define CHEVAN_UTILS_VERSION "1.3"
+#define CHEVAN_UTILS_VERSION "1.3.2"
 
 #ifndef CHEVAN_UTILS_NO_SHORTHANDS
 
@@ -18,7 +18,7 @@
 #define CHEVAN_UTILS_RANDOM
 #endif
 #if defined(CHEVAN_UTILS_VEC) || defined(CHEVAN_UTILS_vector) || defined(CHEVAN_UTILS_vec)
-#define  CHEVAN_UTILS_VECTOR
+#define CHEVAN_UTILS_VECTOR
 #endif
 #if defined(CHEVAN_UTILS_math)
 #define CHEVAN_UTILS_MATH
@@ -52,8 +52,12 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <functional>
+#include <string>
 
 #endif // CHEVAN_UTILS_COMMON_INCLUDES
+
+#include <stddef.h>
+#include <assert.h>
 
 //includes
 #ifdef CHEVAN_UTILS_PRINT
@@ -75,9 +79,10 @@
 #define toIV3(v) iv3((v).x, (v).y, (v).z)
 #define toIV4(v) iv4((v).x, (v).y, (v).z, (v).w)
 
-#endif // CHEVAN_UTILS_VECTOR
+#endif                   // CHEVAN_UTILS_VECTOR
 #ifdef CHEVAN_UTILS_MATH // must be used with chevan_vectors or define CHEVAN_UTILS_MATH_VEC
 #include <cmath>
+#include <string.h>
 #define PIf 3.1415926535897f
 #define ONE_OVER_SQUARE_ROOT_OF_TWO_PI 0.3989422804
 #define ONE_OVER_SQUARE_ROOT_OF_TWO_PIf 0.3989422804f
@@ -106,7 +111,7 @@
 #endif // CHEVAN_UTILS_BASE64
 #ifdef CHEVAN_UTILS_MACRO_MAGIC
 #ifndef CONCAT
-#define CONCAT(a,b) a##b
+#define CONCAT(a, b) a##b
 #endif
 #ifndef EVAL
 #define EVAL(...) EVAL1024(__VA_ARGS__)
@@ -161,18 +166,28 @@
 
 #endif // CHEVAN_UTILS_MACRO_MAGIC
 
-
 namespace chevan_utils
 {
-#define convertVec2(dest, src) dest.x = src.x; dest.y = src.y;
+#define convertVec2(dest, src) \
+  dest.x = src.x;              \
+  dest.y = src.y;
 #define convertVec3(dest, src) convertVec2(dest, src) dest.z = src.z;
 #define convertVec4(dest, src) convertVec3(dest, src) dest.w = src.w;
-#define vec2List(v) v.x,v.y
-#define vec3List(v) v.x, v.y, v.y
-#define vec4List(v) v.x, v.y, v.y,v.w
-#define vec2ToArray(v) {vec2List(v)}
-#define vec3ToArray(v) {vec3List(v)}
-#define vec4ToArray(v) {vec4List(v)}
+#define vec2List(v) (v).x, (v).y
+#define vec3List(v) vec2List(v), (v).z
+#define vec4List(v) vec3List(v), (v).w
+#define vec2ToArray(v) \
+  {                    \
+    vec2List(v)        \
+  }
+#define vec3ToArray(v) \
+  {                    \
+    vec3List(v)        \
+  }
+#define vec4ToArray(v) \
+  {                    \
+    vec4List(v)        \
+  }
 
   typedef unsigned char uchar;
   typedef unsigned short ushort;
@@ -191,7 +206,7 @@ namespace chevan_utils
       length = l;
       arr = new T[l];
     }
-    Array(L l, T* arr)
+    Array(L l, T *arr)
     {
       this->length = l;
       this->arr = arr;
@@ -235,84 +250,6 @@ namespace chevan_utils
   static inline float degreeToRad(float degree) { return degree / 180.f * 3.1415926535897f; }
   static inline float radToDegree(float rad) { return rad / 3.1415926535897f * 180; }
 
-#ifdef CHEVAN_UTILS_PRINT
-  template <typename Printable>
-  void print(Printable p)
-  {
-    std::cout << p << std::endl;
-  }
-  template <typename L>
-  void print(Array<char, L> arr, L length = 256)
-  {
-    L l = arr.length < length ? arr.length : length;
-    std::cout << std::string(arr.arr, arr.arr + l) << std::endl;
-  }
-  template <typename L>
-  void print(Array<uchar, L> arr, L length = 256)
-  {
-    L l = arr.length < length ? arr.length : length;
-    std::cout << std::string(arr.arr, arr.arr + l) << std::endl;
-  }
-  template <typename T, typename L>
-  void print(Array<T, L> arr, L length = 256)
-  {
-    L l = arr.length < length ? arr.length : length;
-    std::string s = "";
-    for (uint i = 0; i < l; i++)
-    {
-      s += std::to_string(arr[i]);
-    }
-    std::cout << s << std::endl;
-  }
-  template <typename Printable, typename... Printable2>
-  void print(Printable p, Printable2... p2)
-  {
-    std::cout << p;
-    print(p2...);
-  }
-  template <typename Vector>
-  void printVec(Vector v)
-  {
-    for (auto t : v)
-    {
-      std::cout << t;
-    }
-    std::cout << std::endl;
-  }
-  template<typename V>
-  void printVec2(V v){
-    print("{",v.x,", ",v.y,"}");
-  }
-  template <typename V>
-  void printVec3(V v)
-  {
-    print("{", v.x, ", ", v.y, ", ", v.z, "}");
-  }
-  template <typename V>
-  void printVec4(V v)
-  {
-    print("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
-  }
-
-#endif // CHEVAN_UTILS_PRINT
-#ifdef CHEVAN_UTILS_RANDOM
-  static inline float randf()
-  {
-    return ((float)rand()) / RAND_MAX;
-  }
-#endif // CHEVAN_UTILS_RANDOM
-#ifdef CHEVAN_UTILS_BYTE_TYPEDEF
-  typedef int8_t i8;
-  typedef int16_t i16;
-  typedef int32_t i32;
-  typedef int64_t i64;
-  typedef uint8_t u8;
-  typedef uint16_t u16;
-  typedef uint32_t u32;
-  typedef uint64_t u64;
-  typedef float f32;
-  typedef double f64;
-#endif // CHEVAN_UTILS_BYTE_TYPEDEF
 #ifdef CHEVAN_UTILS_VECTOR
   struct v2;
   struct v3;
@@ -637,8 +574,10 @@ namespace chevan_utils
   };
   struct iv2
   {
-    union{
-      struct{
+    union
+    {
+      struct
+      {
         int32_t x, y;
       };
       int32_t elements[2];
@@ -1078,11 +1017,280 @@ namespace chevan_utils
 #endif // !CHEVAN_UTILS_MATH_V2
 
 #endif // CHEVAN_UTILS_VECTOR
+#ifdef CHEVAN_UTILS_PRINT
+
+  template <typename P>
+  static void print(P p);
+  template <typename P, typename... P2>
+  static void print(P p, P2... p2);
+  template <typename P>
+  static void println(P p);
+  template <typename P, typename... P2>
+  static void println(P p, P2... p2);
+
+  template <typename Vector>
+  static void printVec(Vector v)
+  {
+    for (auto t : v)
+    {
+      std::cout << t;
+    }
+    std::cout << std::endl;
+  }
+  template <typename V>
+  static void printVec2(V v)
+  {
+    println("{", v.x, ", ", v.y, "}");
+  }
+  template <typename V>
+  static void printVec3(V v)
+  {
+    println("{", v.x, ", ", v.y, ", ", v.z, "}");
+  }
+  template <typename V>
+  static void printVec4(V v)
+  {
+    println("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
+  }
+  static void printMat4(float mat[16])
+  {
+    for (uint i = 0; i < 4; i++)
+    {
+      println(mat[0 + i * 4], ", ", mat[1 + i * 4], ", ", mat[2 + i * 4], ", ", mat[3 + i * 4]);
+    }
+  }
+  static void printMat4(double mat[16])
+  {
+    for (uint i = 0; i < 4; i++)
+    {
+      println(mat[0 + i * 4], ", ", mat[1 + i * 4], ", ", mat[2 + i * 4], ", ", mat[3 + i * 4]);
+    }
+  }
+  template <typename M>
+  static void printMat4(M mat)
+  {
+    printMat4((float *)&mat);
+  }
+  template <typename M>
+  static void printMat4D(M mat)
+  {
+    printMat4((double *)&mat);
+  }
+  static void printMem(void *p, ulong length = 256)
+  {
+    std::string s = "";
+    for (uint i = 0; i < length; i++)
+    {
+      s += std::to_string(((uchar *)p)[i]);
+    }
+    std::cout << s << std::endl;
+  }
+  // ----------------------------------------------
+  static void print()
+  {
+    std::cout << std::endl;
+  }
+  static void println()
+  {
+    std::cout << std::endl;
+  }
+  template <typename Printable>
+  static void print(Printable p)
+  {
+    std::cout << p;
+  }
+  template <typename Printable>
+  static void println(Printable p)
+  {
+    std::cout << p << std::endl;
+  }
+  static void print(uchar *p)
+  {
+    std::cout << (void *)p;
+  }
+  static void println(uchar *p)
+  {
+    std::cout << (void *)p << std::endl;
+  }
+  template <typename L>
+  static void print(Array<char, L> arr, L length = 256)
+  {
+    L l = arr.length < length ? arr.length : length;
+    std::cout << std::string(arr.arr, arr.arr + l);
+  }
+  template <typename L>
+  static void println(Array<char, L> arr, L length = 256)
+  {
+    L l = arr.length < length ? arr.length : length;
+    std::cout << std::string(arr.arr, arr.arr + l) << std::endl;
+  }
+  template <typename L>
+  static void print(Array<uchar, L> arr, L length = 256)
+  {
+    L l = arr.length < length ? arr.length : length;
+    std::cout << std::string(arr.arr, arr.arr + l);
+  }
+  template <typename L>
+  static void println(Array<uchar, L> arr, L length = 256)
+  {
+    L l = arr.length < length ? arr.length : length;
+    std::cout << std::string(arr.arr, arr.arr + l) << std::endl;
+  }
+  template <typename T, typename L>
+  static void print(Array<T, L> arr, L length = 256)
+  {
+    L l = arr.length < length ? arr.length : length;
+    std::string s = "{";
+    s += std::to_string(arr[0]);
+    for (uint i = 1; i < l; i++)
+    {
+      s += "," + std::to_string(arr[i]);
+    }
+    s += "}";
+    std::cout << s;
+  }
+  template <typename T, typename L>
+  static void println(Array<T, L> arr, L length = 256)
+  {
+    L l = arr.length < length ? arr.length : length;
+    std::string s = "{";
+    s += std::to_string(arr[0]);
+    for (uint i = 1; i < l; i++)
+    {
+      s += "," + std::to_string(arr[i]);
+    }
+    s += "}";
+    std::cout << s << std::endl;
+  }
+#ifdef CHEVAN_UTILS_MATH_V2
+  static void print(CHEVAN_UTILS_MATH_V2 v)
+  {
+    print("{", v.x, ", ", v.y, "}");
+  }
+  static void println(CHEVAN_UTILS_MATH_V2 v)
+  {
+    println("{", v.x, ", ", v.y, "}");
+  }
+#endif
+#ifdef CHEVAN_UTILS_MATH_V3
+  static void print(CHEVAN_UTILS_MATH_V3 v)
+  {
+    print("{", v.x, ", ", v.y, ", ", v.z, "}");
+  }
+  static void println(CHEVAN_UTILS_MATH_V3 v)
+  {
+    println("{", v.x, ", ", v.y, ", ", v.z, "}");
+  }
+#endif
+#ifdef CHEVAN_UTILS_MATH_V4
+  static void print(CHEVAN_UTILS_MATH_V4 v)
+  {
+    print("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
+  }
+  static void println(CHEVAN_UTILS_MATH_V4 v)
+  {
+    println("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
+  }
+#endif
+  template <typename Printable, typename... Printable2>
+  static void print(Printable p, Printable2... p2)
+  {
+    print(p);
+    print(p2...);
+  }
+  template <typename Printable, typename... Printable2>
+  static void println(Printable p, Printable2... p2)
+  {
+    print(p);
+    print(p2...);
+    std::cout << std::endl;
+  }
+
+#endif // CHEVAN_UTILS_PRINT
+#ifdef CHEVAN_UTILS_RANDOM
+  static inline float randf()
+  {
+    return ((float)rand()) / RAND_MAX;
+  }
+#endif // CHEVAN_UTILS_RANDOM
+#ifdef CHEVAN_UTILS_BYTE_TYPEDEF
+  typedef int8_t i8;
+  typedef int16_t i16;
+  typedef int32_t i32;
+  typedef int64_t i64;
+  typedef uint8_t u8;
+  typedef uint16_t u16;
+  typedef uint32_t u32;
+  typedef uint64_t u64;
+  typedef float f32;
+  typedef double f64;
+#endif // CHEVAN_UTILS_BYTE_TYPEDEF
 #ifdef CHEVAN_UTILS_MATH
 #ifndef CHEVAN_UTILS_MATH_M4
   struct m4
   {
-    float elements[4][4];
+    // 0,1,2,3
+    // 4,5,6,7
+    // 8,9,0,1
+    // 2,3,4,5
+    union
+    {
+      float array[16] = {0.f};
+      float elements[4][4];
+    };
+    m4() = default;
+    m4(float diagonal)
+    {
+      array[0] = diagonal;
+      array[5] = diagonal;
+      array[10] = diagonal;
+      array[15] = diagonal;
+    }
+    m4(float *array)
+    {
+      memcpy(this->array, array, sizeof(float) * 16);
+    }
+    m4(float **elements)
+    {
+      for (uint i = 0; i < 4; i++)
+      {
+        for (uint j = 0; j < 4; j++)
+        {
+          this->elements[i][j] = elements[i][j];
+        }
+      }
+    }
+    float &operator[](uint i)
+    {
+      return array[i];
+    }
+    float &get(uint i, uint j)
+    {
+      return elements[i][j];
+    }
+#define _chevanut_math_concat(a, b) a##b
+#define _chevanut_math_operatorMacro(Op)          \
+  template <typename T>                           \
+  m4 operator Op(T a)                             \
+  {                                               \
+    m4 c = m4(array);                             \
+    for (uint i = 0; i < 16; i++)                 \
+    {                                             \
+      c[i] _chevanut_math_concat(Op, =) a;        \
+    }                                             \
+    return c;                                     \
+  }                                               \
+  template <typename T>                           \
+  void operator _chevanut_math_concat(Op, =)(T a) \
+  {                                               \
+    (*this) = (*this)Op a;                        \
+  }
+    _chevanut_math_operatorMacro(+);
+    _chevanut_math_operatorMacro(-);
+    _chevanut_math_operatorMacro(*);
+    _chevanut_math_operatorMacro(/);
+#undef _chevanut_math_operatorMacro
+#undef _chevanut_math_concat
   };
 #else
   typedef CHEVAN_UTILS_MATH_M4 m4;
@@ -1203,47 +1411,6 @@ namespace chevan_utils
     return (p.x >= v.x && p.x <= v.x + v.z &&
             p.y >= v.y && p.y <= v.y + v.w);
   }
-
-  static m4 M4InitDiagonal(float diagonal)
-  {
-    m4 m = {
-        {
-            {diagonal, 0.f, 0.f, 0.f},
-            {0.f, diagonal, 0.f, 0.f},
-            {0.f, 0.f, diagonal, 0.f},
-            {0.f, 0.f, 0.f, diagonal},
-        }};
-    return m;
-  }
-  static inline m4 M4MultiplyM4(m4 a, m4 b)
-  {
-    m4 c = {{{0}}};
-
-    for (int32_t j = 0; j < 4; ++j)
-    {
-      for (int32_t i = 0; i < 4; ++i)
-      {
-        c.elements[i][j] = (a.elements[0][j] * b.elements[i][0] +
-                            a.elements[1][j] * b.elements[i][1] +
-                            a.elements[2][j] * b.elements[i][2] +
-                            a.elements[3][j] * b.elements[i][3]);
-      }
-    }
-
-    return c;
-  }
-  static inline m4 M4MultiplyF32(m4 a, float b)
-  {
-    for (int32_t j = 0; j < 4; ++j)
-    {
-      for (int32_t i = 0; i < 4; ++i)
-      {
-        a.elements[i][j] *= b;
-      }
-    }
-
-    return a;
-  }
   static inline float V4Dot(v4 a, v4 b)
   {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
@@ -1267,6 +1434,30 @@ namespace chevan_utils
   {
     v4 c = v4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
     return c;
+  }
+
+  static m4 M4InitDiagonal(float diagonal)
+  {
+    return m4(diagonal); // compatibility's sake
+  }
+  static inline m4 M4MultiplyM4(m4 a, m4 b)
+  {
+    m4 c;
+    for (uint i = 0; i < 4; i++)
+    {
+      for (uint j = 0; j < 4; j++)
+      {
+        c[i + j * 4] = (a[0 + j * 4] * b[i + 0 * 4] +
+                        a[1 + j * 4] * b[i + 1 * 4] +
+                        a[2 + j * 4] * b[i + 2 * 4] +
+                        a[3 + j * 4] * b[i + 3 * 4]);
+      }
+    }
+    return c;
+  }
+  static inline m4 M4MultiplyF32(m4 a, float b)
+  {
+    return a * b;
   }
   static inline v4 V4MultiplyM4(v4 v, m4 m)
   {
@@ -1299,7 +1490,7 @@ namespace chevan_utils
   }
   static inline m4 M4Perspective(float fov, float aspect_ratio, float near_z, float far_z)
   {
-    m4 result = {{{0}}};
+    m4 result;
     float tan_theta_over_2 = tanf(fov * (PIf / 360.f));
     result.elements[0][0] = 1.f / tan_theta_over_2;
     result.elements[1][1] = aspect_ratio / tan_theta_over_2;
@@ -1311,7 +1502,7 @@ namespace chevan_utils
   }
   static inline m4 M4Orthographic(float left, float right, float bottom, float top, float near_depth, float far_depth)
   {
-    m4 result = {{{0}}};
+    m4 result;
 
     result.elements[0][0] = 2.f / (right - left);
     result.elements[1][1] = 2.f / (top - bottom);
@@ -1489,7 +1680,6 @@ namespace chevan_utils
 
     return transform;
   }
-
 #endif // CHEVAN_UTILS_MATH
 #ifdef CHEVAN_UTILS_COLOR
   static inline v3 RGBToHSV(v3 rgb)

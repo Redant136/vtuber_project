@@ -331,10 +331,13 @@ namespace vtuber
     {
       string name = "";
       std::vector<uint> children;
-      std::vector<float> matrix;
-      std::vector<float> translation;
-      std::vector<float> rotation;
-      std::vector<float> scale;
+      std::vector<float> matrix = std::vector<float>({1, 0, 0, 0,
+                                                      0, 1, 0, 0,
+                                                      0, 0, 1, 0,
+                                                      0, 0, 0, 1});
+      std::vector<float> translation = std::vector<float>({0, 0, 0});
+      std::vector<float> rotation = std::vector<float>({0, 0, 0, 1});
+      std::vector<float> scale = std::vector<float>({1, 1, 1});
       int mesh = -1;
       int skin = -1;
       std::vector<float> weights;
@@ -457,6 +460,25 @@ namespace vtuber
           return 0;
       }
     }
+
+    uchar *getDataFromAccessor(const glTFModel &model, const Accessor &accessor, uint index = 0)
+    {
+      const BufferView &bfView = model.bufferViews[accessor.bufferView];
+      uint byteStride = bfView.byteStride;
+      if (byteStride == 0)
+      {
+        int componentSizeInBytes = gltf::gltf_sizeof(accessor.componentType);
+        int numComponents = gltf::gltf_num_components(accessor.type);
+        if (componentSizeInBytes <= 0)
+          byteStride = -1;
+        else if (numComponents <= 0)
+          byteStride = -1;
+        else
+          byteStride = componentSizeInBytes * numComponents;
+      }
+
+      return (model.buffers[bfView.buffer].buffer + bfView.byteOffset) + accessor.byteOffset + (byteStride)*index;
+    }
   }
 
   class Importer
@@ -524,7 +546,7 @@ namespace vtuber
 #define jsonConvertMacro(item, dst, id, type) jsonFunctionMacro(item, id, dst.id = item.value().get<type>();)
 #define jsonConvertCastMacro(item, dst, id, type, castType) jsonFunctionMacro(item, id, dst.id = (castType)item.value().get<type>();)
 #define jsonArrayMacro(item, dst, id, type, i) jsonFunctionMacro( \
-    item, id, for (uint i = 0; i < item.value().size(); i++) { dst.id.push_back(item.value()[i].get<type>()); });
+    item, id, dst.id.resize(item.value().size()); for (uint i = 0; i < item.value().size(); i++) { dst.id[i] = item.value()[i].get<type>(); });
 
       gltf::glTFModel gltf;
 
@@ -937,7 +959,6 @@ namespace vtuber
             gltf::Node node;
             for (auto &x : glTF_data["nodes"][i].items())
             {
-
               jsonConvertMacro(x, node, name, std::string);
               jsonArrayMacro(x, node, children, int, j);
               jsonArrayMacro(x, node, matrix, float, j);
@@ -950,6 +971,14 @@ namespace vtuber
               jsonConvertMacro(x, node, camera, int);
               jsonExtensionMacro(x, node, extension);
               jsonExtensionMacro(x, node, extras);
+            }
+            if (node.matrix.size() == 0)
+            {
+              // node.matrix = std::vector<float>(
+              //     {1, 0, 0, 0,
+              //      0, 1, 0, 0,
+              //      0, 0, 1, 0,
+              //      0, 0, 0, 1});
             }
             gltf.nodes.push_back(node);
           }
@@ -1206,13 +1235,14 @@ namespace vtuber
       {
         if (model.buffers[i].uri.find("data:") == 0) // data URI
         {
-          if (model.buffers[i].uri.find("base64") == std::string::npos){
+          if (model.buffers[i].uri.find("base64") == std::string::npos)
+          {
             assert(0 && "can only decode base64");
           }
-          std::string data = model.buffers[i].uri.substr(model.buffers[i].uri.find(",")+1);
+          std::string data = model.buffers[i].uri.substr(model.buffers[i].uri.find(",") + 1);
           data = base64::decode(data);
-          model.buffers[i].buffer=new uchar[data.length()];
-          memcpy(model.buffers[i].buffer,data.data(),data.length());
+          model.buffers[i].buffer = new uchar[data.length()];
+          memcpy(model.buffers[i].buffer, data.data(), data.length());
         }
         else // file based
         {

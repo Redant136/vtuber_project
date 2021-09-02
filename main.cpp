@@ -24,6 +24,8 @@ int main()
       [&vmodel, &shader](GLFWwindow *window)
       {
         vmodel.loadModel(VMODEL,vtuber::Filetype::gltf);
+        vmodel.animate(0);
+
         // vmodel.loadModel(VMODEL);
 
         shader = Shader(VERTEX_SHADER, FRAGMENT_SHADER);
@@ -73,7 +75,6 @@ int main()
         shader.setMat4("model", model);
 
         vmodel.draw(shader);
-        vmodel.update();
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
           glfwSetWindowShouldClose(window, true);

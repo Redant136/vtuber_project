@@ -11,6 +11,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -20,10 +21,10 @@
 #define CHEVAN_UTILS_MATH_V2 glm::vec2
 #define CHEVAN_UTILS_MATH_V3 glm::vec3
 #define CHEVAN_UTILS_MATH_V4 glm::vec4
-#define CHEVAN_UTILS_math
 #define CHEVAN_UTILS_PRINT
 #include "utils.hpp"
 using namespace chevan_utils;
+#define print println
 #include "vrmLoader.hpp"
 
 #define SCREEN_WIDTH 1920
@@ -213,6 +214,10 @@ namespace vtuber
     Array<uint> gltfBufferViewVBO;
     Array<uint> gltfMeshVAO;
     Array<uint> gltfImageTextureIndex;
+    struct {
+      uint animation = -1;
+      float animationStartTime = 0.f;
+    } animationData;
 
     VModel()
     {
@@ -240,15 +245,33 @@ namespace vtuber
       importer.import(path, type);
       model = importer.model;
 
+      // buffers
       gltfBuffers = Array<uchar *>(model.buffers.size());
       for(uint i=0;i<model.buffers.size();i++){
-        const gltf::Buffer&buffer=model.buffers[i];
+        const gltf::Buffer &buffer = model.buffers[i];
         gltfBuffers[i] = new uchar[buffer.byteLength];
-        memcpy(gltfBuffers[i],buffer.buffer,buffer.byteLength);
+        memcpy(gltfBuffers[i], buffer.buffer, buffer.byteLength);
       }
 
-      updateMorph();
+      // setup morph weights and matrix
+      for (gltf::Node &node : model.nodes)
+      {
+        if (node.weights.size() == 0)
+        {
+          uint maxSize = 0;
+          for (gltf::Mesh::Primitive &primitive : model.meshes[node.mesh].primitives)
+          {
+            maxSize = (maxSize > primitive.targets.size()) ? maxSize : primitive.targets.size();
+          }
+          node.weights = std::vector<float>(maxSize);
+          for (uint i = 0; i < node.weights.size(); i++)
+          {
+            node.weights[i] = 1;
+          }
+        }
+      }
 
+      // VBOs
       gltfBufferViewVBO = Array<uint>(model.bufferViews.size());
       for (uint i = 0; i < model.bufferViews.size(); i++)
       {
@@ -271,7 +294,6 @@ namespace vtuber
         uint VBO;
         glGenBuffers(1, &VBO);
         glBindBuffer(bufferView.target, VBO);
-
         if (sparse_accessor < 0)
           glBufferData(bufferView.target, bufferView.byteLength,
                        gltfBuffers[bufferView.buffer] + bufferView.byteOffset,
@@ -341,6 +363,9 @@ namespace vtuber
         gltfBufferViewVBO[i] = VBO;
       }
 
+      update();
+
+      // VAOs
       gltfMeshVAO = Array<uint>(model.meshes.size());
       for (uint i = 0; i < model.meshes.size(); i++)
       {
@@ -401,6 +426,7 @@ namespace vtuber
         gltfMeshVAO[i] = VAO;
       }
 
+      // textures
       gltfImageTextureIndex = Array<uint>(model.images.size());
       for (uint i = 0; i < model.images.size(); i++)
       {
@@ -421,6 +447,7 @@ namespace vtuber
 
         // TODO(ANT) why doesnt this work??
         // glTexBuffer(GL_TEXTURE_2D, GL_RGB, gltfBufferViewVBO[image.bufferView]);
+
         glDeleteBuffers(1, gltfBufferViewVBO + image.bufferView);
         gltfBufferViewVBO[image.bufferView] = 0;
         if (channels == 1)
@@ -448,6 +475,7 @@ namespace vtuber
     }
     void draw(Shader &shader)
     {
+      update();
       std::function<void(const gltf::glTFModel &, const gltf::Node &)> drawNode = [this, &drawNode](const gltf::glTFModel &model, const gltf::Node node)
       {
         if (node.mesh > -1)
@@ -522,381 +550,451 @@ namespace vtuber
         drawNode(model, model.nodes[scene.nodes[i]]);
       }
     }
-    void updateMorph() // time consuming
-    {
-      for (uint i = 0; i < model.buffers.size(); i++)
-      {
-        memcpy(gltfBuffers[i], model.buffers[i].buffer, model.buffers[i].byteLength);
-      }
-      for (gltf::Mesh &mesh : model.meshes)
-      {
-        const std::vector<float> &weights = mesh.weights;
-        for (gltf::Mesh::Primitive& primitive:mesh.primitives)
-        {
-          for (uint i = 0; i < primitive.targets.size(); i++)
-          {
-            float weight = weights[i];
-            const gltf::Mesh::Primitive::MorphTarget &target = primitive.targets[i];
-            if (target.POSITION != -1 && primitive.attributes.POSITION != -1)
-            {
-              glm::vec3 position;
-              glm::vec3 target_morph;
-
-              const gltf::Accessor &target_acc = model.accessors[target.POSITION];
-              const gltf::BufferView &target_bfView = model.bufferViews[target_acc.bufferView];
-              memcpy(&target_morph,gltfBuffers[target_bfView.buffer] + target_bfView.byteOffset, sizeof(float) * 3);
-
-              const gltf::Accessor &att_acc = model.accessors[primitive.attributes.POSITION];
-              const gltf::BufferView &att_bfView = model.bufferViews[att_acc.bufferView];
-              memcpy(&position, gltfBuffers[att_bfView.buffer] + att_bfView.byteOffset, sizeof(float) * 3);
-
-
-              printVec3(position);
-            }
-          }
-        }
-      }
-    }
+    
     void update()
     {
-      // TODO(ANT) inverse kinematics
-
-
-      for (uint i = 0; i < model.accessors.size(); i++)
+      // animation
+      if (animationData.animation != -1)
       {
-        const gltf::Accessor &accessor = model.accessors[i];
+        const gltf::Animation &animation = model.animations[animationData.animation];
 
-        // bufferSubData
-        // morph accessor is displacement
-      }
-    }
-  };
-
-// #define vmodeltest
-#ifdef vmodeltest
-#define VModel VModel2
-  class VModel
-  {
-  public:
-    struct Vertex
-    {
-      glm::vec3 position;
-      glm::vec3 normal;
-      glm::vec2 texCoords;
-      glm::vec3 tangent;
-      glm::vec3 bitangent;
-    };
-    struct Texture_gl
-    {
-      uint id;
-      std::string type;
-    };
-    struct Mesh
-    {
-    public:
-      std::vector<Vertex> vertices;
-      std::vector<uint> indices;
-      std::vector<Texture_gl> textures;
-      uint VAO, VBO, EBO;
-
-      Mesh(std::vector<Vertex> vertices, std::vector<uint> indices, std::vector<Texture_gl> textures)
-      {
-        this->vertices = vertices;
-        this->indices = indices;
-        this->textures = textures;
-
-        glGenVertexArrays(1, &VAO);
-        glGenBuffers(1, &VBO);
-        glGenBuffers(1, &EBO);
-
-        glBindVertexArray(VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint), &indices[0], GL_STATIC_DRAW);
-
-        // vertex positions
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)0);
-        // vertex normals
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
-        // vertex texture coords
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, texCoords));
-        // vertex tangent
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, tangent));
-        // vertex bitangent
-        glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, bitangent));
-
-        glBindVertexArray(0);
-      }
-    };
-
-    std::vector<Mesh> meshes;
-
-    VModel()
-    {
-    }
-    VModel(std::string path)
-    {
-      loadModel(path);
-    }
-
-    void loadModel(std::string path)
-    {
-      Assimp::Importer import;
-      const aiScene *scene = import.ReadFile(path,
-                                             aiProcess_Triangulate |
-                                                 aiProcess_GenSmoothNormals |
-                                                 aiProcess_FlipUVs |
-                                                 aiProcess_CalcTangentSpace |
-                                                 aiProcess_EmbedTextures |
-                                                 aiProcess_SortByPType);
-
-      if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
-      {
-        std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
-        return;
-      }
-
-      processNode(scene->mRootNode, scene);
-    }
-
-    void draw(Shader &shader)
-    {
-      for (uint i = 0; i < meshes.size(); i++)
-      {
-        unsigned int diffuseNr = 1;
-        unsigned int specularNr = 1;
-        unsigned int normalNr = 1;
-        unsigned int heightNr = 1;
-        for (uint j = 0; j < meshes[i].textures.size(); j++)
+        for (uint i = 0; i < animation.channels.size(); i++)
         {
-          glActiveTexture(GL_TEXTURE0 + j);
-          std::string number;
-          std::string name = meshes[i].textures[j].type;
-          if (name == "texture_diffuse")
+          const gltf::Animation::AnimationChannel &channel = animation.channels[i];
+          const gltf::Animation::AnimationSampler &sampler = animation.samplers[channel.sampler];
+
+          const gltf::Accessor &input_accessor = model.accessors[sampler.input];
+          const gltf::Accessor &output_accessor = model.accessors[sampler.output];
+
+          gltf::Node &node = model.nodes[channel.target.node];
+
+          std::vector<float> times;
+          for (uint j = 0; j < input_accessor.count; j++)
           {
-            number = std::to_string(diffuseNr++);
-          }
-          else if (name == "texture_specular")
-          {
-            number = std::to_string(specularNr++);
-          }
-          else if (name == "texture_normal")
-          {
-            number = std::to_string(normalNr++);
-          }
-          else if (name == "texture_height")
-          {
-            number = std::to_string(heightNr++);
+            times.push_back(*(float *)gltf::getDataFromAccessor(model, input_accessor, j));
           }
 
-          // glUniform1i(glGetUniformLocation(shader.ID, "texture"), i);
-          // std::cout<<(name + number)<<std::endl;
-          glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), j);
-          glBindTexture(GL_TEXTURE_2D, meshes[i].textures[j].id);
-
-          //--------------------------------------
-
-          // glActiveTexture(GL_TEXTURE0 + j); // active proper texture unit before binding
-
-          // // now set the sampler to the correct texture unit
-          // glUniform1i(glGetUniformLocation(shader.ID, "texture"), j);
-          // glBindTexture(GL_TEXTURE_2D, meshes[i].textures[j].id);
-        }
-        glBindVertexArray(meshes[i].VAO);
-        glDrawElements(GL_TRIANGLES, meshes[i].indices.size(), GL_UNSIGNED_INT, 0);
-
-        glBindVertexArray(0);
-        glActiveTexture(GL_TEXTURE0);
-      }
-    }
-
-  private:
-    std::vector<Texture_gl> loaded_textures;
-    void processNode(aiNode *node, const aiScene *scene)
-    {
-      for (uint i = 0; i < node->mNumMeshes; i++)
-      {
-        aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-        meshes.push_back(processMesh(mesh, scene));
-      }
-      for (unsigned int i = 0; i < node->mNumChildren; i++)
-      {
-        processNode(node->mChildren[i], scene);
-      }
-    }
-    Mesh processMesh(aiMesh *mesh, const aiScene *scene)
-    {
-      std::vector<Vertex> vertices;
-      std::vector<uint> indices;
-      std::vector<Texture_gl> textures;
-      for (uint i = 0; i < mesh->mNumVertices; i++)
-      {
-        Vertex vertex_;
-        glm::vec3 vector;
-        convertVec3(vector, mesh->mVertices[i]);
-        vertex_.position = vector;
-        if (mesh->HasNormals())
-        {
-          convertVec3(vector, mesh->mNormals[i]);
-          vertex_.normal = vector;
-        }
-        if (mesh->mTextureCoords[0])
-        {
-          glm::vec2 vec;
-          convertVec2(vec, mesh->mTextureCoords[0][i]);
-          vertex_.texCoords = vec;
-          convertVec3(vector, mesh->mTangents[i]);
-          vertex_.tangent = vector;
-          convertVec3(vector, mesh->mBitangents[i]);
-          vertex_.bitangent = vector;
-        }
-        else
-        {
-          vertex_.texCoords = glm::vec2(0.0f, 0.0f);
-        }
-
-        vertices.push_back(vertex_);
-      }
-      for (uint i = 0; i < mesh->mNumFaces; i++)
-      {
-        aiFace face = mesh->mFaces[i];
-        for (uint j = 0; j < face.mNumIndices; j++)
-        {
-          indices.push_back(face.mIndices[j]);
-        }
-      }
-      aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
-      std::vector<Texture_gl> diffuseMaps = loadMaterialTexture(material, aiTextureType_DIFFUSE, scene);
-      textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-      std::vector<Texture_gl> specularMaps = loadMaterialTexture(material, aiTextureType_SPECULAR, scene);
-      textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-      std::vector<Texture_gl> normalMaps = loadMaterialTexture(material, aiTextureType_HEIGHT, scene);
-      textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-      std::vector<Texture_gl> heightMaps = loadMaterialTexture(material, aiTextureType_AMBIENT, scene);
-      textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
-      return Mesh(vertices, indices, textures);
-    }
-    std::vector<Texture_gl> loadMaterialTexture(const aiMaterial *material, const aiTextureType type, const aiScene *scene)
-    {
-      std::vector<Texture_gl> textures;
-      for (uint i = 0; i < material->GetTextureCount(type); i++)
-      {
-        aiString texture_file;
-        material->Get(AI_MATKEY_TEXTURE(type, i), texture_file);
-        Texture_gl tex;
-        bool included = false;
-        for (uint j = 0; j < loaded_textures.size(); j++)
-        {
-          if (loaded_textures[j].type == std::string(texture_file.C_Str()))
+          float relativeTime = glfwGetTime() - animationData.animationStartTime;
+          uint animationFrame = -1;
+          for (uint j = 0; j < times.size(); j++)
           {
-            tex.id = loaded_textures[j].id;
-            included = true;
-            break;
-          }
-        }
-        if (!included)
-        {
-          uint textureID;
-          glGenTextures(1, &textureID);
-          glBindTexture(GL_TEXTURE_2D, textureID);
-          if (auto texture = scene->GetEmbeddedTexture(texture_file.C_Str()))
-          {
-            if (texture->mHeight > 0)
+            if (relativeTime > times[j])
             {
-              glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texture->mWidth, texture->mHeight, 0, GL_BGRA, GL_UNSIGNED_BYTE,
-                           texture->pcData);
-              glGenerateMipmap(GL_TEXTURE_2D);
-              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (texture->achFormatHint[0] & 0x01) ? GL_REPEAT : GL_CLAMP_TO_EDGE);
-              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (texture->achFormatHint[0] & 0x01) ? GL_REPEAT : GL_CLAMP_TO_EDGE);
-              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+              animationFrame = j;
             }
-            else
+          }
+
+          if (channel.target.path == gltf::Animation::AnimationChannel::AnimationTarget::weights)
+          {
+            std::vector<float> weights;
+
+            for (uint j = 0; j < output_accessor.count; j++)
             {
-              // if(std::string(texture->achFormatHint)=="png")
-              // {
-              cv::Mat image(1, texture->mWidth, CV_8UC1, (void *)texture->pcData);
-              image = cv::imdecode(image, cv::IMREAD_ANYCOLOR);
+              weights.push_back(*(float *)gltf::getDataFromAccessor(model, output_accessor, j));
+            }
 
-              // std::cout<<image.channels()<<std::endl;
-              // cv::Mat shown=image.clone();
-              // cv::resize(shown, shown, cv::Size(), 0.25, 0.25);
-              // cv::imshow(texture_file.C_Str(), shown);
-
-              cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-              // cv::flip(image, decodedImage, 0);
-
-              if (!image.empty())
+            if (sampler.interpolation == gltf::Animation::AnimationSampler::STEP)
+            {
+              if (animationFrame != -1)
               {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, image.ptr());
+                for (uint j = 0; j < node.weights.size(); j++)
+                {
+                  node.weights[j] = weights[(node.weights.size() * animationFrame) + j];
+                }
+              }
+            }
+            else if (sampler.interpolation == gltf::Animation::AnimationSampler::LINEAR)
+            {
+              if (animationFrame + 1 < times.size())
+              {
+                std::vector<float> previousWeight = std::vector<float>(node.weights.size());
+                if (animationFrame < 0)
+                  previousWeight = node.weights;
+                else
+                  memcpy(previousWeight.data(), weights.data() + (node.weights.size() * animationFrame), sizeof(float) * node.weights.size());
+                std::vector<float> nextWeight = std::vector<float>(node.weights.size());
+                memcpy(nextWeight.data(), weights.data() + (node.weights.size() * (animationFrame + 1)), sizeof(float) * node.weights.size());
+                float interpolationValue = (relativeTime - times[animationFrame]) / (times[animationFrame + 1] - times[animationFrame]);
+                std::vector<float> weight = std::vector<float>(node.weights.size());
+                for (uint w = 0; w < weight.size(); w++)
+                {
+                  weight[w] = previousWeight[w] + interpolationValue * (nextWeight[w] - previousWeight[w]);
+                }
+                node.weights = weight;
               }
               else
               {
-                std::cout << "Could not decode embeded texture '" << texture_file.C_Str() << "'" << std::endl;
+                if (animationFrame != -1)
+                {
+                  for (uint j = 0; j < node.weights.size(); j++)
+                  {
+                    node.weights[j] = weights[(node.weights.size() * animationFrame) + j];
+                  }
+                }
               }
-              // }
+            }
+            else if (sampler.interpolation == gltf::Animation::AnimationSampler::CUBICSPLINE)
+            {
+              assert(0 && "not implemented");
             }
           }
-          else
+          else if (channel.target.path == gltf::Animation::AnimationChannel::AnimationTarget::translation)
           {
-            cv::Mat image = cv::imread(std::string("models/") + texture_file.C_Str(), cv::IMREAD_UNCHANGED | cv::IMREAD_ANYCOLOR | cv::IMREAD_IGNORE_ORIENTATION);
-            cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-            cv::flip(image, image, 0);
-
-            if (!image.empty())
+            std::vector<glm::vec3> translations;
+            for (uint j = 0; j < output_accessor.count; j++)
             {
-              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-              glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-              glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, image.ptr());
-              glGenerateMipmap(GL_TEXTURE_2D);
+              translations.push_back(*(glm::vec3 *)gltf::getDataFromAccessor(model, output_accessor, j));
             }
-            else
+            if (node.translation.size() == 0)
+              node.translation = std::vector<float>(3);
+
+            if (sampler.interpolation == gltf::Animation::AnimationSampler::STEP)
             {
-              std::cout << "Could not find embeded png texture '" << texture_file.C_Str() << "'" << std::endl;
+              if (animationFrame != -1)
+                memcpy(node.translation.data(), &translations[animationFrame], sizeof(float) * 3);
+            }
+            else if (sampler.interpolation == gltf::Animation::AnimationSampler::LINEAR)
+            {
+              if (animationFrame + 1 < times.size())
+              {
+                glm::vec3 previousTranslation;
+                if (animationFrame < 0)
+                  memcpy(&previousTranslation, node.translation.data(), sizeof(float) * 3);
+                else
+                  previousTranslation = translations[animationFrame];
+                glm::vec3 nextTranslation = translations[animationFrame + 1];
+                float interpolationValue = (relativeTime - times[animationFrame]) / (times[animationFrame + 1] - times[animationFrame]);
+                glm::vec3 translation = previousTranslation + interpolationValue * (nextTranslation - previousTranslation);
+                memcpy(node.translation.data(), &translation, sizeof(float) * 3);
+              }
+              else
+              {
+                if (animationFrame != -1)
+                  memcpy(node.translation.data(), &translations[animationFrame], sizeof(float) * 3);
+              }
+            }
+            else if (sampler.interpolation == gltf::Animation::AnimationSampler::CUBICSPLINE)
+            {
+              assert(0 && "not implemented");
+            }
+          }
+          else if (channel.target.path == gltf::Animation::AnimationChannel::AnimationTarget::rotation)
+          {
+            std::vector<glm::vec4> rotations;
+
+            for (uint j = 0; j < output_accessor.count; j++)
+            {
+              rotations.push_back(*(glm::vec4 *)gltf::getDataFromAccessor(model, output_accessor, j));
+            }
+
+            if (node.rotation.size() == 0)
+              node.rotation = std::vector<float>(4);
+
+            if (sampler.interpolation == gltf::Animation::AnimationSampler::STEP)
+            {
+              if (animationFrame != -1)
+                memcpy(node.rotation.data(), &rotations[animationFrame], sizeof(float) * 4);
+            }
+            else if (sampler.interpolation == gltf::Animation::AnimationSampler::LINEAR)
+            {
+              if (animationFrame + 1 < times.size())
+              {
+                float interpolationValue = (relativeTime - times[animationFrame]) / (times[animationFrame + 1] - times[animationFrame]);
+                glm::vec4 previousRotation;
+                if (animationFrame < 0)
+                  memcpy(&previousRotation, node.rotation.data(), sizeof(float) * 4);
+                else
+                  previousRotation = rotations[animationFrame];
+                glm::vec4 nextRotation = rotations[animationFrame + 1];
+                float dot = glm::dot(previousRotation, nextRotation);
+                glm::vec4 rotation;
+
+                if (dot < 0)
+                {
+                  dot = -dot;
+                  nextRotation = -nextRotation;
+                }
+                if (dot > 0.9995)
+                  rotation = glm::normalize(previousRotation + interpolationValue * (nextRotation - previousRotation));
+                else
+                {
+                  float theta_0 = glm::acos(dot);
+                  float theta = interpolationValue * theta_0;
+                  float sin_theta = glm::sin(theta);
+                  float sin_theta_0 = glm::sin(theta_0);
+
+                  float scalePreviousQuat = glm::cos(theta) - dot * sin_theta / sin_theta_0;
+                  float scaleNextQuat = sin_theta / sin_theta_0;
+
+                  rotation = scalePreviousQuat * previousRotation + scaleNextQuat * nextRotation;
+                }
+
+                memcpy(node.rotation.data(), &rotation, sizeof(float) * 4);
+              }
+              else
+              {
+                if (animationFrame != -1)
+                  memcpy(node.rotation.data(), &rotations[animationFrame], sizeof(float) * 4);
+              }
+            }
+            else if (sampler.interpolation == gltf::Animation::AnimationSampler::CUBICSPLINE)
+            {
+              assert(0 && "not implemented");
+            }
+          }
+          else if (channel.target.path == gltf::Animation::AnimationChannel::AnimationTarget::scale)
+          {
+            std::vector<glm::vec3> scales;
+            for (uint j = 0; j < output_accessor.count; j++)
+            {
+              scales.push_back(*(glm::vec3 *)gltf::getDataFromAccessor(model, output_accessor, j));
+            }
+            if (node.scale.size() == 0)
+              node.scale = std::vector<float>(3);
+
+            if (sampler.interpolation == gltf::Animation::AnimationSampler::STEP)
+            {
+              if (animationFrame != -1)
+                memcpy(node.scale.data(), &scales[animationFrame], sizeof(float) * 3);
+            }
+            else if (sampler.interpolation == gltf::Animation::AnimationSampler::LINEAR)
+            {
+              if (animationFrame + 1 < times.size())
+              {
+                glm::vec3 previousScale;
+                if (animationFrame < 0)
+                  memcpy(&previousScale, node.scale.data(), sizeof(float) * 3);
+                else
+                  previousScale = scales[animationFrame];
+                glm::vec3 nextScale = scales[animationFrame + 1];
+                float interpolationValue = (relativeTime - times[animationFrame]) / (times[animationFrame + 1] - times[animationFrame]);
+                glm::vec3 scale = previousScale + interpolationValue * (nextScale - previousScale);
+                memcpy(node.scale.data(), &scales[animationFrame], sizeof(float) * 3);
+              }
+              else
+              {
+                if (animationFrame != -1)
+                  memcpy(node.scale.data(), &scales[animationFrame], sizeof(float) * 3);
+              }
+            }
+            else if (sampler.interpolation == gltf::Animation::AnimationSampler::CUBICSPLINE)
+            {
+              assert(0 && "not implemented");
             }
           }
 
-          tex.id = textureID;
-          tex.type = texture_file.C_Str();
-          loaded_textures.push_back(tex);
+          if (animationFrame >= times.size() - 1)
+          {
+            animationData.animation = -1;
+            animationData.animationStartTime = 0;
+          }
         }
-        switch (type)
-        {
-        case aiTextureType_DIFFUSE:
-          tex.type = "texture_diffuse";
-          break;
-        case aiTextureType_SPECULAR:
-          tex.type = "texture_specular";
-          break;
-        case aiTextureType_HEIGHT:
-          tex.type = "texture_normal";
-          break;
-        case aiTextureType_AMBIENT:
-          tex.type = "texture_height";
-          break;
-        default:
-          break;
-        }
-        textures.push_back(tex);
       }
-      return textures;
+
+      // animation + morph
+      for (gltf::Node &node : model.nodes)
+      {
+        glm::mat4 mat = glm::mat4(1.f);
+        if (node.matrix.size() != 0)
+          memcpy(&mat, node.matrix.data(), sizeof(float) * 16);
+        if (node.scale.size() != 0)
+        {
+          glm::scale(mat, glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
+        }
+        if (node.rotation.size() != 0)
+        {
+          // glm::rotate(mat, glm::vec4(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]));
+          mat = glm::mat4_cast(glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2])) * mat;
+        }
+        if (node.translation.size() != 0)
+        {
+          glm::translate(mat, glm::vec3(node.rotation[0], node.rotation[1], node.rotation[2]));
+        }
+
+        std::vector<float> weights;
+        if (node.weights.size() > 0)
+          weights = node.weights;
+        
+        const gltf::Mesh &mesh = model.meshes[node.mesh];
+        if (mesh.weights.size() > 0)
+        {
+          for (uint i = 0; i < weights.size(); i++)
+          {
+            weights[i] *= mesh.weights[i];
+          }
+        }
+
+        for (uint i = 0; i < mesh.primitives.size(); i++)
+        {
+          const gltf::Mesh::Primitive &primitive = mesh.primitives[i];
+          if (weights.size() == 0)
+            weights = std::vector<float>(primitive.targets.size());
+          
+          std::vector<glm::vec3> positionMorphs;
+          if (primitive.attributes.POSITION != -1)
+          {
+            positionMorphs = std::vector<glm::vec3>(model.accessors[primitive.attributes.POSITION].count);
+          }
+          std::vector<glm::vec3> normalMorphs;
+          if (primitive.attributes.NORMAL != -1)
+          {
+            normalMorphs = std::vector<glm::vec3>(model.accessors[primitive.attributes.NORMAL].count);
+          }
+          std::vector<glm::vec4> tangentMorphs;
+          if (primitive.attributes.TANGENT != -1)
+          {
+            tangentMorphs = std::vector<glm::vec4>(model.accessors[primitive.attributes.TANGENT].count);
+          }
+
+          for (uint j = 0; j < primitive.targets.size(); j++)
+          {
+            float weight = weights[j];
+            const gltf::Mesh::Primitive::MorphTarget &target = primitive.targets[j];
+
+            if (target.POSITION != -1 && primitive.attributes.POSITION != -1)
+            {
+              const gltf::Accessor &target_acc = model.accessors[target.POSITION];
+              for (uint k = 0; k < target_acc.count; k++)
+              {
+                glm::vec3 target_morph;
+                memcpy(&target_morph, gltf::getDataFromAccessor(model,target_acc,k), sizeof(float) * 3);
+
+                positionMorphs[k] += target_morph * weight;
+              }
+            }
+            if (target.NORMAL != -1 && primitive.attributes.NORMAL != -1)
+            {
+              const gltf::Accessor &target_acc = model.accessors[target.NORMAL];
+              for (uint k = 0; k < target_acc.count; k++)
+              {
+                glm::vec3 target_morph;
+                memcpy(&target_morph, gltf::getDataFromAccessor(model, target_acc, k), sizeof(float) * 3);
+
+                normalMorphs[k] += target_morph * weight;
+              }
+            }
+            if (target.TANGENT != -1 && primitive.attributes.TANGENT != -1)
+            {
+              const gltf::Accessor &target_acc = model.accessors[target.NORMAL];
+              for (uint k = 0; k < target_acc.count; k++)
+              {
+                glm::vec4 target_morph;
+                memcpy(&target_morph, gltf::getDataFromAccessor(model, target_acc, k), sizeof(float) * 4);
+
+                tangentMorphs[k] += target_morph * weight;
+              }
+            }
+          }
+
+          if (primitive.attributes.POSITION != -1)
+          {
+            const gltf::Accessor &accessor = model.accessors[primitive.attributes.POSITION];
+            const gltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
+            uint byteStride = bufferView.byteStride;
+            if (byteStride == 0)
+            {
+              int componentSizeInBytes = gltf::gltf_sizeof(accessor.componentType);
+              int numComponents = gltf::gltf_num_components(accessor.type);
+              if (componentSizeInBytes <= 0)
+                byteStride = -1;
+              else if (numComponents <= 0)
+                byteStride = -1;
+              else
+                byteStride = componentSizeInBytes * numComponents;
+            }
+
+            for (uint j = 0; j < accessor.count; j++)
+            {
+              glm::vec3 position;
+              memcpy(&position, gltf::getDataFromAccessor(model, accessor, j), sizeof(float) * 3);
+              // TODO(ANT) check matrix math here
+              position = glm::vec3(mat * glm::vec4(position, 1)) + positionMorphs[j];
+
+              uchar *write_mem = (gltfBuffers[bufferView.buffer] + bufferView.byteOffset) + accessor.byteOffset + (byteStride)*j;
+
+              if (memcmp(write_mem, &position, sizeof(float) * 3) != 0)
+              {
+                memcpy(write_mem, &position, sizeof(float) * 3);
+                glNamedBufferSubData(gltfBufferViewVBO[accessor.bufferView], accessor.byteOffset + (byteStride)*j, sizeof(float) * 3, &position);
+              }
+            }
+          }
+          if (primitive.attributes.NORMAL != -1)
+          {
+            const gltf::Accessor &accessor = model.accessors[primitive.attributes.NORMAL];
+            const gltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
+            uint byteStride = bufferView.byteStride;
+            if (byteStride == 0)
+            {
+              int componentSizeInBytes = gltf::gltf_sizeof(accessor.componentType);
+              int numComponents = gltf::gltf_num_components(accessor.type);
+              if (componentSizeInBytes <= 0)
+                byteStride = -1;
+              else if (numComponents <= 0)
+                byteStride = -1;
+              else
+                byteStride = componentSizeInBytes * numComponents;
+            }
+
+            for (uint j = 0; j < accessor.count; j++)
+            {
+              glm::vec3 normal;
+              memcpy(&normal, gltf::getDataFromAccessor(model, accessor, j), sizeof(float) * 3);
+              normal += positionMorphs[j];
+
+              uchar *write_mem = (gltfBuffers[bufferView.buffer] + bufferView.byteOffset) + accessor.byteOffset + (byteStride)*j;
+
+              if (memcmp(write_mem, &normal, sizeof(float) * 3) != 0)
+              {
+                memcpy(write_mem, &normal, sizeof(float) * 3);
+                glNamedBufferSubData(gltfBufferViewVBO[accessor.bufferView], accessor.byteOffset + (byteStride)*j, sizeof(float) * 3, &normal);
+              }
+            }
+          }
+          if (primitive.attributes.TANGENT != -1)
+          {
+            const gltf::Accessor &accessor = model.accessors[primitive.attributes.TANGENT];
+            const gltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
+            uint byteStride = bufferView.byteStride;
+            if (byteStride == 0)
+            {
+              int componentSizeInBytes = gltf::gltf_sizeof(accessor.componentType);
+              int numComponents = gltf::gltf_num_components(accessor.type);
+              if (componentSizeInBytes <= 0)
+                byteStride = -1;
+              else if (numComponents <= 0)
+                byteStride = -1;
+              else
+                byteStride = componentSizeInBytes * numComponents;
+            }
+
+            for (uint j = 0; j < accessor.count; j++)
+            {
+              glm::vec4 tangent;
+              memcpy(&tangent, gltf::getDataFromAccessor(model, accessor, j), sizeof(float) * 4);
+              tangent += positionMorphs[j];
+
+              uchar *write_mem = (gltfBuffers[bufferView.buffer] + bufferView.byteOffset) + accessor.byteOffset + (byteStride)*j;
+
+              if (memcmp(write_mem, &tangent, sizeof(float) * 4) != 0)
+              {
+                memcpy(write_mem, &tangent, sizeof(float) * 4);
+                glNamedBufferSubData(gltfBufferViewVBO[accessor.bufferView], accessor.byteOffset + (byteStride)*j, sizeof(float) * 4, &tangent);
+              }
+            }
+          }
+        }
+      }
+
+      // TODO(ANT) inverse kinematics
+    }
+    void animate(uint index)
+    {
+      animationData.animation = index;
+      animationData.animationStartTime = glfwGetTime();
     }
   };
-#endif
+
   static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
   {
     glfwMakeContextCurrent(window);

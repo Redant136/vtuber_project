@@ -42,4 +42,6 @@ file(COPY models DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})
 
 TARGET_LINK_LIBRARIES(vtuber PRIVATE ${CMAKE_DL_LIBS})
+# add_compile_definitions(CHEVAN_UTILS_ALL)
+# target_precompile_headers(vtuber PRIVATE utils.hpp)
 add_subdirectory(extern)

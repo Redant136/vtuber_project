@@ -108,7 +108,8 @@
     "strstream": "cpp",
     "numbers": "cpp",
     "semaphore": "cpp",
-    "cfenv": "cpp"
+    "cfenv": "cpp",
+    "*.def": "cpp"
   },
   "git.ignoreLimitWarning": true
 }
