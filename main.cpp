@@ -24,9 +24,9 @@ int main()
       [&vmodel, &shader](GLFWwindow *window)
       {
         vmodel.loadModel(VMODEL,vtuber::Filetype::gltf);
-        vmodel.animate(0);
-
         // vmodel.loadModel(VMODEL);
+
+        vmodel.animate(0);
 
         shader = Shader(VERTEX_SHADER, FRAGMENT_SHADER);
 
@@ -48,7 +48,6 @@ int main()
 
                                    camera.ProcessMouseMovement(xoffset, yoffset);
                                  });
-        glEnable(GL_DEPTH_TEST);
 
         // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
       },
@@ -73,6 +72,7 @@ int main()
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
         model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));
         shader.setMat4("model", model);
+        shader.setMat4("node", model);
 
         vmodel.draw(shader);
 

@@ -12,19 +12,28 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #define CHEVAN_UTILS_incl
 #define CHEVAN_UTILS_B64
-#define CHEVAN_UTILS_MATH_V2 glm::vec2
-#define CHEVAN_UTILS_MATH_V3 glm::vec3
-#define CHEVAN_UTILS_MATH_V4 glm::vec4
+#define CHEVAN_UTILS_VEC2 glm::vec2
+#define CHEVAN_UTILS_VEC3 glm::vec3
+#define CHEVAN_UTILS_VEC4 glm::vec4
 #define CHEVAN_UTILS_PRINT
 #include "utils.hpp"
+namespace chevan_utils
+{
+  void println(glm::mat4 mat)
+  {
+    printMat4((float *)&mat);
+  }
+};
 using namespace chevan_utils;
 #define print println
+
 #include "vrmLoader.hpp"
 
 #define SCREEN_WIDTH 1920
@@ -34,7 +43,6 @@ using namespace chevan_utils;
 #endif
 #define VERTEX_SHADER "shaders/vertex_shader.vert"
 #define FRAGMENT_SHADER "shaders/fragment_shader.frag"
-
 
 namespace vtuber
 {
@@ -214,7 +222,10 @@ namespace vtuber
     Array<uint> gltfBufferViewVBO;
     Array<uint> gltfMeshVAO;
     Array<uint> gltfImageTextureIndex;
-    struct {
+    Array<bool> updatedNodeMorphs;
+
+    struct
+    {
       uint animation = -1;
       float animationStartTime = 0.f;
     } animationData;
@@ -232,13 +243,17 @@ namespace vtuber
     }
     ~VModel()
     {
+      for (uint i = 0; i < gltfBuffers.length; i++)
+        delete[] gltfBuffers[i];
       glDeleteVertexArrays(gltfMeshVAO.length, gltfMeshVAO.arr);
       glDeleteBuffers(gltfBufferViewVBO.length, gltfBufferViewVBO.arr);
       glDeleteTextures(gltfImageTextureIndex.length, gltfImageTextureIndex.arr);
       gltfMeshVAO.free();
       gltfBufferViewVBO.free();
       gltfImageTextureIndex.free();
+      gltfBuffers.free();
     }
+
     void loadModel(std::string path, const Filetype type = Filetype::vrm)
     {
       Importer importer;
@@ -247,26 +262,33 @@ namespace vtuber
 
       // buffers
       gltfBuffers = Array<uchar *>(model.buffers.size());
-      for(uint i=0;i<model.buffers.size();i++){
+      for (uint i = 0; i < model.buffers.size(); i++)
+      {
         const gltf::Buffer &buffer = model.buffers[i];
         gltfBuffers[i] = new uchar[buffer.byteLength];
         memcpy(gltfBuffers[i], buffer.buffer, buffer.byteLength);
       }
 
       // setup morph weights and matrix
-      for (gltf::Node &node : model.nodes)
+      updatedNodeMorphs = Array<bool>(model.nodes.size());
+      for (uint i = 0; i < model.nodes.size(); i++)
       {
+        updatedNodeMorphs[i] = true;
+        gltf::Node &node = model.nodes[i];
         if (node.weights.size() == 0)
         {
           uint maxSize = 0;
-          for (gltf::Mesh::Primitive &primitive : model.meshes[node.mesh].primitives)
+          if (node.mesh > -1)
           {
-            maxSize = (maxSize > primitive.targets.size()) ? maxSize : primitive.targets.size();
+            for (gltf::Mesh::Primitive &primitive : model.meshes[node.mesh].primitives)
+            {
+              maxSize = (maxSize > primitive.targets.size()) ? maxSize : primitive.targets.size();
+            }
           }
           node.weights = std::vector<float>(maxSize);
-          for (uint i = 0; i < node.weights.size(); i++)
+          for (uint j = 0; j < node.weights.size(); j++)
           {
-            node.weights[i] = 1;
+            node.weights[j] = 1;
           }
         }
       }
@@ -341,6 +363,11 @@ namespace vtuber
             case GLTF_COMPONENT_UINT:
               index = (int)*(uint *)(data);
               break;
+            case GLTF_COMPONENT_FLOAT:
+            case GLTF_COMPONENT_DOUBLE:
+            default:
+              assert(0);
+              break;
             }
             const uchar *read_from =
                 values_buffer.buffer +
@@ -383,10 +410,9 @@ namespace vtuber
             int attribIndex;
           } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TEXCOORD", 2}};
 
-          // TODO(ANT) add support for texcoord_1 and _2 
           for (uint k = 0; k < sizeof(attribs) / sizeof(attribs[0]); k++)
           {
-            if (gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName, 0)==-1)
+            if (gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName, 0) == -1)
               continue;
             const gltf::Accessor &accessor = model.accessors[gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName, 0)];
             glBindBuffer(GL_ARRAY_BUFFER, gltfBufferViewVBO[accessor.bufferView]);
@@ -415,6 +441,7 @@ namespace vtuber
               else
                 byteStride = model.bufferViews[accessor.bufferView].byteStride;
             }
+            model.bufferViews[accessor.bufferView].byteStride = byteStride;
 
             glVertexAttribPointer(attribIndex, gltf::gltf_num_components(accessor.type),
                                   accessor.componentType,
@@ -445,7 +472,7 @@ namespace vtuber
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-        // TODO(ANT) why doesnt this work??
+        // NOTE(ANT) why doesnt this work??
         // glTexBuffer(GL_TEXTURE_2D, GL_RGB, gltfBufferViewVBO[image.bufferView]);
 
         glDeleteBuffers(1, gltfBufferViewVBO + image.bufferView);
@@ -476,81 +503,15 @@ namespace vtuber
     void draw(Shader &shader)
     {
       update();
-      std::function<void(const gltf::glTFModel &, const gltf::Node &)> drawNode = [this, &drawNode](const gltf::glTFModel &model, const gltf::Node node)
-      {
-        if (node.mesh > -1)
-        {
-          assert(node.mesh < model.meshes.size());
-
-          const gltf::Mesh &mesh = model.meshes[node.mesh];
-          glBindVertexArray(gltfMeshVAO[node.mesh]);
-          uint sampler_obj;
-          glGenSamplers(1, &sampler_obj);
-          for (uint i = 0; i < mesh.primitives.size(); i++)
-          {
-            const gltf::Mesh::Primitive &primitive = mesh.primitives[i];
-            const gltf::Accessor &indexAccessor =
-                model.accessors[primitive.indices];
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gltfBufferViewVBO[indexAccessor.bufferView]);
-
-            if (primitive.material >= 0)
-            {
-              const gltf::Material &material = model.materials[primitive.material];
-
-              if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
-              {
-                const gltf::Texture &texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
-
-                const gltf::Sampler &sampler = model.samplers[texture.sampler];
-                glSamplerParameterf(sampler_obj, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
-                glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
-                glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
-                glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
-
-                glActiveTexture(GL_TEXTURE0);
-
-                glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
-                glBindSampler(GL_TEXTURE_2D, sampler_obj);
-              }
-              if (material.emissiveTexture.index >= 0)
-              {
-                const gltf::Texture &texture = model.textures[material.emissiveTexture.index];
-
-                const gltf::Sampler&sampler=model.samplers[texture.sampler];
-                glSamplerParameterf(sampler_obj,GL_TEXTURE_MIN_FILTER,sampler.minFilter);
-                glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
-                glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
-                glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
-
-                glActiveTexture(GL_TEXTURE4);
-
-                glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
-                glBindSampler(GL_TEXTURE_2D,sampler_obj);
-              }
-            }
-
-            glDrawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType,
-                           reinterpret_cast<void *>(indexAccessor.byteOffset));
-          }
-
-          glDeleteSamplers(1, &sampler_obj);
-        }
-
-        for (size_t i = 0; i < node.children.size(); i++)
-        {
-          assert(node.children[i] < model.nodes.size());
-          drawNode(model, model.nodes[node.children[i]]);
-        }
-      };
 
       int scene_to_display = model.scene > -1 ? model.scene : 0;
       const gltf::Scene &scene = model.scenes[scene_to_display];
       for (size_t i = 0; i < scene.nodes.size(); i++)
       {
-        drawNode(model, model.nodes[scene.nodes[i]]);
+        drawNode(shader, model.nodes[scene.nodes[i]]);
       }
     }
-    
+
     void update()
     {
       // animation
@@ -575,7 +536,7 @@ namespace vtuber
           }
 
           float relativeTime = glfwGetTime() - animationData.animationStartTime;
-          uint animationFrame = -1;
+          int animationFrame = -1;
           for (uint j = 0; j < times.size(); j++)
           {
             if (relativeTime > times[j])
@@ -586,12 +547,11 @@ namespace vtuber
 
           if (channel.target.path == gltf::Animation::AnimationChannel::AnimationTarget::weights)
           {
+            updatedNodeMorphs[i] = true;
             std::vector<float> weights;
 
             for (uint j = 0; j < output_accessor.count; j++)
-            {
               weights.push_back(*(float *)gltf::getDataFromAccessor(model, output_accessor, j));
-            }
 
             if (sampler.interpolation == gltf::Animation::AnimationSampler::STEP)
             {
@@ -769,7 +729,7 @@ namespace vtuber
                 glm::vec3 nextScale = scales[animationFrame + 1];
                 float interpolationValue = (relativeTime - times[animationFrame]) / (times[animationFrame + 1] - times[animationFrame]);
                 glm::vec3 scale = previousScale + interpolationValue * (nextScale - previousScale);
-                memcpy(node.scale.data(), &scales[animationFrame], sizeof(float) * 3);
+                memcpy(node.scale.data(), &scale, sizeof(float) * 3);
               }
               else
               {
@@ -791,30 +751,36 @@ namespace vtuber
         }
       }
 
-      // animation + morph
-      for (gltf::Node &node : model.nodes)
+      // morphs
+      for (uint i = 0; i < model.nodes.size(); i++)
       {
-        glm::mat4 mat = glm::mat4(1.f);
-        if (node.matrix.size() != 0)
-          memcpy(&mat, node.matrix.data(), sizeof(float) * 16);
-        if (node.scale.size() != 0)
+        if (updatedNodeMorphs[i])
         {
-          glm::scale(mat, glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
+          updateMorph(model.nodes[i]);
+          updatedNodeMorphs[i] = false;
         }
-        if (node.rotation.size() != 0)
-        {
-          // glm::rotate(mat, glm::vec4(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]));
-          mat = glm::mat4_cast(glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2])) * mat;
-        }
-        if (node.translation.size() != 0)
-        {
-          glm::translate(mat, glm::vec3(node.rotation[0], node.rotation[1], node.rotation[2]));
-        }
+      }
 
+      // NOTE(ANT) inverse kinematics
+    }
+    void animate(uint index)
+    {
+      if (index < model.animations.size())
+      {
+        animationData.animation = index;
+        animationData.animationStartTime = glfwGetTime();
+      }
+    }
+
+  private:
+    void updateMorph(gltf::Node &node)
+    {
+      if (node.mesh > -1)
+      {
         std::vector<float> weights;
         if (node.weights.size() > 0)
           weights = node.weights;
-        
+
         const gltf::Mesh &mesh = model.meshes[node.mesh];
         if (mesh.weights.size() > 0)
         {
@@ -829,7 +795,7 @@ namespace vtuber
           const gltf::Mesh::Primitive &primitive = mesh.primitives[i];
           if (weights.size() == 0)
             weights = std::vector<float>(primitive.targets.size());
-          
+
           std::vector<glm::vec3> positionMorphs;
           if (primitive.attributes.POSITION != -1)
           {
@@ -857,7 +823,7 @@ namespace vtuber
               for (uint k = 0; k < target_acc.count; k++)
               {
                 glm::vec3 target_morph;
-                memcpy(&target_morph, gltf::getDataFromAccessor(model,target_acc,k), sizeof(float) * 3);
+                memcpy(&target_morph, gltf::getDataFromAccessor(model, target_acc, k), sizeof(float) * 3);
 
                 positionMorphs[k] += target_morph * weight;
               }
@@ -907,8 +873,8 @@ namespace vtuber
             {
               glm::vec3 position;
               memcpy(&position, gltf::getDataFromAccessor(model, accessor, j), sizeof(float) * 3);
-              // TODO(ANT) check matrix math here
-              position = glm::vec3(mat * glm::vec4(position, 1)) + positionMorphs[j];
+
+              position = position + positionMorphs[j];
 
               uchar *write_mem = (gltfBuffers[bufferView.buffer] + bufferView.byteOffset) + accessor.byteOffset + (byteStride)*j;
 
@@ -940,7 +906,7 @@ namespace vtuber
             {
               glm::vec3 normal;
               memcpy(&normal, gltf::getDataFromAccessor(model, accessor, j), sizeof(float) * 3);
-              normal += positionMorphs[j];
+              normal += normalMorphs[j];
 
               uchar *write_mem = (gltfBuffers[bufferView.buffer] + bufferView.byteOffset) + accessor.byteOffset + (byteStride)*j;
 
@@ -972,7 +938,7 @@ namespace vtuber
             {
               glm::vec4 tangent;
               memcpy(&tangent, gltf::getDataFromAccessor(model, accessor, j), sizeof(float) * 4);
-              tangent += positionMorphs[j];
+              tangent += tangentMorphs[j];
 
               uchar *write_mem = (gltfBuffers[bufferView.buffer] + bufferView.byteOffset) + accessor.byteOffset + (byteStride)*j;
 
@@ -985,13 +951,90 @@ namespace vtuber
           }
         }
       }
-
-      // TODO(ANT) inverse kinematics
     }
-    void animate(uint index)
+    void drawNode(Shader &shader, const gltf::Node &node, glm::mat4 parentTransform = glm::mat4(1.f))
     {
-      animationData.animation = index;
-      animationData.animationStartTime = glfwGetTime();
+      glm::mat4 mat = glm::mat4(1.f);
+      if (node.matrix.size() != 0)
+        mat = glm::make_mat4(node.matrix.data());
+      mat = parentTransform * mat;
+      if (node.scale.size() != 0)
+      {
+        mat = glm::scale(mat, glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
+      }
+      if (node.rotation.size() != 0)
+      {
+        mat = glm::mat4_cast(glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2])) * mat;
+      }
+      if (node.translation.size() != 0)
+      {
+        mat = glm::translate(mat, glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
+      }
+
+      if (node.mesh > -1)
+      {
+        assert(node.mesh < model.meshes.size());
+
+        const gltf::Mesh &mesh = model.meshes[node.mesh];
+        glBindVertexArray(gltfMeshVAO[node.mesh]);
+        shader.setMat4("node", mat);
+        uint sampler_obj;
+        glGenSamplers(1, &sampler_obj);
+        for (uint i = 0; i < mesh.primitives.size(); i++)
+        {
+          const gltf::Mesh::Primitive &primitive = mesh.primitives[i];
+          const gltf::Accessor &indexAccessor =
+              model.accessors[primitive.indices];
+          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gltfBufferViewVBO[indexAccessor.bufferView]);
+
+          if (primitive.material >= 0)
+          {
+            const gltf::Material &material = model.materials[primitive.material];
+
+            if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
+            {
+              const gltf::Texture &texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
+
+              const gltf::Sampler &sampler = model.samplers[texture.sampler];
+              glSamplerParameterf(sampler_obj, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
+              glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
+              glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
+              glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
+
+              glActiveTexture(GL_TEXTURE0);
+
+              glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
+              glBindSampler(GL_TEXTURE_2D, sampler_obj);
+            }
+            if (material.emissiveTexture.index >= 0)
+            {
+              const gltf::Texture &texture = model.textures[material.emissiveTexture.index];
+
+              const gltf::Sampler &sampler = model.samplers[texture.sampler];
+              glSamplerParameterf(sampler_obj, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
+              glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
+              glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
+              glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
+
+              glActiveTexture(GL_TEXTURE4);
+
+              glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
+              glBindSampler(GL_TEXTURE_2D, sampler_obj);
+            }
+          }
+
+          glDrawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType,
+                         reinterpret_cast<void *>(indexAccessor.byteOffset));
+        }
+
+        glDeleteSamplers(1, &sampler_obj);
+      }
+
+      for (size_t i = 0; i < node.children.size(); i++)
+      {
+        assert(node.children[i] < model.nodes.size());
+        drawNode(shader, model.nodes[node.children[i]]);
+      }
     }
   };
 
@@ -1028,6 +1071,7 @@ namespace vtuber
       assert(0 && "could not initialize GLAD");
     }
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glEnable(GL_DEPTH_TEST);
 
     init(window);
 

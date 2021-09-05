@@ -1,7 +1,7 @@
 #pragma once
 #ifndef CHEVAN_UTILS_H
 #define CHEVAN_UTILS_H
-#define CHEVAN_UTILS_VERSION "1.3.2"
+#define CHEVAN_UTILS_VERSION "1.4"
 
 #ifndef CHEVAN_UTILS_NO_SHORTHANDS
 
@@ -72,14 +72,17 @@
 #endif // !CHEVAN_UTILS_BYTE_TYPEDEF
 #ifdef CHEVAN_UTILS_VECTOR
 #include <stdint.h>
-#define toV2(v) v2((v).x, (v).y)
-#define toV3(v) v3((v).x, (v).y, (v).z)
-#define toV4(v) v4((v).x, (v).y, (v).z, (v).w)
-#define toIV2(v) iv2((v).x, (v).y)
-#define toIV3(v) iv3((v).x, (v).y, (v).z)
-#define toIV4(v) iv4((v).x, (v).y, (v).z, (v).w)
+#define toVec2(type, v) type((v).x, (v).y)
+#define toVec3(type, v) type((v).x, (v).y,(v).z)
+#define toVec4(type, v) type((v).x, (v).y,(v.z,(v).w))
+#define toV2(v) toVec2(v2,v)
+#define toV3(v) toVec3(v3,v)
+#define toV4(v) toVec4(v4,v)
+#define toIV2(v) toVec2(iv2,v)
+#define toIV3(v) toVec3(iv3,v)
+#define toIV4(v) toVec4(iv4,v)
 
-#endif                   // CHEVAN_UTILS_VECTOR
+#endif // CHEVAN_UTILS_VECTOR
 #ifdef CHEVAN_UTILS_MATH // must be used with chevan_vectors or define CHEVAN_UTILS_MATH_VEC
 #include <cmath>
 #include <string.h>
@@ -251,770 +254,344 @@ namespace chevan_utils
   static inline float radToDegree(float rad) { return rad / 3.1415926535897f * 180; }
 
 #ifdef CHEVAN_UTILS_VECTOR
-  struct v2;
-  struct v3;
-  struct v4;
-  struct iv2;
-  struct iv3;
-  struct iv4;
+#define _chevanut_apply_all_types(F) \
+  F(float);                          \
+  F(double);                         \
+  F(char);                           \
+  F(uchar);                          \
+  F(short);                          \
+  F(ushort);                         \
+  F(int);                            \
+  F(uint);                           \
+  F(long);                           \
+  F(ulong);                          \
+  F(ullong);
 
-  struct v2
+  template <typename T>
+  struct Vec2
   {
-    union
-    {
-      struct
-      {
-        float x, y;
-      };
-      float elements[2];
-    };
-    v2()
-    {
-      this->x = 0;
-      this->y = 0;
-    }
-    v2(float x, float y)
-    {
-      this->x = x;
-      this->y = y;
-    }
-    v2(float d)
-    {
-      this->x = d;
-      this->y = 0;
-    }
+    T x = 0, y = 0;
+    Vec2() = default;
+#define _chevanut_v2_init(type) \
+  Vec2(type x, type y)          \
+  {                             \
+    this->x = x;                \
+    this->y = y;                \
+  }                             \
+  Vec2(type a)                  \
+  {                             \
+    this->x = a;                \
+    this->y = 0;                \
+  }
 
-    v2(const v2 &base)
+    _chevanut_apply_all_types(_chevanut_v2_init);
+#undef _chevan_v2_init
+
+    template <typename Vec>
+    Vec2(const Vec &base)
     {
       this->x = base.x;
       this->y = base.y;
     }
-    v2(const iv2 &base);
-    v2(const v3 &base);
-    v2(const iv3 &base);
-    v2(const v4 &base);
-    v2(const iv4 &base);
-    v2 operator+(const v2 a) { return v2(x + a.x, y + a.y); }
-    v2 operator-(const v2 a) { return v2(x - a.x, y - a.y); }
-    void operator+=(const v2 a)
+
+    Vec2<T> operator+(const Vec2<T> a) { return Vec2<T>(x + a.x, y + a.y); }
+    Vec2<T> operator-(const Vec2<T> a) { return Vec2<T>(x - a.x, y - a.y); }
+    void operator+=(const Vec2<T> a)
     {
       x += a.x;
       y += a.y;
     }
-    void operator-=(const v2 a)
+    void operator-=(const Vec2<T> a)
     {
       x -= a.x;
       y -= a.y;
     }
-    v2 operator+(const float a) { return v2(x + a, y + a); }
-    v2 operator-(const float a) { return v2(x - a, y - a); }
-    v2 operator*(const float a) { return v2(x * a, y * a); }
-    v2 operator/(const float a) { return v2(x / a, y / a); }
-    void operator+=(const float a)
+#define _chevanut_v2_op(T)                                       \
+  Vec2<T> operator+(const T a) { return Vec2<T>(x + a, y + a); } \
+  Vec2<T> operator-(const T a) { return Vec2<T>(x - a, y - a); } \
+  Vec2<T> operator*(const T a) { return Vec2<T>(x * a, y * a); } \
+  Vec2<T> operator/(const T a) { return Vec2<T>(x / a, y / a); }
+    _chevanut_apply_all_types(_chevanut_v2_op);
+#undef _chevanut_v2_op
+    template <typename I>
+    void operator+=(const I a)
     {
-      x += a;
-      y += a;
+      (*this) = (*this) + a;
     }
-    void operator-=(const float a)
+    template <typename I>
+    void operator-=(const I a)
     {
-      x -= a;
-      y -= a;
+      (*this) = (*this) - a;
     }
-    void operator*=(const float a)
+    template <typename I>
+    void operator*=(const I a)
     {
-      x *= a;
-      y *= a;
+      (*this) = (*this) * a;
     }
-    void operator/=(const float a)
+    template <typename I>
+    void operator/=(const I a)
     {
-      x /= a;
-      y /= a;
+      (*this) = (*this) / a;
     }
   };
-  struct v3
+  using v2 = Vec2<float>;
+  using iv2 = Vec2<int32_t>;
+  template <typename T>
+  struct Vec3
   {
     union
     {
-      struct
-      {
-        float x;
-        float y;
-        float z;
-      };
-      struct
-      {
-        float r;
-        float g;
-        float b;
-      };
-      float elements[3];
+      T x = 0;
+      T r;
     };
-    v3()
+    union
     {
-      this->x = 0;
-      this->y = 0;
-      this->z = 0;
-    }
-    v3(float x, float y, float z)
+      T y = 0;
+      T g;
+    };
+    union
     {
-      this->x = x;
-      this->y = y;
-      this->z = z;
-    }
-    v3(float d)
-    {
-      this->x = d;
-      this->y = 0;
-      this->z = 0;
-    }
+      T z = 0;
+      T b;
+    };
+    Vec3() = default;
+#define _chevanut_v3_init(type) \
+  Vec3(type x, type y, type z)  \
+  {                             \
+    this->x = x;                \
+    this->y = y;                \
+    this->z = z;                \
+  }                             \
+  Vec3(type a)                  \
+  {                             \
+    this->x = a;                \
+  }                             \
+  Vec3(type a, type b)          \
+  {                             \
+    this->x = a;                \
+    this->y = b;                \
+  }
+    _chevanut_apply_all_types(_chevanut_v3_init);
 
-    v3(const v2 &base)
+#undef _chevan_v3_init
+
+    template <typename Vec>
+    Vec3(const Vec &base, T z)
     {
       this->x = base.x;
       this->y = base.y;
-      this->z = 0;
+      this->z = z;
     }
-    v3(const iv2 &base);
-    v3(const v3 &base)
+    template <typename Vec>
+    Vec3(const Vec &base)
     {
       this->x = base.x;
       this->y = base.y;
       this->z = base.z;
     }
-    v3(const iv3 &base);
-    v3(const v4 &base);
-    v3(const iv4 &base);
-    v3 operator+(const v3 a) { return v3(x + a.x, y + a.y, z + a.z); }
-    v3 operator-(const v3 a) { return v3(x - a.x, y - a.y, z - a.z); }
-    void operator+=(const v3 a)
+
+    Vec3<T> operator+(const Vec3<T> a) { return Vec3<T>(x + a.x, y + a.y, z + a.z); }
+    Vec3<T> operator-(const Vec3<T> a) { return Vec3<T>(x - a.x, y - a.y, z - a.z); }
+    void operator+=(const Vec3<T> a)
     {
       x += a.x;
       y += a.y;
       z += a.z;
     }
-    void operator-=(const v3 a)
+    void operator-=(const Vec3<T> a)
     {
       x -= a.x;
       y -= a.y;
       z -= a.z;
     }
-    v3 operator+(const float a) { return v3(x + a, y + a, z + a); }
-    v3 operator-(const float a) { return v3(x - a, y - a, z - a); }
-    v3 operator*(const float a) { return v3(x * a, y * a, z * a); }
-    v3 operator/(const float a) { return v3(x / a, y / a, z / a); }
-    void operator+=(const float a)
+#define _chevanut_v3_op(T)                                              \
+  Vec3<T> operator+(const T a) { return Vec3<T>(x + a, y + a, z + a); } \
+  Vec3<T> operator-(const T a) { return Vec3<T>(x - a, y - a, z - a); } \
+  Vec3<T> operator*(const T a) { return Vec3<T>(x * a, y * a, z * a); } \
+  Vec3<T> operator/(const T a) { return Vec3<T>(x / a, y / a, z / a); }
+    _chevanut_apply_all_types(_chevanut_v3_op);
+#undef _chevanut_v3_op
+
+    void operator+=(const T a)
     {
       x += a;
       y += a;
       z += a;
     }
-    void operator-=(const float a)
+    void operator-=(const T a)
     {
       x -= a;
       y -= a;
       z -= a;
     }
-    void operator*=(const float a)
+    void operator*=(const T a)
     {
       x *= a;
       y *= a;
       z *= a;
     }
-    void operator/=(const float a)
+    void operator/=(const T a)
     {
       x /= a;
       y /= a;
       z /= a;
     }
-    v3 &operator=(const v2 &a)
-    {
-      this->x = a.x;
-      this->y = a.y;
-      return *this;
-    }
   };
-  struct v4
+  using v3 = Vec3<float>;
+  using iv3 = Vec3<int32_t>;
+  template <typename T>
+  struct Vec4
   {
     union
     {
-      struct
-      {
-        float x;
-        float y;
-        union
-        {
-          struct
-          {
-            float z;
-            float w;
-          };
-          struct
-          {
-            float width;
-            float height;
-          };
-        };
-      };
-      struct
-      {
-        float r;
-        float g;
-        float b;
-        float a;
-      };
-      float elements[4];
+      T x = 0;
+      T r;
     };
-    v4()
+    union
     {
-      this->x = 0;
-      this->y = 0;
-      this->z = 0;
-      this->w = 0;
-    }
-    v4(float x, float y, float z, float w)
+      T y = 0;
+      T g;
+    };
+    union
     {
-      this->x = x;
-      this->y = y;
+      T z = 0;
+      T width;
+      T b;
+    };
+    union
+    {
+      T w = 0;
+      T height;
+      T a;
+    };
+    Vec4() = default;
+#define _chevanut_v4_init(type)        \
+  Vec4(type x, type y, type z, type w) \
+  {                                    \
+    this->x = x;                       \
+    this->y = y;                       \
+    this->z = z;                       \
+    this->w = w;                       \
+  }                                    \
+  Vec4(type a)                         \
+  {                                    \
+    this->x = a;                       \
+  }                                    \
+  Vec4(type a, type b)                 \
+  {                                    \
+    this->x = a;                       \
+    this->y = b;                       \
+  }                                    \
+  Vec4(type a, type b, type c)         \
+  {                                    \
+    this->x = a;                       \
+    this->y = b;                       \
+    this->z = c;                       \
+  }
+    _chevanut_v4_init(float);
+    _chevanut_v4_init(double);
+    _chevanut_v4_init(char);
+    _chevanut_v4_init(uchar);
+    _chevanut_v4_init(short);
+    _chevanut_v4_init(ushort);
+    _chevanut_v4_init(int);
+    _chevanut_v4_init(uint);
+    _chevanut_v4_init(long);
+    _chevanut_v4_init(ulong);
+    _chevanut_v4_init(ullong);
+
+#undef _chevan_v4_init
+
+    template <typename Vec>
+    Vec4(const Vec &base, T z, T w)
+    {
+      this->x = base.x;
+      this->y = base.y;
       this->z = z;
       this->w = w;
     }
-    v4(float d)
+    template <typename Vec>
+    Vec4(const Vec &base, T w)
     {
-      this->x = d;
-      this->y = 0;
-      this->z = 0;
-      this->w = 0;
+      this->x = base.x;
+      this->y = base.y;
+      this->z = base.z;
+      this->w = w;
+    }
+    template <typename Vec>
+    Vec4(const Vec &base)
+    {
+      this->x = base.x;
+      this->y = base.y;
+      this->z = base.z;
+      this->w = w;
     }
 
-    v4(const v2 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = 0;
-      this->w = 0;
-    }
-    v4(const iv2 &base);
-    v4(const v3 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = base.z;
-      this->w = 0;
-    }
-    v4(const iv3 &base);
-    v4(const v4 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = base.z;
-      this->w = base.w;
-    }
-    v4(const iv4 &base);
-    v4 operator+(const v4 a) { return v4(x + a.x, y + a.y, z + a.z, w + a.w); }
-    v4 operator-(const v4 a) { return v4(x - a.x, y - a.y, z - a.z, w - a.w); }
-    void operator+=(const v4 a)
+    Vec4<T> operator+(const Vec4<T> a) { return Vec4<T>(x + a.x, y + a.y, z + a.z, w + a.w); }
+    Vec4<T> operator-(const Vec4<T> a) { return Vec4<T>(x - a.x, y - a.y, z - a.z, w - a.w); }
+    void operator+=(const Vec4<T> a)
     {
       x += a.x;
       y += a.y;
       z += a.z;
       w += a.w;
     }
-    void operator-=(const v4 a)
+    void operator-=(const Vec4<T> a)
     {
       x -= a.x;
       y -= a.y;
       z -= a.z;
       w -= a.w;
     }
-    v4 operator+(const float a) { return v4(x + a, y + a, z + a, w + a); }
-    v4 operator-(const float a) { return v4(x - a, y - a, z - a, w - a); }
-    v4 operator*(const float a) { return v4(x * a, y * a, z * a, w * a); }
-    v4 operator/(const float a) { return v4(x / a, y / a, z / a, w / a); }
-    void operator+=(const float a)
+#define _chevanut_v4_op(T)                                                     \
+  Vec4<T> operator+(const T a) { return Vec4<T>(x + a, y + a, z + a, w + a); } \
+  Vec4<T> operator-(const T a) { return Vec4<T>(x - a, y - a, z - a, w - a); } \
+  Vec4<T> operator*(const T a) { return Vec4<T>(x * a, y * a, z * a, w * a); } \
+  Vec4<T> operator/(const T a) { return Vec4<T>(x / a, y / a, z / a, w / a); }
+    _chevanut_apply_all_types(_chevanut_v4_op);
+#undef _chevanut_v4_op
+    void operator+=(const T a)
     {
       x += a;
       y += a;
       z += a;
       z += a;
     }
-    void operator-=(const float a)
+    void operator-=(const T a)
     {
       x -= a;
       y -= a;
       z -= a;
       z -= a;
     }
-    void operator*=(const float a)
+    void operator*=(const T a)
     {
       x *= a;
       y *= a;
       z *= a;
       z *= a;
     }
-    void operator/=(const float a)
+    void operator/=(const T a)
     {
       x /= a;
       y /= a;
       z /= a;
       z /= a;
     }
-    v4 &operator=(const v2 &a)
-    {
-      this->x = a.x;
-      this->y = a.y;
-      return *this;
-    }
-    v4 &operator=(const v3 &a)
-    {
-      this->x = a.x;
-      this->y = a.y;
-      this->z = a.z;
-      return *this;
-    }
   };
-  struct iv2
-  {
-    union
-    {
-      struct
-      {
-        int32_t x, y;
-      };
-      int32_t elements[2];
-    };
-    iv2()
-    {
-      this->x = 0;
-      this->y = 0;
-    }
-    iv2(int32_t x, int32_t y)
-    {
-      this->x = x;
-      this->y = y;
-    }
-    iv2(int32_t d)
-    {
-      this->x = d;
-      this->y = 0;
-    }
+  using v4 = Vec4<float>;
+  using iv4 = Vec4<int32_t>;
+#undef _chevanut_apply_all_types
 
-    iv2(const v2 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-    }
-    iv2(const iv2 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-    }
-    iv2(const v3 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-    }
-    iv2(const iv3 &base);
-    iv2(const v4 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-    }
-    iv2(const iv4 &base);
-    bool operator==(const iv2 &a) { return x == a.x && y == a.y; }
-    bool operator!=(const iv2 &a) { return x != a.x || y != a.y; }
-    iv2 operator+(const iv2 a) { return iv2(x + a.x, y + a.y); }
-    iv2 operator-(const iv2 a) { return iv2(x - a.x, y - a.y); }
-    void operator+=(const iv2 a)
-    {
-      x += a.x;
-      y += a.y;
-    }
-    void operator-=(const iv2 a)
-    {
-      x -= a.x;
-      y -= a.y;
-    }
-    iv2 operator+(const int32_t a) { return iv2(x + a, y + a); }
-    iv2 operator-(const int32_t a) { return iv2(x - a, y - a); }
-    iv2 operator*(const int32_t a) { return iv2(x * a, y * a); }
-    iv2 operator/(const int32_t a) { return iv2(x / a, y / a); }
-    void operator+=(const int32_t a)
-    {
-      x += a;
-      y += a;
-    }
-    void operator-=(const int32_t a)
-    {
-      x -= a;
-      y -= a;
-    }
-    void operator*=(const int32_t a)
-    {
-      x *= a;
-      y *= a;
-    }
-    void operator/=(const int32_t a)
-    {
-      x /= a;
-      y /= a;
-    }
-  };
-  struct iv3
-  {
-    union
-    {
-      struct
-      {
-        int32_t x, y, z;
-      };
-      int32_t elements[3];
-    };
-    iv3()
-    {
-      this->x = 0;
-      this->y = 0;
-      this->z = 0;
-    }
-    iv3(int32_t x, int32_t y, int32_t z)
-    {
-      this->x = x;
-      this->y = y;
-      this->z = z;
-    }
-    iv3(int32_t d)
-    {
-      this->x = d;
-      this->y = 0;
-      this->z = 0;
-    }
-
-    iv3(const v2 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = 0;
-    }
-    iv3(const iv2 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = 0;
-    }
-    iv3(const v3 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = base.z;
-    }
-    iv3(const iv3 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = base.z;
-    }
-    iv3(const v4 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = base.z;
-    }
-    iv3(const iv4 &base);
-    bool operator==(const iv3 &a) { return x == a.x && y == a.y && z == a.z; }
-    bool operator!=(const iv3 &a) { return x != a.x || y != a.y || z != a.z; }
-    iv3 operator+(const iv3 a) { return iv3(x + a.x, y + a.y, z + a.z); }
-    iv3 operator-(const iv3 a) { return iv3(x - a.x, y - a.y, z - a.z); }
-    void operator+=(const iv3 a)
-    {
-      x += a.x;
-      y += a.y;
-      z += a.z;
-    }
-    void operator-=(const iv3 a)
-    {
-      x -= a.x;
-      y -= a.y;
-      z -= a.z;
-    }
-    iv3 operator+(const int32_t a) { return iv3(x + a, y + a, z + a); }
-    iv3 operator-(const int32_t a) { return iv3(x - a, y - a, z - a); }
-    iv3 operator*(const int32_t a) { return iv3(x * a, y * a, z * a); }
-    iv3 operator/(const int32_t a) { return iv3(x / a, y / a, z / a); }
-    void operator+=(const int32_t a)
-    {
-      x += a;
-      y += a;
-      z += a;
-    }
-    void operator-=(const int32_t a)
-    {
-      x -= a;
-      y -= a;
-      z -= a;
-    }
-    void operator*=(const int32_t a)
-    {
-      x *= a;
-      y *= a;
-      z *= a;
-    }
-    void operator/=(const int32_t a)
-    {
-      x /= a;
-      y /= a;
-      z /= a;
-    }
-    iv3 &operator=(const iv2 &a)
-    {
-      this->x = a.x;
-      this->y = a.y;
-      return *this;
-    }
-  };
-  struct iv4
-  {
-    union
-    {
-      struct
-      {
-        int32_t x, y, z, w;
-      };
-      int32_t elements[4];
-    };
-    iv4()
-    {
-      this->x = 0;
-      this->y = 0;
-      this->z = 0;
-      this->w = 0;
-    }
-    iv4(int32_t x, int32_t y, int32_t z, int32_t w)
-    {
-      this->x = x;
-      this->y = y;
-      this->z = z;
-      this->w = w;
-    }
-    iv4(int32_t d)
-    {
-      this->x = d;
-      this->y = 0;
-      this->z = 0;
-      this->w = 0;
-    }
-
-    iv4(const v2 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = 0;
-      this->w = 0;
-    }
-    iv4(const iv2 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = 0;
-      this->w = 0;
-    }
-    iv4(const v3 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = base.z;
-      this->w = 0;
-    }
-    iv4(const iv3 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = base.z;
-      this->w = 0;
-    }
-    iv4(const v4 &base)
-    {
-      this->x = base.x;
-      this->y = base.y;
-      this->z = base.z;
-      this->w = base.w;
-    }
-    iv4(const iv4 &base)
-    {
-      this->x = (int32_t)base.x;
-      this->y = (int32_t)base.y;
-      this->z = (int32_t)base.z;
-      this->w = (int32_t)base.w;
-    }
-    bool operator==(const iv4 &a)
-    {
-      return x == a.x && y == a.y && z == a.z && w == a.w;
-    }
-    bool operator!=(const iv4 &a)
-    {
-      return x != a.x || y != a.y || z != a.z || w != a.w;
-    }
-    iv4 operator+(const iv4 a) { return iv4(x + a.x, y + a.y, z + a.z, w + a.w); }
-    iv4 operator-(const iv4 a) { return iv4(x - a.x, y - a.y, z - a.z, w - a.w); }
-    void operator+=(const iv4 a)
-    {
-      x += a.x;
-      y += a.y;
-      z += a.z;
-      w += a.w;
-    }
-    void operator-=(const iv4 a)
-    {
-      x -= a.x;
-      y -= a.y;
-      z -= a.z;
-      w -= a.w;
-    }
-    iv4 operator+(const int32_t a) { return iv4(x + a, y + a, z + a, w + a); }
-    iv4 operator-(const int32_t a) { return iv4(x - a, y - a, z - a, w - a); }
-    iv4 operator*(const int32_t a) { return iv4(x * a, y * a, z * a, w * a); }
-    iv4 operator/(const int32_t a) { return iv4(x / a, y / a, z / a, w / a); }
-    void operator+=(const int32_t a)
-    {
-      x += a;
-      y += a;
-      z += a;
-      z += a;
-    }
-    void operator-=(const int32_t a)
-    {
-      x -= a;
-      y -= a;
-      z -= a;
-      z -= a;
-    }
-    void operator*=(const int32_t a)
-    {
-      x *= a;
-      y *= a;
-      z *= a;
-      z *= a;
-    }
-    void operator/=(const int32_t a)
-    {
-      x /= a;
-      y /= a;
-      z /= a;
-      z /= a;
-    }
-    iv4 &operator=(const iv2 &a)
-    {
-      this->x = a.x;
-      this->y = a.y;
-      return *this;
-    }
-    iv4 &operator=(const iv3 &a)
-    {
-      this->x = a.x;
-      this->y = a.y;
-      this->z = a.z;
-      return *this;
-    }
-  };
-
-  inline v2::v2(const iv2 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-  }
-  inline v2::v2(const v3 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-  }
-  inline v2::v2(const iv3 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-  }
-  inline v2::v2(const v4 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-  }
-  inline v2::v2(const iv4 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-  }
-
-  inline v3::v3(const iv2 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-    this->z = 0;
-  }
-  inline v3::v3(const iv3 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-    this->z = base.z;
-  }
-  inline v3::v3(const v4 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-    this->z = base.z;
-  }
-  inline v3::v3(const iv4 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-    this->z = base.z;
-  }
-
-  inline v4::v4(const iv2 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-    this->z = 0;
-    this->w = 0;
-  }
-  inline v4::v4(const iv3 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-    this->z = base.y;
-    this->w = 0;
-  }
-  inline v4::v4(const iv4 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-    this->z = base.y;
-    this->w = base.w;
-  }
-
-  inline iv2::iv2(const iv3 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-  }
-  inline iv2::iv2(const iv4 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-  }
-
-  inline iv3::iv3(const iv4 &base)
-  {
-    this->x = base.x;
-    this->y = base.y;
-    this->z = base.z;
-  }
-
-#ifndef CHEVAN_UTILS_MATH_V2
-#define CHEVAN_UTILS_MATH_V2 v2
-#endif // !CHEVAN_UTILS_MATH_V2
-#ifndef CHEVAN_UTILS_MATH_V3
-#define CHEVAN_UTILS_MATH_V3 v3
-#endif // !CHEVAN_UTILS_MATH_V3
-#ifndef CHEVAN_UTILS_MATH_V4
-#define CHEVAN_UTILS_MATH_V4 v4
-#endif // !CHEVAN_UTILS_MATH_V2
+#ifndef CHEVAN_UTILS_VEC2
+#define CHEVAN_UTILS_VEC2 v2
+#endif // !CHEVAN_UTILS_VEC2
+#ifndef CHEVAN_UTILS_VEC3
+#define CHEVAN_UTILS_VEC3 v3
+#endif // !CHEVAN_UTILS_VEC3
+#ifndef CHEVAN_UTILS_VEC4
+#define CHEVAN_UTILS_VEC4 v4
+#endif // !CHEVAN_UTILS_VEC2
 
 #endif // CHEVAN_UTILS_VECTOR
 #ifdef CHEVAN_UTILS_PRINT
@@ -1162,32 +739,32 @@ namespace chevan_utils
     s += "}";
     std::cout << s << std::endl;
   }
-#ifdef CHEVAN_UTILS_MATH_V2
-  static void print(CHEVAN_UTILS_MATH_V2 v)
+#ifdef CHEVAN_UTILS_VEC2
+  static void print(CHEVAN_UTILS_VEC2 v)
   {
     print("{", v.x, ", ", v.y, "}");
   }
-  static void println(CHEVAN_UTILS_MATH_V2 v)
+  static void println(CHEVAN_UTILS_VEC2 v)
   {
     println("{", v.x, ", ", v.y, "}");
   }
 #endif
-#ifdef CHEVAN_UTILS_MATH_V3
-  static void print(CHEVAN_UTILS_MATH_V3 v)
+#ifdef CHEVAN_UTILS_VEC3
+  static void print(CHEVAN_UTILS_VEC3 v)
   {
     print("{", v.x, ", ", v.y, ", ", v.z, "}");
   }
-  static void println(CHEVAN_UTILS_MATH_V3 v)
+  static void println(CHEVAN_UTILS_VEC3 v)
   {
     println("{", v.x, ", ", v.y, ", ", v.z, "}");
   }
 #endif
-#ifdef CHEVAN_UTILS_MATH_V4
-  static void print(CHEVAN_UTILS_MATH_V4 v)
+#ifdef CHEVAN_UTILS_VEC4
+  static void print(CHEVAN_UTILS_VEC4 v)
   {
     print("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
   }
-  static void println(CHEVAN_UTILS_MATH_V4 v)
+  static void println(CHEVAN_UTILS_VEC4 v)
   {
     println("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
   }
@@ -1226,6 +803,162 @@ namespace chevan_utils
   typedef double f64;
 #endif // CHEVAN_UTILS_BYTE_TYPEDEF
 #ifdef CHEVAN_UTILS_MATH
+
+#define v2 CHEVAN_UTILS_VEC2
+#define v3 CHEVAN_UTILS_VEC3
+#define v4 CHEVAN_UTILS_VEC4
+  static inline float dot(v2 a, v2 b)
+  {
+    return a.x * b.x + a.y * b.y;
+  }
+  static inline float dot(v3 a, v3 b)
+  {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+  }
+  static inline float dot(v4 a, v4 b)
+  {
+    return a.x * b.x + a.y * b.y + a.z * b.z + a.w * a.w;
+  }
+
+  static inline v3 cross(v3 a, v3 b)
+  {
+    return v3(
+        a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z,
+        a.x * b.y - a.y * b.x);
+  }
+
+  static inline float lengthSquared(v2 v)
+  {
+    return v.x * v.x + v.y * v.y;
+  }
+  static inline float lengthSquared(v3 v)
+  {
+    return v.x * v.x + v.y * v.y + v.z * v.z;
+  }
+  static inline float lengthSquared(v4 v)
+  {
+    return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w;
+  }
+
+  static inline float vecLength(v2 v)
+  {
+    return sqrtf(lengthSquared(v));
+  }
+  static inline float vecLength(v3 v)
+  {
+    return sqrtf(lengthSquared(v));
+  }
+  static inline float vecLength(v4 v)
+  {
+    return sqrtf(lengthSquared(v));
+  }
+
+  static inline v2 normalize(v2 v)
+  {
+    float length = sqrtf(lengthSquared(v));
+    v.x /= length;
+    v.y /= length;
+    return v;
+  }
+  static inline v3 normalize(v3 v)
+  {
+    float length = sqrtf(lengthSquared(v));
+    v.x /= length;
+    v.y /= length;
+    v.z /= length;
+    return v;
+  }
+  static inline v4 normalize(v4 v)
+  {
+    float length = sqrtf(lengthSquared(v));
+    v.x /= length;
+    v.y /= length;
+    v.z /= length;
+    v.w /= length;
+    return v;
+  }
+
+  static inline float vecMin(v2 a)
+  {
+    float min = a.x;
+    if (a.y < min)
+    {
+      min = a.y;
+    }
+    return min;
+  }
+  static inline float vecMin(v3 a)
+  {
+    float min = a.x;
+    if (a.y < min)
+    {
+      min = a.y;
+    }
+    if (a.z < min)
+    {
+      min = a.z;
+    }
+    return min;
+  }
+  static inline float vecMin(v4 a)
+  {
+    float min = a.x;
+    if (a.y < min)
+    {
+      min = a.y;
+    }
+    if (a.z < min)
+    {
+      min = a.z;
+    }
+    if (a.w < min)
+    {
+      min = a.w;
+    }
+    return min;
+  }
+
+  static inline float vecMax(v2 a)
+  {
+    float max = a.x;
+    if (a.y > max)
+    {
+      max = a.y;
+    }
+    return max;
+  }
+  static inline float vecMax(v3 a)
+  {
+    float max = a.x;
+    if (a.y > max)
+    {
+      max = a.y;
+    }
+    if (a.z < max)
+    {
+      max = a.z;
+    }
+    return max;
+  }
+  static inline float vecMax(v4 a)
+  {
+    float max = a.x;
+    if (a.y < max)
+    {
+      max = a.y;
+    }
+    if (a.z < max)
+    {
+      max = a.z;
+    }
+    if (a.w < max)
+    {
+      max = a.w;
+    }
+    return max;
+  }
+
 #ifndef CHEVAN_UTILS_MATH_M4
   struct m4
   {
@@ -1260,6 +993,109 @@ namespace chevan_utils
         }
       }
     }
+    static m4 translation(v3 translate)
+    {
+      m4 result = m4(1.f);
+      result.elements[3][0] = translate.x;
+      result.elements[3][1] = translate.y;
+      result.elements[3][2] = translate.z;
+      return result;
+    }
+    static m4 rotation(float angle, v3 axis)
+    {
+      m4 result = m4(1.f);
+
+      axis = normalize(axis);
+
+      float sin_theta = sinf(angle);
+      float cos_theta = cosf(angle);
+      float cos_value = 1.f - cos_theta;
+
+      result.elements[0][0] = (axis.x * axis.x * cos_value) + cos_theta;
+      result.elements[0][1] = (axis.x * axis.y * cos_value) + (axis.z * sin_theta);
+      result.elements[0][2] = (axis.x * axis.z * cos_value) - (axis.y * sin_theta);
+
+      result.elements[1][0] = (axis.y * axis.x * cos_value) - (axis.z * sin_theta);
+      result.elements[1][1] = (axis.y * axis.y * cos_value) + cos_theta;
+      result.elements[1][2] = (axis.y * axis.z * cos_value) + (axis.x * sin_theta);
+
+      result.elements[2][0] = (axis.z * axis.x * cos_value) + (axis.y * sin_theta);
+      result.elements[2][1] = (axis.z * axis.y * cos_value) - (axis.x * sin_theta);
+      result.elements[2][2] = (axis.z * axis.z * cos_value) + cos_theta;
+
+      return result;
+    }
+    static m4 scale(v3 scale)
+    {
+      m4 result = m4(1.f);
+      result.elements[0][0] = scale.x;
+      result.elements[1][1] = scale.y;
+      result.elements[2][2] = scale.z;
+      return result;
+    }
+    static m4 perspective(float fov, float aspect_ratio, float near_z, float far_z)
+    {
+      m4 result;
+      float tan_theta_over_2 = tanf(fov * (PIf / 360.f));
+      result.elements[0][0] = 1.f / tan_theta_over_2;
+      result.elements[1][1] = aspect_ratio / tan_theta_over_2;
+      result.elements[2][3] = -1.f;
+      result.elements[2][2] = (near_z + far_z) / (near_z - far_z);
+      result.elements[3][2] = (2.f * near_z * far_z) / (near_z - far_z);
+      result.elements[3][3] = 0.f;
+      return result;
+    }
+    static m4 orthographic(float left, float right, float bottom, float top, float near_depth, float far_depth)
+    {
+      m4 result;
+      result.elements[0][0] = 2.f / (right - left);
+      result.elements[1][1] = 2.f / (top - bottom);
+      result.elements[2][2] = -2.f / (far_depth - near_depth);
+      result.elements[3][3] = 1.f;
+      result.elements[3][0] = (left + right) / (left - right);
+      result.elements[3][1] = (bottom + top) / (bottom - top);
+      result.elements[3][2] = (far_depth + near_depth) / (near_depth - far_depth);
+      return result;
+    }
+    static m4 lookAt(v3 eye, v3 center, v3 up)
+    {
+      m4 result;
+      v3 f = normalize(center - eye);
+      v3 s = normalize(cross(f, up));
+      v3 u = cross(s, f);
+
+      result.elements[0][0] = s.x;
+      result.elements[0][1] = u.x;
+      result.elements[0][2] = -f.x;
+      result.elements[0][3] = 0.f;
+
+      result.elements[1][0] = s.y;
+      result.elements[1][1] = u.y;
+      result.elements[1][2] = -f.y;
+      result.elements[1][3] = 0.f;
+
+      result.elements[2][0] = s.z;
+      result.elements[2][1] = u.z;
+      result.elements[2][2] = -f.z;
+      result.elements[2][3] = 0.f;
+
+      result.elements[3][0] = -dot(s, eye);
+      result.elements[3][1] = -dot(u, eye);
+      result.elements[3][2] = dot(f, eye);
+      result.elements[3][3] = 1.f;
+
+      return result;
+    }
+    static m4 map(v3 min, v3 max, v3 targetMin, v3 targetMax)
+    {
+      m4 transform = m4(1.f);
+      transform = transform * translation(targetMin);
+      transform = transform * scale(targetMax - targetMin);
+      transform = transform * scale(v3(1.f / (max.x - min.x), 1.f / (max.y - min.y), 1.f / (max.z - min.z)));
+      transform = transform * translation(min * -1.f);
+      return transform;
+    }
+
     float &operator[](uint i)
     {
       return array[i];
@@ -1269,226 +1105,120 @@ namespace chevan_utils
       return elements[i][j];
     }
 #define _chevanut_math_concat(a, b) a##b
-#define _chevanut_math_operatorMacro(Op)          \
-  template <typename T>                           \
-  m4 operator Op(T a)                             \
-  {                                               \
-    m4 c = m4(array);                             \
-    for (uint i = 0; i < 16; i++)                 \
-    {                                             \
-      c[i] _chevanut_math_concat(Op, =) a;        \
-    }                                             \
-    return c;                                     \
-  }                                               \
-  template <typename T>                           \
-  void operator _chevanut_math_concat(Op, =)(T a) \
-  {                                               \
-    (*this) = (*this)Op a;                        \
+#define _chevanut_math_operatorMacro_t(type, Op)     \
+  m4 operator Op(type a)                             \
+  {                                                  \
+    m4 c = m4(array);                                \
+    for (uint i = 0; i < 16; i++)                    \
+    {                                                \
+      c[i] _chevanut_math_concat(Op, =) a;           \
+    }                                                \
+    return c;                                        \
+  }                                                  \
+  void operator _chevanut_math_concat(Op, =)(type a) \
+  {                                                  \
+    (*this) = (*this)Op a;                           \
   }
+
+#define _chevanut_math_operatorMacro(Op)      \
+  _chevanut_math_operatorMacro_t(float, Op);  \
+  _chevanut_math_operatorMacro_t(double, Op); \
+  _chevanut_math_operatorMacro_t(char, Op);   \
+  _chevanut_math_operatorMacro_t(uchar, Op);  \
+  _chevanut_math_operatorMacro_t(short, Op);  \
+  _chevanut_math_operatorMacro_t(ushort, Op); \
+  _chevanut_math_operatorMacro_t(int, Op);    \
+  _chevanut_math_operatorMacro_t(uint, Op);   \
+  _chevanut_math_operatorMacro_t(long, Op);   \
+  _chevanut_math_operatorMacro_t(ulong, Op);  \
+  _chevanut_math_operatorMacro_t(ullong, Op);
+
     _chevanut_math_operatorMacro(+);
     _chevanut_math_operatorMacro(-);
     _chevanut_math_operatorMacro(*);
     _chevanut_math_operatorMacro(/);
+
 #undef _chevanut_math_operatorMacro
+#undef _chevanut_math_operatorMacro_t
 #undef _chevanut_math_concat
+
+    m4 operator*(m4 mat)
+    {
+      m4 m;
+      for (uint i = 0; i < 4; i++)
+      {
+        for (uint j = 0; j < 4; j++)
+        {
+          m[i + j * 4] = (array[0 + j * 4] * mat[i + 0 * 4] +
+                          array[1 + j * 4] * mat[i + 1 * 4] +
+                          array[2 + j * 4] * mat[i + 2 * 4] +
+                          array[3 + j * 4] * mat[i + 3 * 4]);
+        }
+      }
+      return m;
+    }
+    void operator*=(m4 mat)
+    {
+      (*this) = (*this) * mat;
+    }
+    v4 operator*(v4 v)
+    {
+      v4 result;
+      for (uint i = 0; i < 4; ++i)
+      {
+        ((float *)&result)[i] = (v.x * elements[0][i] +
+                                 v.y * elements[1][i] +
+                                 v.z * elements[2][i] +
+                                 v.w * elements[3][i]);
+      }
+
+      return result;
+    }
   };
+#define CHEVAN_UTILS_MATH_M4 m4
 #else
   typedef CHEVAN_UTILS_MATH_M4 m4;
 #endif // !CHEVAN_UTILS_MATH_M4
-  typedef CHEVAN_UTILS_MATH_V2 v2;
-  typedef CHEVAN_UTILS_MATH_V3 v3;
-  typedef CHEVAN_UTILS_MATH_V4 v4;
+  static void translate(m4 &mat, v3 translate)
+  {
+    mat.elements[3][0] = mat.elements[0][0] * translate.x + mat.elements[1][0] * translate.y + mat.elements[2][0] * translate.z + mat.elements[3][0];
+    mat.elements[3][1] = mat.elements[0][1] * translate.x + mat.elements[1][1] * translate.y + mat.elements[2][1] * translate.z + mat.elements[3][1];
+    mat.elements[3][2] = mat.elements[0][2] * translate.x + mat.elements[1][2] * translate.y + mat.elements[2][2] * translate.z + mat.elements[3][2];
+    mat.elements[3][3] = mat.elements[0][3] * translate.x + mat.elements[1][3] * translate.y + mat.elements[2][3] * translate.z + mat.elements[3][3];
+  }
+  static void rotate(m4 &mat, float angle, v3 axis)
+  {
+    axis = normalize(axis);
+    float sin_theta = sinf(angle);
+    float cos_theta = cosf(angle);
+    float cos_value = 1.f - cos_theta;
 
-  static inline float V2Dot(v2 a, v2 b)
-  {
-    return a.x * b.x + a.y * b.y;
-  }
-  static inline float V2LengthSquared(v2 v)
-  {
-    return v.x * v.x + v.y * v.y;
-  }
-  static inline v2 V2Normalize(v2 v)
-  {
-    float length = sqrtf(V2LengthSquared(v));
-    v.x /= length;
-    v.y /= length;
-    return v;
-  }
-  static inline v2 V2AddV2(v2 a, v2 b)
-  {
-    v2 v = v2(a.x + b.x, a.y + b.y);
-    return v;
-  }
-  static inline v2 V2MinusV2(v2 a, v2 b)
-  {
-    v2 v = v2(a.x - b.x, a.y - b.y);
-    return v;
-  }
-  static inline v2 V2MultiplyF32(v2 v, float f)
-  {
-    v.x *= f;
-    v.y *= f;
-    return v;
-  }
-  static inline v3 V3AddV3(v3 a, v3 b)
-  {
-    v3 c = v3(a.x + b.x, a.y + b.y, a.z + b.z);
-    return c;
-  }
-  static inline v3 V3MinusV3(v3 a, v3 b)
-  {
-    v3 c = v3(a.x - b.x, a.y - b.y, a.z - b.z);
-    return c;
-  }
-  static inline v3 V3MultiplyF32(v3 v, float f)
-  {
-    v.x *= f;
-    v.y *= f;
-    v.z *= f;
-    return v;
-  }
-  static inline float V3LengthSquared(v3 a)
-  {
-    return a.x * a.x + a.y * a.y + a.z * a.z;
-  }
-  static inline float V3Length(v3 a)
-  {
-    return sqrtf(V3LengthSquared(a));
-  }
-  static inline v3 V3Normalize(v3 v)
-  {
-    float length = V3Length(v);
-    v3 result = v3(
-        v.x / length,
-        v.y / length,
-        v.z / length);
-    return result;
-  }
-  static inline float V3Dot(v3 a, v3 b)
-  {
-    float dot =
-        a.x * b.x +
-        a.y * b.y +
-        a.z * b.z;
-    return dot;
-  }
-  static inline v3 V3Cross(v3 a, v3 b)
-  {
-    v3 result = v3(
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x);
-    return result;
-  }
-  static inline float minInV3(v3 v)
-  {
-    float minimum = v.x;
-    if (v.y < minimum)
-    {
-      minimum = v.y;
-    }
-    if (v.z < minimum)
-    {
-      minimum = v.z;
-    }
-    return minimum;
-  }
-  static inline float maxInV3(v3 v)
-  {
-    float maximum = v.x;
-    if (v.y > maximum)
-    {
-      maximum = v.y;
-    }
-    if (v.z > maximum)
-    {
-      maximum = v.z;
-    }
-    return maximum;
-  }
-  static inline bool V4RectHasPoint(v4 v, v2 p)
-  {
-    return (p.x >= v.x && p.x <= v.x + v.z &&
-            p.y >= v.y && p.y <= v.y + v.w);
-  }
-  static inline float V4Dot(v4 a, v4 b)
-  {
-    return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-  }
-  static inline v4 V4AddV4(v4 a, v4 b)
-  {
-    v4 c = v4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
-    return c;
-  }
-  static inline v4 V4MinusV4(v4 a, v4 b)
-  {
-    v4 c = v4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
-    return c;
-  }
-  static inline v4 V4MultiplyF32(v4 a, float f)
-  {
-    v4 c = v4(a.x * f, a.y * f, a.z * f, a.w * f);
-    return c;
-  }
-  static inline v4 V4MultiplyV4(v4 a, v4 b)
-  {
-    v4 c = v4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
-    return c;
-  }
+    float rows[3][3] =
+        {
+            {(axis.x * axis.x * cos_value) + cos_theta, (axis.x * axis.y * cos_value) + (axis.z * sin_theta), (axis.x * axis.z * cos_value) - (axis.y * sin_theta)},
+            {(axis.y * axis.x * cos_value) - (axis.z * sin_theta), (axis.y * axis.y * cos_value) + cos_theta, (axis.y * axis.z * cos_value) + (axis.x * sin_theta)},
+            {(axis.z * axis.x * cos_value) + (axis.y * sin_theta), (axis.z * axis.y * cos_value) - (axis.x * sin_theta), (axis.z * axis.z * cos_value) + cos_theta}};
 
-  static m4 M4InitDiagonal(float diagonal)
-  {
-    return m4(diagonal); // compatibility's sake
-  }
-  static inline m4 M4MultiplyM4(m4 a, m4 b)
-  {
-    m4 c;
     for (uint i = 0; i < 4; i++)
     {
-      for (uint j = 0; j < 4; j++)
+      for (uint j = 0; j < 3; j++)
       {
-        c[i + j * 4] = (a[0 + j * 4] * b[i + 0 * 4] +
-                        a[1 + j * 4] * b[i + 1 * 4] +
-                        a[2 + j * 4] * b[i + 2 * 4] +
-                        a[3 + j * 4] * b[i + 3 * 4]);
+        mat.elements[j][i] = mat.elements[0][i] * rows[j][0] + mat.elements[1][i] * rows[j][1] + mat.elements[2][i] * rows[j][2];
       }
     }
-    return c;
   }
-  static inline m4 M4MultiplyF32(m4 a, float b)
+  // TODO(ANT) complete matrix math here
+
+#if 0
+  static m4 scale1(v3 scale)
   {
-    return a * b;
-  }
-  static inline v4 V4MultiplyM4(v4 v, m4 m)
-  {
-    v4 result = {0, 0, 0, 0};
-    for (int32_t i = 0; i < 4; ++i)
-    {
-      float elements[] = vec4ToArray(v);
-      ((float *)&result)[i] = (elements[0] * m.elements[0][i] +
-                               elements[1] * m.elements[1][i] +
-                               elements[2] * m.elements[2][i] +
-                               elements[3] * m.elements[3][i]);
-    }
-    return result;
-  }
-  static inline m4 M4TranslateV3(v3 translation)
-  {
-    m4 result = M4InitDiagonal(1.f);
-    result.elements[3][0] = translation.x;
-    result.elements[3][1] = translation.y;
-    result.elements[3][2] = translation.z;
-    return result;
-  }
-  static inline m4 M4ScaleV3(v3 scale)
-  {
-    m4 result = M4InitDiagonal(1.f);
+    m4 result = m4(1.f);
     result.elements[0][0] = scale.x;
     result.elements[1][1] = scale.y;
     result.elements[2][2] = scale.z;
     return result;
   }
-  static inline m4 M4Perspective(float fov, float aspect_ratio, float near_z, float far_z)
+  static m4 perspective1(float fov, float aspect_ratio, float near_z, float far_z)
   {
     m4 result;
     float tan_theta_over_2 = tanf(fov * (PIf / 360.f));
@@ -1500,10 +1230,9 @@ namespace chevan_utils
     result.elements[3][3] = 0.f;
     return result;
   }
-  static inline m4 M4Orthographic(float left, float right, float bottom, float top, float near_depth, float far_depth)
+  static m4 orthographic1(float left, float right, float bottom, float top, float near_depth, float far_depth)
   {
     m4 result;
-
     result.elements[0][0] = 2.f / (right - left);
     result.elements[1][1] = 2.f / (top - bottom);
     result.elements[2][2] = -2.f / (far_depth - near_depth);
@@ -1511,16 +1240,14 @@ namespace chevan_utils
     result.elements[3][0] = (left + right) / (left - right);
     result.elements[3][1] = (bottom + top) / (bottom - top);
     result.elements[3][2] = (far_depth + near_depth) / (near_depth - far_depth);
-
     return result;
   }
-  static inline m4 M4LookAt(v3 eye, v3 center, v3 up)
+  static m4 lookAt1(v3 eye, v3 center, v3 up)
   {
     m4 result;
-
-    v3 f = V3Normalize(V3MinusV3(center, eye));
-    v3 s = V3Normalize(V3Cross(f, up));
-    v3 u = V3Cross(s, f);
+    v3 f = normalize(center - eye);
+    v3 s = normalize(cross(f, up));
+    v3 u = cross(s, f);
 
     result.elements[0][0] = s.x;
     result.elements[0][1] = u.x;
@@ -1537,155 +1264,33 @@ namespace chevan_utils
     result.elements[2][2] = -f.z;
     result.elements[2][3] = 0.f;
 
-    result.elements[3][0] = -V3Dot(s, eye);
-    result.elements[3][1] = -V3Dot(u, eye);
-    result.elements[3][2] = V3Dot(f, eye);
+    result.elements[3][0] = -dot(s, eye);
+    result.elements[3][1] = -dot(u, eye);
+    result.elements[3][2] = dot(f, eye);
     result.elements[3][3] = 1.f;
 
     return result;
   }
-  static inline m4 M4Inverse(m4 m)
+  static m4 map1(v3 min, v3 max, v3 targetMin, v3 targetMax)
   {
-    float coef00 = m.elements[2][2] * m.elements[3][3] - m.elements[3][2] * m.elements[2][3];
-    float coef02 = m.elements[1][2] * m.elements[3][3] - m.elements[3][2] * m.elements[1][3];
-    float coef03 = m.elements[1][2] * m.elements[2][3] - m.elements[2][2] * m.elements[1][3];
-    float coef04 = m.elements[2][1] * m.elements[3][3] - m.elements[3][1] * m.elements[2][3];
-    float coef06 = m.elements[1][1] * m.elements[3][3] - m.elements[3][1] * m.elements[1][3];
-    float coef07 = m.elements[1][1] * m.elements[2][3] - m.elements[2][1] * m.elements[1][3];
-    float coef08 = m.elements[2][1] * m.elements[3][2] - m.elements[3][1] * m.elements[2][2];
-    float coef10 = m.elements[1][1] * m.elements[3][2] - m.elements[3][1] * m.elements[1][2];
-    float coef11 = m.elements[1][1] * m.elements[2][2] - m.elements[2][1] * m.elements[1][2];
-    float coef12 = m.elements[2][0] * m.elements[3][3] - m.elements[3][0] * m.elements[2][3];
-    float coef14 = m.elements[1][0] * m.elements[3][3] - m.elements[3][0] * m.elements[1][3];
-    float coef15 = m.elements[1][0] * m.elements[2][3] - m.elements[2][0] * m.elements[1][3];
-    float coef16 = m.elements[2][0] * m.elements[3][2] - m.elements[3][0] * m.elements[2][2];
-    float coef18 = m.elements[1][0] * m.elements[3][2] - m.elements[3][0] * m.elements[1][2];
-    float coef19 = m.elements[1][0] * m.elements[2][2] - m.elements[2][0] * m.elements[1][2];
-    float coef20 = m.elements[2][0] * m.elements[3][1] - m.elements[3][0] * m.elements[2][1];
-    float coef22 = m.elements[1][0] * m.elements[3][1] - m.elements[3][0] * m.elements[1][1];
-    float coef23 = m.elements[1][0] * m.elements[2][1] - m.elements[2][0] * m.elements[1][1];
-
-    v4 fac0 = v4(coef00, coef00, coef02, coef03);
-    v4 fac1 = v4(coef04, coef04, coef06, coef07);
-    v4 fac2 = v4(coef08, coef08, coef10, coef11);
-    v4 fac3 = v4(coef12, coef12, coef14, coef15);
-    v4 fac4 = v4(coef16, coef16, coef18, coef19);
-    v4 fac5 = v4(coef20, coef20, coef22, coef23);
-
-    v4 vec0 = v4(m.elements[1][0], m.elements[0][0], m.elements[0][0], m.elements[0][0]);
-    v4 vec1 = v4(m.elements[1][1], m.elements[0][1], m.elements[0][1], m.elements[0][1]);
-    v4 vec2 = v4(m.elements[1][2], m.elements[0][2], m.elements[0][2], m.elements[0][2]);
-    v4 vec3 = v4(m.elements[1][3], m.elements[0][3], m.elements[0][3], m.elements[0][3]);
-
-    v4 inv0 = V4AddV4(V4MinusV4(V4MultiplyV4(vec1, fac0), V4MultiplyV4(vec2, fac1)), V4MultiplyV4(vec3, fac2));
-    v4 inv1 = V4AddV4(V4MinusV4(V4MultiplyV4(vec0, fac0), V4MultiplyV4(vec2, fac3)), V4MultiplyV4(vec3, fac4));
-    v4 inv2 = V4AddV4(V4MinusV4(V4MultiplyV4(vec0, fac1), V4MultiplyV4(vec1, fac3)), V4MultiplyV4(vec3, fac5));
-    v4 inv3 = V4AddV4(V4MinusV4(V4MultiplyV4(vec0, fac2), V4MultiplyV4(vec1, fac4)), V4MultiplyV4(vec2, fac5));
-
-    v4 sign_a = v4(+1, -1, +1, -1);
-    v4 sign_b = v4(-1, +1, -1, +1);
-
-    m4 inverse;
-    for (uint32_t i = 0; i < 4; ++i)
-    {
-      float inv0Arr[] = vec4ToArray(inv0);
-      float inv1Arr[] = vec4ToArray(inv1);
-      float inv2Arr[] = vec4ToArray(inv2);
-      float inv3Arr[] = vec4ToArray(inv3);
-      float sign_a_arr[] = vec4ToArray(sign_a);
-      float sign_b_arr[] = vec4ToArray(sign_b);
-      inverse.elements[0][i] = inv0Arr[i] * sign_a_arr[i];
-      inverse.elements[1][i] = inv1Arr[i] * sign_b_arr[i];
-      inverse.elements[2][i] = inv2Arr[i] * sign_a_arr[i];
-      inverse.elements[3][i] = inv3Arr[i] * sign_b_arr[i];
-    }
-
-    v4 row0 = v4(inverse.elements[0][0], inverse.elements[1][0], inverse.elements[2][0], inverse.elements[3][0]);
-    v4 m0 = v4(m.elements[0][0], m.elements[0][1], m.elements[0][2], m.elements[0][3]);
-    v4 dot0 = V4MultiplyV4(m0, row0);
-    float dot1 = (dot0.x + dot0.y) + (dot0.z + dot0.w);
-
-    float one_over_det = 1 / dot1;
-
-    return M4MultiplyF32(inverse, one_over_det);
-  }
-  static inline m4 M4RemoveRotation(m4 mat)
-  {
-    v3 scale = v3(
-        V3Length(v3(mat.elements[0][0], mat.elements[0][1], mat.elements[0][2])),
-        V3Length(v3(mat.elements[1][0], mat.elements[1][1], mat.elements[1][2])),
-        V3Length(v3(mat.elements[2][0], mat.elements[2][1], mat.elements[2][2])));
-
-    mat.elements[0][0] = scale.x;
-    mat.elements[1][0] = 0.f;
-    mat.elements[2][0] = 0.f;
-
-    mat.elements[0][1] = 0.f;
-    mat.elements[1][1] = scale.y;
-    mat.elements[2][1] = 0.f;
-
-    mat.elements[0][2] = 0.f;
-    mat.elements[1][2] = 0.f;
-    mat.elements[2][2] = scale.z;
-
-    return mat;
-  }
-  static inline m4 M4Rotate(float angle, v3 axis)
-  {
-    m4 result = M4InitDiagonal(1.f);
-
-    axis = V3Normalize(axis);
-
-    float sin_theta = sinf(angle);
-    float cos_theta = cosf(angle);
-    float cos_value = 1.f - cos_theta;
-
-    result.elements[0][0] = (axis.x * axis.x * cos_value) + cos_theta;
-    result.elements[0][1] = (axis.x * axis.y * cos_value) + (axis.z * sin_theta);
-    result.elements[0][2] = (axis.x * axis.z * cos_value) - (axis.y * sin_theta);
-
-    result.elements[1][0] = (axis.y * axis.x * cos_value) - (axis.z * sin_theta);
-    result.elements[1][1] = (axis.y * axis.y * cos_value) + cos_theta;
-    result.elements[1][2] = (axis.y * axis.z * cos_value) + (axis.x * sin_theta);
-
-    result.elements[2][0] = (axis.z * axis.x * cos_value) + (axis.y * sin_theta);
-    result.elements[2][1] = (axis.z * axis.y * cos_value) - (axis.x * sin_theta);
-    result.elements[2][2] = (axis.z * axis.z * cos_value) + cos_theta;
-
-    return result;
-  }
-  static inline v3 calculateTriangleNormal(v3 p1, v3 p2, v3 p3)
-  {
-    v3 p1_to_p2 = v3(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
-    v3 p1_to_p3 = v3(p3.x - p1.x, p3.y - p1.y, p3.z - p1.z);
-    v3 normal = V3Cross(p1_to_p3, p1_to_p2);
-    normal.y *= -1;
-    return normal;
-  }
-  static inline v3 calculateTriangleNormalNormalized(v3 p1, v3 p2, v3 p3)
-  {
-    v3 normal = calculateTriangleNormal(p1, p2, p3);
-    normal = V3Normalize(normal);
-    return normal;
-  }
-  static inline m4 M4Mapper(v3 min, v3 max, v3 targetMin, v3 targetMax)
-  {
-    // float scale = (n - min.x) / (max.x - min.x) * (targetMax.x - targetMin.x) + targetMin.x;
-
-    m4 transform = M4InitDiagonal(1.f);
-    transform = M4MultiplyM4(transform, M4TranslateV3(V3MultiplyF32(targetMin, 1.f)));
-    transform = M4MultiplyM4(transform, M4ScaleV3(v3(targetMax.x - targetMin.x, targetMax.y - targetMin.y, targetMax.z - targetMin.z)));
-    transform = M4MultiplyM4(transform, M4ScaleV3(v3(1.f / (max.x - min.x), 1.f / (max.y - min.y), 1.f / (max.z - min.z))));
-    transform = M4MultiplyM4(transform, M4TranslateV3(V3MultiplyF32(min, -1.f)));
-
+    m4 transform = m4(1.f);
+    // transform = transform * translation(targetMin);
+    // transform = transform * scale(targetMax - targetMin);
+    // transform = transform * scale(v3(1.f / (max.x - min.x), 1.f / (max.y - min.y), 1.f / (max.z - min.z)));
+    // transform = transform * translation(min * -1.f);
     return transform;
   }
+#endif
+
+#undef v2
+#undef v3
+#undef v4
 #endif // CHEVAN_UTILS_MATH
 #ifdef CHEVAN_UTILS_COLOR
   static inline v3 RGBToHSV(v3 rgb)
   {
-    float c_max = maxInV3(rgb);
-    float c_min = minInV3(rgb);
+    float c_max = (rgb.x > rgb.y ? (rgb.x > rgb.z ? rgb.x : rgb.z) : (rgb.y > rgb.z ? rgb.y : rgb.z));
+    float c_min = (rgb.x < rgb.y ? (rgb.x < rgb.z ? rgb.x : rgb.z) : (rgb.y < rgb.z ? rgb.y : rgb.z));
     float delta = c_max - c_min;
     bool c_max_is_r = rgb.r > rgb.g && rgb.r > rgb.b;
     bool c_max_is_g = rgb.g > rgb.r && rgb.g > rgb.b;

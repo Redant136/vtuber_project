@@ -391,7 +391,7 @@ namespace vtuber
       std::vector<Extension> extras;
     };
 
-    uint getMeshPrimitiveAttribVal(const Mesh::Primitive::Attributes& attribute, std::string name, uint index)
+    int getMeshPrimitiveAttribVal(const Mesh::Primitive::Attributes& attribute, std::string name, uint index)
     {
       int *attrib = (int*)&attribute;
 #define _concatNames(a,b) a##b
@@ -563,6 +563,7 @@ namespace vtuber
             jsonConvertMacro(x, gltf.asset, minVersion, std::string);
             jsonExtensionMacro(x, gltf.asset, extension);
             jsonExtensionMacro(x, gltf.asset, extras);
+            
           }
           continue;
         }
@@ -1261,16 +1262,8 @@ namespace vtuber
 
     void parseGLB(std::vector<char> buffer)
     {
-      typedef int8_t i8;
-      typedef int16_t i16;
-      typedef int32_t i32;
-      typedef int64_t i64;
       typedef uint8_t u8;
-      typedef uint16_t u16;
       typedef uint32_t u32;
-      typedef uint64_t u64;
-      typedef float f32;
-      typedef double f64;
 
       struct
       {
