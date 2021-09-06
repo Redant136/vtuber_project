@@ -2,8 +2,7 @@
 out vec4 FragColor;
 
 in vec2 TexCoords;
-
-// uniform sampler2D Texture;
+in vec4 Color;
 
 uniform sampler2D texture_base;
 uniform sampler2D texture_metalic;

@@ -408,7 +408,7 @@ namespace vtuber
           {
             std::string accName;
             int attribIndex;
-          } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TEXCOORD", 2}};
+          } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TEXCOORD", 2}, {"JOINTS", 3}, {"WEIGHTS", 4}};
 
           for (uint k = 0; k < sizeof(attribs) / sizeof(attribs[0]); k++)
           {
@@ -446,7 +446,7 @@ namespace vtuber
             glVertexAttribPointer(attribIndex, gltf::gltf_num_components(accessor.type),
                                   accessor.componentType,
                                   accessor.normalized ? GL_TRUE : GL_FALSE,
-                                  byteStride, reinterpret_cast<void *>(accessor.byteOffset));
+                                  byteStride, reinterpret_cast<void*>(accessor.byteOffset));
             glEnableVertexAttribArray(attribIndex);
           }
         }
@@ -508,7 +508,7 @@ namespace vtuber
       const gltf::Scene &scene = model.scenes[scene_to_display];
       for (size_t i = 0; i < scene.nodes.size(); i++)
       {
-        drawNode(shader, model.nodes[scene.nodes[i]]);
+        drawNode(shader, model.nodes[scene.nodes[i]], model.nodes[scene.nodes[i]]);
       }
     }
 
@@ -773,6 +773,23 @@ namespace vtuber
     }
 
   private:
+    glm::mat4 getNodeTRS(const gltf::Node&node)
+    {
+      glm::mat4 mat=glm::mat4(1.f);
+      if (node.scale.size() != 0)
+      {
+        mat = glm::scale(mat, glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
+      }
+      if (node.rotation.size() != 0)
+      {
+        mat = glm::mat4_cast(glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2])) * mat;
+      }
+      if (node.translation.size() != 0)
+      {
+        mat = glm::translate(mat, glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
+      }
+      return mat;
+    }
     void updateMorph(gltf::Node &node)
     {
       if (node.mesh > -1)
@@ -952,28 +969,49 @@ namespace vtuber
         }
       }
     }
-    void drawNode(Shader &shader, const gltf::Node &node, glm::mat4 parentTransform = glm::mat4(1.f))
+    void drawNode(Shader &shader, const gltf::Node &node,const gltf::Node &skeletonRoot, glm::mat4 parentTransform = glm::mat4(1.f))
     {
       glm::mat4 mat = glm::mat4(1.f);
       if (node.matrix.size() != 0)
         mat = glm::make_mat4(node.matrix.data());
       mat = parentTransform * mat;
-      if (node.scale.size() != 0)
-      {
-        mat = glm::scale(mat, glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
-      }
-      if (node.rotation.size() != 0)
-      {
-        mat = glm::mat4_cast(glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2])) * mat;
-      }
-      if (node.translation.size() != 0)
-      {
-        mat = glm::translate(mat, glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
-      }
+      mat = mat * getNodeTRS(node);
 
       if (node.mesh > -1)
       {
         assert(node.mesh < model.meshes.size());
+
+        if (node.skin > -1)
+        {
+          const gltf::Skin &skin = model.skins[node.skin];
+#if 1
+          const gltf::Node &skeletonRootNode = skin.skeleton > -1 ? model.nodes[skin.skeleton] : skeletonRoot;
+          glm::mat4 skeletonMat = glm::make_mat4(node.matrix.data());
+          skeletonMat = skeletonMat * getNodeTRS(skeletonRootNode);
+
+          glm::mat4 nodeInverse = glm::inverse(skeletonMat);
+#else
+          glm::mat4 nodeInverse = glm::inverse(mat);
+#endif
+
+          Array<float[16]> jointMatrices = Array<float[16]>(skin.joints.size());
+          for (uint i = 0; i < jointMatrices.length; i++)
+          {
+            int jointNode = skin.joints[i];
+            glm::mat4 jointNodeMat = glm::make_mat4(model.nodes[jointNode].matrix.data());
+            jointNodeMat = mat * jointNodeMat;
+            jointNodeMat = jointNodeMat * getNodeTRS(model.nodes[jointNode]);
+
+            glm::mat4 jointMatrix=glm::mat4(1.f);
+            jointMatrix *= nodeInverse;
+            jointMatrix *= jointNodeMat;
+            jointMatrix *= glm::make_mat4((float *)gltf::getDataFromAccessor(model, model.accessors[skin.inverseBindMatrices], i));
+
+            memcpy(jointMatrices[i], &jointMatrix[0][0], sizeof(float) * 16);
+          }
+
+          glUniformMatrix4fv(glGetUniformLocation(shader.ID, "u_jointMatrix"), jointMatrices.length, GL_FALSE, (float *)jointMatrices.arr);
+        }
 
         const gltf::Mesh &mesh = model.meshes[node.mesh];
         glBindVertexArray(gltfMeshVAO[node.mesh]);
@@ -1033,7 +1071,7 @@ namespace vtuber
       for (size_t i = 0; i < node.children.size(); i++)
       {
         assert(node.children[i] < model.nodes.size());
-        drawNode(shader, model.nodes[node.children[i]]);
+        drawNode(shader, model.nodes[node.children[i]], skeletonRoot, mat);
       }
     }
   };

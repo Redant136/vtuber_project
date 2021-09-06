@@ -22,15 +22,17 @@
 [x] (rendering) global transform
 [x] (math) v2, v3, v4 lib
 [x] (rendering) OPTIMIZATION, YEAH!!! (flag for updates,pass mat4 to gpu)
+[x] (animations) skinning
+[x] (test) check matrix math around l.628, in TRS + morph in update()
+[x] (test) test animation translate + scale
 
 ## working on
-[ ] (animations) skinning
 [ ] (animations) reverse kinematic
+[ ] (skinning) follow randy dev logs on skinning 
+[ ] (skinning) figure out how skeleton root node functions
 
 
 ## upcoming
-[ ] (test) check matrix math around l.628, in TRS + morph in update()
-[ ] (test) test animation translate + scale
 [ ] (glb loading) extensions/extra glb storage
 [ ] (glb rendering) lighting : https://learnopengl.com/Lighting/Colors
 [ ] (housekeeping) gltf buffer mem leak

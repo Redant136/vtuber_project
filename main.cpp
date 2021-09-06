@@ -49,7 +49,7 @@ int main()
                                    camera.ProcessMouseMovement(xoffset, yoffset);
                                  });
 
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
       },
 
       [&vmodel, &shader](GLFWwindow *window)

@@ -51,7 +51,7 @@ namespace vtuber
       int byteOffset = 0;
       int byteLength = 0;
       int byteStride = 0;
-      int target = 0;
+      int target = 34962;
       string name = "";
       std::vector<Extension> extension;
       std::vector<Extension> extras;
