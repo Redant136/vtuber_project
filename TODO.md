@@ -25,11 +25,13 @@
 [x] (animations) skinning
 [x] (test) check matrix math around l.628, in TRS + morph in update()
 [x] (test) test animation translate + scale
+[x] (debug) draw skeleton
+[x] (skinning) follow randy dev logs on skinning (not solved prob)
+[x] (skinning) figure out how skeleton root node functions (absolutly useless)
 
 ## working on
+[ ] (debug) fix skinning
 [ ] (animations) reverse kinematic
-[ ] (skinning) follow randy dev logs on skinning 
-[ ] (skinning) figure out how skeleton root node functions
 
 
 ## upcoming
@@ -38,6 +40,7 @@
 [ ] (housekeeping) gltf buffer mem leak
 [ ] (loading) warning if file has unexpexted value
 
+[ ] (optimization) morph could be passed to gpu
 [ ] (animations) max and min in accessors
 [ ] (animations) interpolation cubic spline
 [ ] (glb rendering) normal texture

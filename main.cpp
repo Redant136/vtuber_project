@@ -3,6 +3,9 @@
 // #define VMODEL "models/DamagedHelmet.glb"
 // #define VMODEL "models/AntiqueCamera.glb"
 #define VMODEL "models/simple_morph_target.gltf"
+// #define VMODEL "models/eva/scene.gltf"
+// #define VMODEL "models/wave/scene.gltf"
+// #define VMODEL "models/leopard/scene.gltf"
 
 #include "learnopengl/camera.h"
 #include "vtuber.hpp"
@@ -49,7 +52,7 @@ int main()
                                    camera.ProcessMouseMovement(xoffset, yoffset);
                                  });
 
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
       },
 
       [&vmodel, &shader](GLFWwindow *window)
@@ -70,7 +73,7 @@ int main()
 
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f) * ((float)01));
         shader.setMat4("model", model);
         shader.setMat4("node", model);
 

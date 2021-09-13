@@ -223,6 +223,7 @@ namespace vtuber
     Array<uint> gltfMeshVAO;
     Array<uint> gltfImageTextureIndex;
     Array<bool> updatedNodeMorphs;
+    Array<glm::mat4> nodeTransforms;
 
     struct
     {
@@ -390,6 +391,12 @@ namespace vtuber
         gltfBufferViewVBO[i] = VBO;
       }
 
+      nodeTransforms = Array<glm::mat4>(model.nodes.size());
+      for (uint i = 0; i < model.nodes.size(); i++)
+      {
+        nodeTransforms[i] = glm::mat4(1.f);
+      }
+
       update();
 
       // VAOs
@@ -458,11 +465,25 @@ namespace vtuber
       for (uint i = 0; i < model.images.size(); i++)
       {
         const gltf::Image &image = model.images[i];
-        const gltf::BufferView &bufferView = model.bufferViews[image.bufferView];
-
         int width, height, channels;
-        uchar *im = stbi_load_from_memory(model.buffers[bufferView.buffer].buffer + bufferView.byteOffset,
-                                          bufferView.byteLength, &width, &height, &channels, 0);
+        uchar *im;
+        if (image.bufferView != -1)
+        {
+          const gltf::BufferView &bufferView = model.bufferViews[image.bufferView];
+          im = stbi_load_from_memory(model.buffers[bufferView.buffer].buffer + bufferView.byteOffset,
+                                     bufferView.byteLength, &width, &height, &channels, 0);
+          glDeleteBuffers(1, gltfBufferViewVBO + image.bufferView);
+          gltfBufferViewVBO[image.bufferView] = 0;
+          
+          // NOTE(ANT) why doesnt this work??
+          // glTexBuffer(GL_TEXTURE_2D, GL_RGB, gltfBufferViewVBO[image.bufferView]);
+        }
+        else if (image.uri.length() != 0)
+        {
+          std::string filename = importer.directory + "/" + image.uri;
+          im = stbi_load(filename.c_str(), &width, &height, &channels, 0);
+        }
+
         GLuint tex;
         glGenTextures(1, &tex);
         glBindTexture(GL_TEXTURE_2D, tex);
@@ -472,11 +493,6 @@ namespace vtuber
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-        // NOTE(ANT) why doesnt this work??
-        // glTexBuffer(GL_TEXTURE_2D, GL_RGB, gltfBufferViewVBO[image.bufferView]);
-
-        glDeleteBuffers(1, gltfBufferViewVBO + image.bufferView);
-        gltfBufferViewVBO[image.bufferView] = 0;
         if (channels == 1)
         {
           glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RED,
@@ -499,17 +515,78 @@ namespace vtuber
 
         gltfImageTextureIndex[i] = tex;
       }
+
+    }
+    void drawSkeleton(Shader &shader)
+    {
+      std::vector<glm::vec3> nodes = std::vector<glm::vec3>();
+      uint VBO, VAO;
+      std::function<void(uint)> nodeSkeleton = [this, &nodeSkeleton, &nodes](uint node)
+      {
+        glm::mat4 mat = nodeTransforms[node];
+        glm::vec3 p1 = mat * glm::vec4(0, 0, 0, 1);
+
+        // if (model.nodes[node].skin > -1)
+        // {
+        //   for (uint i : model.skins[model.nodes[node].skin].joints)
+        //   {
+        //     glm::mat4 child = nodeTransforms[i];
+        //     glm::vec3 p2 = child * glm::vec4(0, 0, 0, 1);
+
+        //     nodes.push_back(p1);
+        //     nodes.push_back(p2);
+        //     nodeSkeleton(i);
+        //   }
+        // }
+        for (uint i : model.nodes[node].children)
+        {
+          glm::mat4 child = nodeTransforms[i];
+          glm::vec3 p2 = child * glm::vec4(0, 0, 0, 1);
+
+          nodes.push_back(p1);
+          nodes.push_back(p2);
+          nodeSkeleton(i);
+        }
+      };
+
+      const gltf::Scene &scene = model.scenes[model.scene > -1 ? model.scene : 0];
+      for (size_t i = 0; i < scene.nodes.size(); i++)
+      {
+        nodeSkeleton(scene.nodes[i]);
+      }
+      
+      shader.setVec4("baseColorFactor", glm::vec4(0, 0, 0, 1));
+      glGenBuffers(1, &VBO);
+      glGenVertexArrays(1, &VAO);
+      glBindVertexArray(VAO);
+      glBindBuffer(GL_ARRAY_BUFFER, VBO);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * nodes.size(), nodes.data(), GL_STATIC_DRAW);
+      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, 0);
+      glEnableVertexAttribArray(0);
+
+      shader.setMat4("node", glm::mat4(1.f));
+      Array<glm::mat4> jointMatrices = Array<glm::mat4>(128);
+      for (uint i = 0; i < jointMatrices.length; i++)
+      {
+        jointMatrices[i] = glm::mat4(1.f);
+      }
+      glUniformMatrix4fv(glGetUniformLocation(shader.ID, "u_jointMatrix"), jointMatrices.length, GL_FALSE, (float *)jointMatrices.arr);
+      shader.use();
+      glDrawArrays(GL_LINES, 0, nodes.size() / 2);
+      glDeleteVertexArrays(1, &VAO);
+      glDeleteBuffers(1, &VBO);
+      jointMatrices.free();
     }
     void draw(Shader &shader)
     {
       update();
 
-      int scene_to_display = model.scene > -1 ? model.scene : 0;
-      const gltf::Scene &scene = model.scenes[scene_to_display];
-      for (size_t i = 0; i < scene.nodes.size(); i++)
+      const gltf::Scene &scene = model.scenes[model.scene > -1 ? model.scene : 0];
+      for (uint i : scene.nodes)
       {
-        drawNode(shader, model.nodes[scene.nodes[i]], model.nodes[scene.nodes[i]]);
+        drawNode(shader, model.nodes[i], nodeTransforms[i]);
       }
+      // drawSkeleton(shader);
     }
 
     void update()
@@ -761,6 +838,13 @@ namespace vtuber
         }
       }
 
+      // matrices
+      const gltf::Scene &scene = model.scenes[model.scene > -1 ? model.scene : 0];
+      for (uint i : scene.nodes)
+      {
+        updateNodeMatrix(i);
+      }
+
       // NOTE(ANT) inverse kinematics
     }
     void animate(uint index)
@@ -771,24 +855,26 @@ namespace vtuber
         animationData.animationStartTime = glfwGetTime();
       }
     }
-
   private:
-    glm::mat4 getNodeTRS(const gltf::Node&node)
+    static glm::mat4 getNodeTRS(const gltf::Node&node)
     {
-      glm::mat4 mat=glm::mat4(1.f);
+      glm::mat4 t = glm::mat4(1.f);
+      glm::mat4 r = glm::mat4(1.f);
+      glm::mat4 s = glm::mat4(1.f);
+
       if (node.scale.size() != 0)
       {
-        mat = glm::scale(mat, glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
+        t = glm::scale(glm::mat4(1.f), glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
       }
       if (node.rotation.size() != 0)
       {
-        mat = glm::mat4_cast(glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2])) * mat;
+        r = glm::mat4_cast(glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2]));
       }
       if (node.translation.size() != 0)
       {
-        mat = glm::translate(mat, glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
+        s = glm::translate(glm::mat4(1.f), glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
       }
-      return mat;
+      return t*r*s;
     }
     void updateMorph(gltf::Node &node)
     {
@@ -969,48 +1055,55 @@ namespace vtuber
         }
       }
     }
-    void drawNode(Shader &shader, const gltf::Node &node,const gltf::Node &skeletonRoot, glm::mat4 parentTransform = glm::mat4(1.f))
+    void updateNodeMatrix(uint node, glm::mat4 parentTransform = glm::mat4(1.f))
     {
       glm::mat4 mat = glm::mat4(1.f);
-      if (node.matrix.size() != 0)
-        mat = glm::make_mat4(node.matrix.data());
       mat = parentTransform * mat;
-      mat = mat * getNodeTRS(node);
+      if (model.nodes[node].matrix.size() != 0)
+        mat *= glm::make_mat4((float*)model.nodes[node].matrix.data());
+      mat *= getNodeTRS(model.nodes[node]);
+      nodeTransforms[node] = mat;
 
+      for (uint i : model.nodes[node].children)
+      {
+        model.nodes[i].parentNode = node;
+        updateNodeMatrix(i, mat);
+      }
+    }
+
+    void drawNode(Shader &shader, const gltf::Node &node, glm::mat4 mat)
+    {
       if (node.mesh > -1)
       {
         assert(node.mesh < model.meshes.size());
 
-        if (node.skin > -1)
+        bool test = 0;
+        // skinning
+        // TODO(ANT) fix skinning
+        if (!test && node.skin > -1)
         {
           const gltf::Skin &skin = model.skins[node.skin];
-#if 1
-          const gltf::Node &skeletonRootNode = skin.skeleton > -1 ? model.nodes[skin.skeleton] : skeletonRoot;
-          glm::mat4 skeletonMat = glm::make_mat4(node.matrix.data());
-          skeletonMat = skeletonMat * getNodeTRS(skeletonRootNode);
-
-          glm::mat4 nodeInverse = glm::inverse(skeletonMat);
-#else
+          
           glm::mat4 nodeInverse = glm::inverse(mat);
-#endif
 
-          Array<float[16]> jointMatrices = Array<float[16]>(skin.joints.size());
-          for (uint i = 0; i < jointMatrices.length; i++)
+          std::vector<glm::mat4> jointMatrices = std::vector<glm::mat4>(skin.joints.size());
+          for (uint i = 0; i < skin.joints.size(); i++)
           {
-            int jointNode = skin.joints[i];
-            glm::mat4 jointNodeMat = glm::make_mat4(model.nodes[jointNode].matrix.data());
-            jointNodeMat = mat * jointNodeMat;
-            jointNodeMat = jointNodeMat * getNodeTRS(model.nodes[jointNode]);
+            glm::mat4 jointNodeMat = nodeTransforms[skin.joints[i]];
+            glm::mat4 inverseBindMatrix = glm::make_mat4((float *)gltf::getDataFromAccessor(model, model.accessors[skin.inverseBindMatrices], i));
 
-            glm::mat4 jointMatrix=glm::mat4(1.f);
+
+            // TODO(ANT)
+            glm::mat4 jointMatrix = glm::mat4(1.f);
             jointMatrix *= nodeInverse;
             jointMatrix *= jointNodeMat;
-            jointMatrix *= glm::make_mat4((float *)gltf::getDataFromAccessor(model, model.accessors[skin.inverseBindMatrices], i));
+            jointMatrix *= inverseBindMatrix;
 
-            memcpy(jointMatrices[i], &jointMatrix[0][0], sizeof(float) * 16);
+            jointMatrices[i] = jointMatrix;
+            print(jointMatrices[i]);
+            printSep();
           }
-
-          glUniformMatrix4fv(glGetUniformLocation(shader.ID, "u_jointMatrix"), jointMatrices.length, GL_FALSE, (float *)jointMatrices.arr);
+          glUniformMatrix4fv(glGetUniformLocation(shader.ID, "u_jointMatrix"), jointMatrices.size(), GL_FALSE, (float *)jointMatrices.data());
         }
 
         const gltf::Mesh &mesh = model.meshes[node.mesh];
@@ -1025,10 +1118,10 @@ namespace vtuber
               model.accessors[primitive.indices];
           glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gltfBufferViewVBO[indexAccessor.bufferView]);
 
+          // material rendering
           if (primitive.material >= 0)
           {
             const gltf::Material &material = model.materials[primitive.material];
-
             if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
             {
               const gltf::Texture &texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
@@ -1043,6 +1136,12 @@ namespace vtuber
 
               glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
               glBindSampler(GL_TEXTURE_2D, sampler_obj);
+            }
+            if (material.pbrMetallicRoughness.baseColorFactor.size() > 0)
+            {
+              glm::vec4 baseColorFactor;
+              memcpy(&baseColorFactor, material.pbrMetallicRoughness.baseColorFactor.data(), sizeof(float) * 4);
+              shader.setVec4("baseColorFactor", baseColorFactor);
             }
             if (material.emissiveTexture.index >= 0)
             {
@@ -1071,7 +1170,7 @@ namespace vtuber
       for (size_t i = 0; i < node.children.size(); i++)
       {
         assert(node.children[i] < model.nodes.size());
-        drawNode(shader, model.nodes[node.children[i]], skeletonRoot, mat);
+        drawNode(shader, model.nodes[node.children[i]], mat);
       }
     }
   };

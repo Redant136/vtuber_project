@@ -1,7 +1,7 @@
 #pragma once
 #ifndef CHEVAN_UTILS_H
 #define CHEVAN_UTILS_H
-#define CHEVAN_UTILS_VERSION "1.4"
+#define CHEVAN_UTILS_VERSION "1.4.1"
 
 #ifndef CHEVAN_UTILS_NO_SHORTHANDS
 
@@ -671,6 +671,10 @@ namespace chevan_utils
   {
     std::cout << std::endl;
   }
+  static void printSep()
+  {
+    std::cout<<"---------------------------------"<<std::endl;
+  }
   template <typename Printable>
   static void print(Printable p)
   {
@@ -1207,7 +1211,7 @@ namespace chevan_utils
       }
     }
   }
-  // TODO(ANT) complete matrix math here
+  // NOTE(ANT) complete matrix math here
 
 #if 0
   static m4 scale1(v3 scale)

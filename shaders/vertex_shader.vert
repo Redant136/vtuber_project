@@ -17,7 +17,6 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
-out vec4 Color;
 void main()
 {
     TexCoords = a_texCoords;
@@ -31,8 +30,11 @@ void main()
             a_weights.y*u_jointMatrix[int(a_joints.y)]+
             a_weights.z*u_jointMatrix[int(a_joints.z)]+
             a_weights.w*u_jointMatrix[int(a_joints.w)];
+        if(skinMatrix == mat4(0.f))
+        {
+            skinMatrix = mat4(1.f);
+        }
     }
-
     gl_Position = projection * view * model * node * skinMatrix * vec4(a_pos, 1.0);
 
 }

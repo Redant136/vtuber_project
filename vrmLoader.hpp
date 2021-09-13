@@ -329,6 +329,8 @@ namespace vtuber
     };
     struct Node
     {
+      int parentNode = -1;
+      // ------------------
       string name = "";
       std::vector<uint> children;
       std::vector<float> matrix = std::vector<float>({1, 0, 0, 0,
@@ -476,6 +478,7 @@ namespace vtuber
         else
           byteStride = componentSizeInBytes * numComponents;
       }
+      assert(accessor.count > index);
 
       return (model.buffers[bfView.buffer].buffer + bfView.byteOffset) + accessor.byteOffset + (byteStride)*index;
     }
@@ -485,6 +488,8 @@ namespace vtuber
   {
   public:
     gltf::glTFModel model;
+    std::string path = "";
+    std::string directory="./";
 
     void import(std::string path, Filetype type = Filetype::glb)
     {
@@ -510,8 +515,6 @@ namespace vtuber
     }
 
   private:
-    std::string path = "";
-
     template <typename T>
     std::vector<T> pop(std::vector<T> &buffer, unsigned int size = 1)
     {
@@ -1204,7 +1207,8 @@ namespace vtuber
         {
           if (gltf.meshes[i].name == names[j])
           {
-            throw std::invalid_argument("duplicate name");
+            // TODO(ANT)
+            // throw std::invalid_argument("duplicate name");
           }
         }
         names[i] = gltf.meshes[i].name;
@@ -1230,6 +1234,7 @@ namespace vtuber
         {
           dir = path.substr(0, sepIndex);
         }
+        this->directory = dir;
       }
       
       for (uint i = 0; i < model.buffers.size(); i++)
@@ -1247,16 +1252,21 @@ namespace vtuber
         }
         else // file based
         {
-          std::string file = dir + model.buffers[i].uri;
+          std::string file = dir + "/" + model.buffers[i].uri;
           std::ifstream input(file, std::ios::binary);
           std::vector<char> bytes(
               (std::istreambuf_iterator<char>(input)),
               (std::istreambuf_iterator<char>()));
           input.close();
 
-          model.buffers[i].buffer=new uchar[bytes.size()];
+          model.buffers[i].buffer = new uchar[bytes.size()];
           memcpy(model.buffers[i].buffer,bytes.data(),bytes.size());
         }
+      }
+      
+      for (uint i = 0; i < model.images.size(); i++)
+      {
+
       }
     }
 
