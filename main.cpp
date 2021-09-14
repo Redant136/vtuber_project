@@ -2,10 +2,10 @@
 // #define VMODEL "models/Avocado.gltf"
 // #define VMODEL "models/DamagedHelmet.glb"
 // #define VMODEL "models/AntiqueCamera.glb"
-#define VMODEL "models/simple_morph_target.gltf"
+// #define VMODEL "models/simple_morph_target.gltf"
 // #define VMODEL "models/eva/scene.gltf"
 // #define VMODEL "models/wave/scene.gltf"
-// #define VMODEL "models/leopard/scene.gltf"
+#define VMODEL "models/leopard/scene.gltf"
 
 #include "learnopengl/camera.h"
 #include "vtuber.hpp"
@@ -33,7 +33,7 @@ int main()
 
         shader = Shader(VERTEX_SHADER, FRAGMENT_SHADER);
 
-        // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         glfwSetCursorPosCallback(window, [](GLFWwindow *window, double xpos, double ypos)
                                  {
                                    if (firstMouse)

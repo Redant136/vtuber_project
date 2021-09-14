@@ -1100,8 +1100,8 @@ namespace vtuber
             jointMatrix *= inverseBindMatrix;
 
             jointMatrices[i] = jointMatrix;
-            print(jointMatrices[i]);
-            printSep();
+            // print(jointMatrices[i]);
+            // printSep();
           }
           glUniformMatrix4fv(glGetUniformLocation(shader.ID, "u_jointMatrix"), jointMatrices.size(), GL_FALSE, (float *)jointMatrices.data());
         }

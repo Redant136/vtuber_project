@@ -7,21 +7,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED True)
 
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-  message(STATUS "GCC detected, adding compile flags")
+if((${CMAKE_CXX_COMPILER_ID} STREQUAL GNU) OR (${CMAKE_CXX_COMPILER_ID} STREQUAL AppleClang) OR (${CMAKE_CXX_COMPILER_ID} STREQUAL Clang))
+  message(STATUS "${CMAKE_CXX_COMPILER_ID} compiler detected, adding compile flags")
   if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
   endif()
   set(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-unused-function")
   set(CMAKE_CXX_FLAGS_DEBUG "-g")
-  # set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O3")
   
-  
-  
-  else()
-  
-  message(STATUS "cl detected, adding compile flags")
+elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
+  message(STATUS "MSVC detected, adding compile flags")
   # set(CMAKE_DEBUG_POSTFIX "d")
   # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 
@@ -29,12 +25,12 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   # set(CMAKE_CXX_FLAGS_DEBUG "-DEBUG")
   # set(CMAKE_CXX_FLAGS_RELEASE "-Ox")
 
-endif(CMAKE_COMPILER_IS_GNUCXX)
+endif()
 
 if(APPLE)
   include_directories ( /usr/local/include) 
   link_directories( /usr/local/lib)
-endif()
+endif(APPLE)
 
 add_executable(vtuber main.cpp)
 

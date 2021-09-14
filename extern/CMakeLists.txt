@@ -5,16 +5,13 @@ find_package(OpenGL REQUIRED)
 target_link_libraries(vtuber PRIVATE OpenGL::GL)
 
 
-find_package(glfw NAMES glfw glfw3)
+find_package(glfw QUIET NAMES glfw glfw3)
 if(glfw_FOUND)
   target_link_libraries(vtuber PRIVATE glfw)
 else()
   add_subdirectory(glfw)
   target_link_libraries(vtuber PRIVATE glfw)
 endif()
-
-# add_subdirectory(assimp)
-# target_link_libraries(vtuber PRIVATE assimp)
 
 add_subdirectory(glm)
 target_link_libraries(vtuber PRIVATE glm::glm)
