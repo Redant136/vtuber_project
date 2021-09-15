@@ -5,6 +5,7 @@ out vec4 FragColor;
 in vec2 TexCoords;
 
 uniform vec4 baseColorFactor;
+uniform bool hasMaterial;
 
 uniform sampler2D texture_base;
 uniform sampler2D texture_metalic;
@@ -24,7 +25,6 @@ bool is0(float f){
   else
     return false;
 }
-
 bool is0(vec3 v){
   if(is0(v.x)&&is0(v.y)&&is0(v.z)){
     return true;
@@ -33,7 +33,6 @@ bool is0(vec3 v){
     return false;
   }
 }
-
 bool is0(vec4 v){
   if(is0(v.x)&&is0(v.y)&&is0(v.z)&&is0(v.w)){
     return true;
@@ -46,9 +45,10 @@ bool is0(vec4 v){
 void main()
 {
   vec4 color = texture(texture_base, TexCoords) + texture(texture_emisive,TexCoords);
-  if(is0(vec3(color))){
-    FragColor=baseColorFactor;
+  if(!hasMaterial){
+    color=baseColorFactor;
   }else{
-    FragColor=color*baseColorFactor;
+    color*=baseColorFactor;
   }
+  FragColor=color;
 }

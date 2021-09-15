@@ -864,7 +864,7 @@ namespace vtuber
 
       if (node.scale.size() != 0)
       {
-        t = glm::scale(glm::mat4(1.f), glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
+        s = glm::scale(glm::mat4(1.f), glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
       }
       if (node.rotation.size() != 0)
       {
@@ -872,7 +872,7 @@ namespace vtuber
       }
       if (node.translation.size() != 0)
       {
-        s = glm::translate(glm::mat4(1.f), glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
+        t = glm::translate(glm::mat4(1.f), glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
       }
       return t*r*s;
     }
@@ -1071,37 +1071,41 @@ namespace vtuber
       }
     }
 
+    glm::mat4 getNodeMatrix(const gltf::Node &node){
+      glm::mat4 m = getNodeTRS(node);
+      gltf::Node *n = (gltf::Node *)&node;
+      while (n->parentNode > -1)
+      {
+        m = getNodeTRS(model.nodes[n->parentNode]) * m;
+        n = &model.nodes[n->parentNode];
+      }
+      return m;
+    }
+
     void drawNode(Shader &shader, const gltf::Node &node, glm::mat4 mat)
     {
       if (node.mesh > -1)
       {
         assert(node.mesh < model.meshes.size());
 
-        bool test = 0;
         // skinning
-        // TODO(ANT) fix skinning
-        if (!test && node.skin > -1)
+        if (node.skin > -1)
         {
           const gltf::Skin &skin = model.skins[node.skin];
-          
-          glm::mat4 nodeInverse = glm::inverse(mat);
 
+          glm::mat4 nodeInverse = glm::inverse(mat);
           std::vector<glm::mat4> jointMatrices = std::vector<glm::mat4>(skin.joints.size());
           for (uint i = 0; i < skin.joints.size(); i++)
           {
             glm::mat4 jointNodeMat = nodeTransforms[skin.joints[i]];
             glm::mat4 inverseBindMatrix = glm::make_mat4((float *)gltf::getDataFromAccessor(model, model.accessors[skin.inverseBindMatrices], i));
 
-
-            // TODO(ANT)
             glm::mat4 jointMatrix = glm::mat4(1.f);
             jointMatrix *= nodeInverse;
             jointMatrix *= jointNodeMat;
             jointMatrix *= inverseBindMatrix;
 
             jointMatrices[i] = jointMatrix;
-            // print(jointMatrices[i]);
-            // printSep();
           }
           glUniformMatrix4fv(glGetUniformLocation(shader.ID, "u_jointMatrix"), jointMatrices.size(), GL_FALSE, (float *)jointMatrices.data());
         }
@@ -1119,11 +1123,13 @@ namespace vtuber
           glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gltfBufferViewVBO[indexAccessor.bufferView]);
 
           // material rendering
+          bool hasMaterial=0;
           if (primitive.material >= 0)
           {
             const gltf::Material &material = model.materials[primitive.material];
             if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
             {
+              hasMaterial = 1;
               const gltf::Texture &texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
 
               const gltf::Sampler &sampler = model.samplers[texture.sampler];
@@ -1145,6 +1151,7 @@ namespace vtuber
             }
             if (material.emissiveTexture.index >= 0)
             {
+              hasMaterial = 1;
               const gltf::Texture &texture = model.textures[material.emissiveTexture.index];
 
               const gltf::Sampler &sampler = model.samplers[texture.sampler];
@@ -1159,6 +1166,7 @@ namespace vtuber
               glBindSampler(GL_TEXTURE_2D, sampler_obj);
             }
           }
+          shader.setBool("hasMaterial",hasMaterial);
 
           glDrawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType,
                          reinterpret_cast<void *>(indexAccessor.byteOffset));

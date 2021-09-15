@@ -332,7 +332,7 @@ namespace vtuber
       int parentNode = -1;
       // ------------------
       string name = "";
-      std::vector<uint> children;
+      std::vector<uint> children=std::vector<uint>();
       std::vector<float> matrix = std::vector<float>({1, 0, 0, 0,
                                                       0, 1, 0, 0,
                                                       0, 0, 1, 0,
@@ -342,10 +342,10 @@ namespace vtuber
       std::vector<float> scale = std::vector<float>({1, 1, 1});
       int mesh = -1;
       int skin = -1;
-      std::vector<float> weights;
+      std::vector<float> weights=std::vector<float>();
       int camera = -1;
-      std::vector<Extension> extension;
-      std::vector<Extension> extras;
+      std::vector<Extension> extension=std::vector<Extension>();
+      std::vector<Extension> extras=std::vector<Extension>();
     };
 
     struct Scene
