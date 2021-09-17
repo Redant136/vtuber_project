@@ -28,15 +28,15 @@
 [x] (debug) draw skeleton
 [x] (skinning) follow randy dev logs on skinning (not solved prob)
 [x] (skinning) figure out how skeleton root node functions (absolutly useless)
+[x] (debug) fix skinning
+[x] (glb rendering) lighting : https://learnopengl.com/Lighting/Colors
 
 ## working on
-[ ] (debug) fix skinning
-[ ] (animations) reverse kinematic
+[ ] (glb loading) extensions/extra glb storage
 
 
 ## upcoming
-[ ] (glb loading) extensions/extra glb storage
-[ ] (glb rendering) lighting : https://learnopengl.com/Lighting/Colors
+[ ] (animations) reverse kinematic
 [ ] (housekeeping) gltf buffer mem leak
 [ ] (loading) warning if file has unexpexted value
 
@@ -49,6 +49,7 @@
 [ ] (research) https://github.com/netmail-open/wjelement , https://github.com/petehug/wjelement-cpp/wiki
 
 ## wants
+[ ] blinn-phong lighting https://learnopengl.com/Advanced-Lighting/Advanced-Lighting 
 [ ] (gltf loading) textures that are not bfviews
 [ ] (glb rendering) https://learnopengl.com/Advanced-OpenGL/Instancing
 [ ] (workflow) remedybg debugger

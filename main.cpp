@@ -76,6 +76,8 @@ int main()
         model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f) * ((float)01));
         shader.setMat4("model", model);
         shader.setMat4("node", model);
+        shader.setVec4("lightSources",glm::vec4(1,0,0,0.5));
+        shader.setInt("lightSourcesLength",1);
 
         vmodel.draw(shader);
 

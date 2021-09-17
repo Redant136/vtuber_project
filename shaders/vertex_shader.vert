@@ -2,25 +2,29 @@
 #define MAX_JOINT_MATRIX 256
 // #define MAX_JOINT_MATRIX 128
 
+
 layout (location = 0) in vec3 a_pos;
 layout (location = 1) in vec3 a_normal;
 layout (location = 2) in vec2 a_texCoords;
 layout (location = 3) in vec4 a_joints;
 layout (location = 4) in vec4 a_weights;
 
+out vec3 Pos;
+out vec3 Normal;
 out vec2 TexCoords;
 
-uniform mat4 u_jointMatrix[MAX_JOINT_MATRIX];
+uniform mat4 u_jointMatrix[MAX_JOINT_MATRIX];// joint matrices
 
-uniform mat4 node;
+uniform mat4 node;// specific node transform
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 model;// global model transform
+uniform mat4 view;// camera
+uniform mat4 projection;// camera
 
 void main()
 {
     TexCoords = a_texCoords;
+    Normal = a_normal;
 
     mat4 skinMatrix = mat4(1.f);
 
@@ -36,6 +40,8 @@ void main()
             skinMatrix = mat4(1.f);
         }
     }
-    gl_Position = projection * view * model * node * skinMatrix * vec4(a_pos, 1.0);
+    vec4 pos = projection * view * model * node * skinMatrix * vec4(a_pos, 1.0);
+    Pos = vec3(pos);
+    gl_Position = pos;
 
 }

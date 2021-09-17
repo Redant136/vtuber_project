@@ -185,6 +185,43 @@ namespace vtuber
     {
       glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
     }
+    
+    void setBoolArr(const std::string &name,uint size, bool *value) const
+    {
+      glUniform1iv(glGetUniformLocation(ID, name.c_str()), size, (int*)value);
+    }
+    void setIntArr(const std::string &name,uint size, int *value) const
+    {
+      glUniform1iv(glGetUniformLocation(ID, name.c_str()), size, value);
+    }
+    void setFloatArr(const std::string &name,uint size, float *value) const
+    {
+      glUniform1fv(glGetUniformLocation(ID, name.c_str()), size, value);
+    }
+    void setVec2Arr(const std::string &name,uint size, const float *value) const
+    {
+      glUniform2fv(glGetUniformLocation(ID, name.c_str()), size, value);
+    }
+    void setVec3Arr(const std::string &name,uint size, const float *value) const
+    {
+      glUniform3fv(glGetUniformLocation(ID, name.c_str()), size, value);
+    }
+    void setVec4Arr(const std::string &name,uint size, const float *value) const
+    {
+      glUniform4fv(glGetUniformLocation(ID, name.c_str()), size, value);
+    }
+    void setMat2Arr(const std::string &name,uint size, const float *mat) const
+    {
+      glUniformMatrix2fv(glGetUniformLocation(ID, name.c_str()), size, GL_FALSE, mat);
+    }
+    void setMat3Arr(const std::string &name,uint size, const float *mat) const
+    {
+      glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), size, GL_FALSE, mat);
+    }
+    void setMat4Arr(const std::string &name,uint size, const float *mat) const
+    {
+      glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), size, GL_FALSE, mat);
+    }
 
   private:
     void checkCompileErrors(GLuint shader, std::string type)
@@ -1071,17 +1108,6 @@ namespace vtuber
       }
     }
 
-    glm::mat4 getNodeMatrix(const gltf::Node &node){
-      glm::mat4 m = getNodeTRS(node);
-      gltf::Node *n = (gltf::Node *)&node;
-      while (n->parentNode > -1)
-      {
-        m = getNodeTRS(model.nodes[n->parentNode]) * m;
-        n = &model.nodes[n->parentNode];
-      }
-      return m;
-    }
-
     void drawNode(Shader &shader, const gltf::Node &node, glm::mat4 mat)
     {
       if (node.mesh > -1)
@@ -1107,7 +1133,7 @@ namespace vtuber
 
             jointMatrices[i] = jointMatrix;
           }
-          glUniformMatrix4fv(glGetUniformLocation(shader.ID, "u_jointMatrix"), jointMatrices.size(), GL_FALSE, (float *)jointMatrices.data());
+          shader.setMat4Arr("u_jointMatrix", jointMatrices.size(), (float *)jointMatrices.data());
         }
 
         const gltf::Mesh &mesh = model.meshes[node.mesh];
