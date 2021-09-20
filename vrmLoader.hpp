@@ -30,10 +30,35 @@ namespace vtuber
 #define GLTF_COMPONENT_DOUBLE (5130)
     typedef std::string string;
 
+    static const struct {
+      string KHR_materials_unlit = "KHR_materials_unlit";
+      string KHR_texture_transform = "KHR_texture_transform";
+
+    } SUPPORTED_EXTENSIONS;
+
     struct Extension
     {
-      json data;
+      string name;
+      void *data;
     };
+
+    namespace Extensions
+    {
+      struct KHR_materials_unlit
+      {
+        std::vector<Extension> extensions;
+        std::vector<Extension> extras;
+      };
+      struct KHR_texture_transform
+      {
+        std::vector<float> offset = {0.0, 0.0};
+        float rotation = 0.0;
+        std::vector<float> scale = {1.0, 1.0};
+        int texCoord = 0;
+        std::vector<Extension> extensions;
+        std::vector<Extension> extras;
+      };
+    }
 
     struct Buffer
     {
@@ -42,7 +67,7 @@ namespace vtuber
       string uri = "";
       int byteLength = 0;
       string name = "";
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     struct BufferView
@@ -53,7 +78,7 @@ namespace vtuber
       int byteStride = 0;
       int target = 34962;
       string name = "";
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     struct Accessor
@@ -103,21 +128,21 @@ namespace vtuber
             FLOAT = GLTF_COMPONENT_FLOAT,
             DOUBLE = GLTF_COMPONENT_DOUBLE
           } componentType;
-          std::vector<Extension> extension;
+          std::vector<Extension> extensions;
           std::vector<Extension> extras;
         } indices;
         struct Values
         {
           int bufferView = -1;
           int byteOffset = 0;
-          std::vector<Extension> extension;
+          std::vector<Extension> extensions;
           std::vector<Extension> extras;
         } values;
-        std::vector<Extension> extension;
+        std::vector<Extension> extensions;
         std::vector<Extension> extras;
       } sparse;
       string name = "";
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     //-----------------
@@ -127,7 +152,7 @@ namespace vtuber
       string uri = "";
       int bufferView = -1;
       string mimeType = "";
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     struct Sampler
@@ -154,7 +179,7 @@ namespace vtuber
       glWrap wrapS = CLAMP_TO_EDGE;
       glWrap wrapT = CLAMP_TO_EDGE;
       string name = "";
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     struct Texture
@@ -162,7 +187,7 @@ namespace vtuber
       int sampler = -1;
       int source = -1;
       string name = "";
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     struct Material
@@ -171,7 +196,7 @@ namespace vtuber
       {
         int index = -1;
         int texCoord = 0;
-        std::vector<Extension> extension;
+        std::vector<Extension> extensions;
         std::vector<Extension> extras;
       };
       struct PbrMetallicRoughness
@@ -181,7 +206,7 @@ namespace vtuber
         TextureInfo metallicRoughnessTexture;
         float metallicFactor = 1.f;
         float roughnessFactor = 1.f;
-        std::vector<Extension> extension;
+        std::vector<Extension> extensions;
         std::vector<Extension> extras;
       };
       struct MaterialNormalTextureInfo : public TextureInfo
@@ -206,7 +231,7 @@ namespace vtuber
       } alphaMode = OPAQUE;
       float alphaCutoff = 0.5f;
       bool doubleSided = false;
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     //-------
@@ -218,7 +243,7 @@ namespace vtuber
         float ymag = 0.f;
         float zfar = 0.f;
         float znear = 0.f;
-        std::vector<Extension> extension;
+        std::vector<Extension> extensions;
         std::vector<Extension> extras;
       };
       struct Perspective
@@ -227,7 +252,7 @@ namespace vtuber
         float yfov = 1.f;
         float zfar = 0.f;
         float znear = 0.f;
-        std::vector<Extension> extension;
+        std::vector<Extension> extensions;
         std::vector<Extension> extras;
       };
       string name = "";
@@ -238,7 +263,7 @@ namespace vtuber
         Perspective,
         Orthographic
       } type;
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     //--------
@@ -248,7 +273,7 @@ namespace vtuber
       int inverseBindMatrices = -1;
       std::vector<int> joints;
       int skeleton = -1;
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     //--------
@@ -267,10 +292,10 @@ namespace vtuber
             scale,
             weights
           } path;
-          std::vector<Extension> extension;
+          std::vector<Extension> extensions;
           std::vector<Extension> extras;
         } target;
-        std::vector<Extension> extension;
+        std::vector<Extension> extensions;
         std::vector<Extension> extras;
       };
       struct AnimationSampler
@@ -283,13 +308,13 @@ namespace vtuber
           CUBICSPLINE
         } interpolation;
         int output = -1;
-        std::vector<Extension> extension;
+        std::vector<Extension> extensions;
         std::vector<Extension> extras;
       };
       string name = "";
       std::vector<AnimationChannel> channels;
       std::vector<AnimationSampler> samplers;
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     //--------
@@ -312,19 +337,20 @@ namespace vtuber
           int TANGENT = -1;
           int TEXCOORD_0 = -1;
           int TEXCOORD_1 = -1;
+          int TEXCOORD_2 = -1;
           int COLOR_0 = -1;
           int JOINTS_0 = -1;
           int WEIGHTS_0 = -1;
         } attributes;
         int material = -1;
         std::vector<MorphTarget> targets;
-        std::vector<Extension> extension;
+        std::vector<Extension> extensions;
         std::vector<Extension> extras;
       };
       std::string name = "";
       std::vector<Primitive> primitives;
       std::vector<float> weights;
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
     struct Node
@@ -332,7 +358,7 @@ namespace vtuber
       int parentNode = -1;
       // ------------------
       string name = "";
-      std::vector<uint> children=std::vector<uint>();
+      std::vector<uint> children = std::vector<uint>();
       std::vector<float> matrix = std::vector<float>({1, 0, 0, 0,
                                                       0, 1, 0, 0,
                                                       0, 0, 1, 0,
@@ -342,17 +368,17 @@ namespace vtuber
       std::vector<float> scale = std::vector<float>({1, 1, 1});
       int mesh = -1;
       int skin = -1;
-      std::vector<float> weights=std::vector<float>();
+      std::vector<float> weights = std::vector<float>();
       int camera = -1;
-      std::vector<Extension> extension=std::vector<Extension>();
-      std::vector<Extension> extras=std::vector<Extension>();
+      std::vector<Extension> extensions = std::vector<Extension>();
+      std::vector<Extension> extras = std::vector<Extension>();
     };
 
     struct Scene
     {
       string name = "";
       std::vector<int> nodes;
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
 
@@ -365,7 +391,7 @@ namespace vtuber
         string copyright;
         string minVersion;
         //---------------------------------
-        std::vector<Extension> extension;
+        std::vector<Extension> extensions;
         std::vector<Extension> extras;
       } asset;
       std::vector<Buffer> buffers;
@@ -389,36 +415,36 @@ namespace vtuber
       std::vector<string> extensionsUsed;
       std::vector<string> extensionsRequired;
 
-      std::vector<Extension> extension;
+      std::vector<Extension> extensions;
       std::vector<Extension> extras;
     };
 
-    int getMeshPrimitiveAttribVal(const Mesh::Primitive::Attributes& attribute, std::string name, uint index)
+    static int getMeshPrimitiveAttribVal(const Mesh::Primitive::Attributes &attribute, std::string name)
     {
-      int *attrib = (int*)&attribute;
-#define _concatNames(a,b) a##b
-#define parseAttribAlt(att_name) if(name==#att_name){attrib=(int*)(&attribute._concatNames(att_name,_0));}
-#define parseAttrib(att_name) if(name==#att_name){attrib=(int*)(&attribute.att_name);}
-      parseAttrib(POSITION)
-      else parseAttrib(NORMAL)
-      else parseAttrib(TANGENT)
-      else parseAttribAlt(TEXCOORD)
-      else parseAttribAlt(COLOR)
-      else parseAttribAlt(JOINTS)
-      else parseAttribAlt(WEIGHTS)
-      else
+      int *attrib = (int *)&attribute;
+#define parseAttrib(att_name)              \
+  if (name == #att_name)                   \
+  {                                        \
+    attrib = (int *)(&attribute.att_name); \
+  }
+      parseAttrib(POSITION) 
+      else parseAttrib(NORMAL) 
+      else parseAttrib(TANGENT) 
+      else parseAttrib(TEXCOORD_0) 
+      else parseAttrib(TEXCOORD_1)
+      else parseAttrib(TEXCOORD_2) 
+      else parseAttrib(COLOR_0) 
+      else parseAttrib(JOINTS_0) 
+      else parseAttrib(WEIGHTS_0) else
       {
-        std::cout<<"no such attribute"<<std::endl;
+        std::cout << "no such attribute" << std::endl;
         assert(0);
       }
 #undef parseAttrib
-#undef parseAttribAlt
-#undef _concatNames
-      attrib += index;
       return *attrib;
     }
 
-    uint gltf_sizeof(int type)
+    static uint gltf_sizeof(int type)
     {
       switch (type)
       {
@@ -443,27 +469,28 @@ namespace vtuber
 
     uint gltf_num_components(Accessor::Types type)
     {
-      switch(type){
-        case Accessor::Types::SCALAR:
+      switch (type)
+      {
+      case Accessor::Types::SCALAR:
         return 1;
-        case Accessor::Types::VEC2:
-          return 2;
-        case Accessor::Types::VEC3:
-          return 3;
-        case Accessor::Types::VEC4:
-          return 4;
-        case Accessor::Types::MAT2:
-          return 4;
-        case Accessor::Types::MAT3:
-          return 9;
-        case Accessor::Types::MAT4:
-          return 16;
-        default:
-          return 0;
+      case Accessor::Types::VEC2:
+        return 2;
+      case Accessor::Types::VEC3:
+        return 3;
+      case Accessor::Types::VEC4:
+        return 4;
+      case Accessor::Types::MAT2:
+        return 4;
+      case Accessor::Types::MAT3:
+        return 9;
+      case Accessor::Types::MAT4:
+        return 16;
+      default:
+        return 0;
       }
     }
 
-    uchar *getDataFromAccessor(const glTFModel &model, const Accessor &accessor, uint index = 0)
+    static uchar *getDataFromAccessor(const glTFModel &model, const Accessor &accessor, uint index = 0)
     {
       const BufferView &bfView = model.bufferViews[accessor.bufferView];
       uint byteStride = bfView.byteStride;
@@ -482,6 +509,20 @@ namespace vtuber
 
       return (model.buffers[bfView.buffer].buffer + bfView.byteOffset) + accessor.byteOffset + (byteStride)*index;
     }
+
+    template <typename T>
+    static int findExtensionIndex(string name, T obj)
+    {
+
+      for (int i = 0; i < obj.extensions.size(); i++)
+      {
+        if (obj.extensions[i].name == name)
+        {
+          return i;
+        }
+      }
+      return -1;
+    }
   }
 
   class Importer
@@ -489,7 +530,7 @@ namespace vtuber
   public:
     gltf::glTFModel model;
     std::string path = "";
-    std::string directory="./";
+    std::string directory = "./";
 
     void import(std::string path, Filetype type = Filetype::glb)
     {
@@ -523,17 +564,45 @@ namespace vtuber
       return r;
     }
 
-    std::vector<gltf::Extension> deserializeExtensions(json extensions)
+    std::vector<gltf::Extension> deserialize_extensions(json extensions)
     {
-      // TODO(ANT) fix this and research
       std::vector<gltf::Extension> vec;
-      for (uint i = 0; i < extensions.size(); i++)
+      for (auto x : extensions.items())
       {
-        // glTF::Extension ext;
-        // ext.data=extensions[i];
-        // vec.push_back(ext);
+        gltf::Extension ext;
+        ext.name = x.key();
+        if (ext.name == gltf::SUPPORTED_EXTENSIONS.KHR_materials_unlit)
+        {
+          ext.data = new gltf::Extensions::KHR_materials_unlit();
+        }
+        else if (ext.name == gltf::SUPPORTED_EXTENSIONS.KHR_texture_transform)
+        {
+          gltf::Extensions::KHR_texture_transform *transform = new gltf::Extensions::KHR_texture_transform();
+          transform->offset = std::vector<float>(x.value()["offset"].size());
+          for (uint i = 0; i < x.value()["offset"].size(); i++)
+          {
+            transform->offset[i] = x.value()["offset"][i].get<float>();
+          }
+          transform->rotation = x.value()["rotation"].get<float>();
+          transform->scale = std::vector<float>(x.value()["scale"].size());
+          for (uint i = 0; i < x.value()["scale"].size(); i++)
+          {
+            transform->scale[i] = x.value()["scale"][i].get<float>();
+          }
+          transform->texCoord=x.value()["texCoord"].get<int>();
+          ext.data = transform;
+        }
+        else
+        {
+          print(x.key(),": extension not supported");
+        }
+        vec.push_back(ext);
       }
       return vec;
+    }
+
+    std::vector<gltf::Extension> deserialize_extras(json extras){
+      return std::vector<gltf::Extension>();
     }
 
     gltf::glTFModel parseGLTFJSON(json glTF_data)
@@ -545,11 +614,12 @@ namespace vtuber
     func;                                 \
     continue;                             \
   }
-#define jsonExtensionMacro(item, dst, id) jsonFunctionMacro(item, id, dst.id = deserializeExtensions(item.value());)
+#define jsonExtensionMacro(item, dst, id) jsonFunctionMacro(item, id, dst.id = deserialize_##id(item.value());)
 #define jsonConvertMacro(item, dst, id, type) jsonFunctionMacro(item, id, dst.id = item.value().get<type>();)
 #define jsonConvertCastMacro(item, dst, id, type, castType) jsonFunctionMacro(item, id, dst.id = (castType)item.value().get<type>();)
 #define jsonArrayMacro(item, dst, id, type, i) jsonFunctionMacro( \
     item, id, dst.id.resize(item.value().size()); for (uint i = 0; i < item.value().size(); i++) { dst.id[i] = item.value()[i].get<type>(); });
+#define jsonUnknownMacro(item, location) print(__FILE__, ":",__LINE__," ",item.key(), ": unknow item in object ", #location);
 
       gltf::glTFModel gltf;
 
@@ -564,9 +634,9 @@ namespace vtuber
             jsonConvertMacro(x, gltf.asset, generator, std::string);
             jsonConvertMacro(x, gltf.asset, copyright, std::string);
             jsonConvertMacro(x, gltf.asset, minVersion, std::string);
-            jsonExtensionMacro(x, gltf.asset, extension);
+            jsonExtensionMacro(x, gltf.asset, extensions);
             jsonExtensionMacro(x, gltf.asset, extras);
-            
+            jsonUnknownMacro(x,model.asset);
           }
           continue;
         }
@@ -580,8 +650,9 @@ namespace vtuber
               jsonConvertMacro(x, buffer, uri, std::string);
               jsonConvertMacro(x, buffer, byteLength, int);
               jsonConvertMacro(x, buffer, name, std::string);
-              jsonExtensionMacro(x, buffer, extension);
+              jsonExtensionMacro(x, buffer, extensions);
               jsonExtensionMacro(x, buffer, extras);
+              jsonUnknownMacro(x,model.buffers);
             }
             gltf.buffers.push_back(buffer);
           }
@@ -600,8 +671,9 @@ namespace vtuber
               jsonConvertMacro(x, bufferV, byteStride, int);
               jsonConvertMacro(x, bufferV, target, int);
               jsonConvertMacro(x, bufferV, name, std::string);
-              jsonExtensionMacro(x, bufferV, extension);
+              jsonExtensionMacro(x, bufferV, extensions);
               jsonExtensionMacro(x, bufferV, extras);
+              jsonUnknownMacro(x,model.bufferViews);
             }
             gltf.bufferViews.push_back(bufferV);
           }
@@ -648,31 +720,10 @@ namespace vtuber
                 }
                 continue;
               }
-              // jsonConvertMacro(x, accessor, type, std::string);
               jsonConvertCastMacro(x, accessor, componentType, int, gltf::Accessor::glComponentType);
               jsonConvertMacro(x, accessor, count, int);
               jsonArrayMacro(x, accessor, max, float, j);
               jsonArrayMacro(x, accessor, min, float, j);
-              // if (std::string(x.key()) == "max")
-              // {
-              //   std::vector<float> max;
-              //   for (uint j = 0; j < x.value().size(); j++)
-              //   {
-              //     max.push_back(x.value()[j].get<float>());
-              //   }
-              //   accessor.max = max;
-              //   continue;
-              // }
-              // if (std::string(x.key()) == "min")
-              // {
-              //   std::vector<float> min;
-              //   for (uint j = 0; j < x.value().size(); j++)
-              //   {
-              //     min.push_back(x.value()[j].get<float>());
-              //   }
-              //   accessor.min = min;
-              //   continue;
-              // }
               jsonConvertMacro(x, accessor, normalized, bool);
               if (std::string(x.key()) == "sparse")
               {
@@ -684,7 +735,7 @@ namespace vtuber
                     jsonConvertMacro(y, accessor.sparse.indices, bufferView, int);
                     jsonConvertMacro(y, accessor.sparse.indices, byteOffset, int);
                     jsonConvertCastMacro(y, accessor.sparse.indices, componentType, int, gltf::Accessor::Sparse::Indices::glComponentType)
-                        jsonExtensionMacro(y, accessor.sparse.indices, extension);
+                        jsonExtensionMacro(y, accessor.sparse.indices, extensions);
                     jsonExtensionMacro(y, accessor.sparse.indices, extras);
                   }
                 }
@@ -694,17 +745,19 @@ namespace vtuber
                   {
                     jsonConvertMacro(y, accessor.sparse.values, bufferView, int);
                     jsonConvertMacro(y, accessor.sparse.values, byteOffset, int);
-                    jsonExtensionMacro(y, accessor.sparse.values, extension);
+                    jsonExtensionMacro(y, accessor.sparse.values, extensions);
                     jsonExtensionMacro(y, accessor.sparse.values, extras);
                   }
                 }
-                jsonExtensionMacro(x, accessor.sparse, extension);
+                jsonExtensionMacro(x, accessor.sparse, extensions);
                 jsonExtensionMacro(x, accessor.sparse, extras);
+                jsonUnknownMacro(x,model.accessors.sparse)
                 continue;
               }
               jsonConvertMacro(x, accessor, name, std::string);
-              jsonExtensionMacro(x, accessor, extension);
+              jsonExtensionMacro(x, accessor, extensions);
               jsonExtensionMacro(x, accessor, extras);
+              jsonUnknownMacro(x,model.accessors);
             }
             gltf.accessors.push_back(accessor);
           }
@@ -720,8 +773,9 @@ namespace vtuber
               jsonConvertMacro(x, texture, sampler, int);
               jsonConvertMacro(x, texture, source, int);
               jsonConvertMacro(x, texture, name, std::string);
-              jsonExtensionMacro(x, texture, extension);
+              jsonExtensionMacro(x, texture, extensions);
               jsonExtensionMacro(x, texture, extras);
+              jsonUnknownMacro(x,model.textures);
             }
             gltf.textures.push_back(texture);
           }
@@ -739,8 +793,9 @@ namespace vtuber
               jsonConvertCastMacro(x, sampler, wrapS, int, gltf::Sampler::glWrap);
               jsonConvertCastMacro(x, sampler, wrapT, int, gltf::Sampler::glWrap);
               jsonConvertMacro(x, sampler, name, std::string);
-              jsonExtensionMacro(x, sampler, extension);
+              jsonExtensionMacro(x, sampler, extensions);
               jsonExtensionMacro(x, sampler, extras);
+              jsonUnknownMacro(x,model.samplers);
             }
             gltf.samplers.push_back(sampler);
           }
@@ -757,8 +812,9 @@ namespace vtuber
               jsonConvertMacro(x, image, uri, std::string);
               jsonConvertMacro(x, image, bufferView, int);
               jsonConvertMacro(x, image, mimeType, std::string);
-              jsonExtensionMacro(x, image, extension);
+              jsonExtensionMacro(x, image, extensions);
               jsonExtensionMacro(x, image, extras);
+              jsonUnknownMacro(x,model.images);
             }
             gltf.images.push_back(image);
           }
@@ -782,8 +838,9 @@ namespace vtuber
                     {
                       jsonConvertMacro(z, material.pbrMetallicRoughness.baseColorTexture, index, int);
                       jsonConvertMacro(z, material.pbrMetallicRoughness.baseColorTexture, texCoord, int);
-                      jsonExtensionMacro(z, material.pbrMetallicRoughness.baseColorTexture, extension);
+                      jsonExtensionMacro(z, material.pbrMetallicRoughness.baseColorTexture, extensions);
                       jsonExtensionMacro(z, material.pbrMetallicRoughness.baseColorTexture, extras);
+                      jsonUnknownMacro(z,model.materials.pbrMetallicRoughness.baseColorTexture);
                     }
                     continue;
                   }
@@ -803,15 +860,17 @@ namespace vtuber
                     {
                       jsonConvertMacro(z, material.pbrMetallicRoughness.metallicRoughnessTexture, index, int);
                       jsonConvertMacro(z, material.pbrMetallicRoughness.metallicRoughnessTexture, texCoord, int);
-                      jsonExtensionMacro(z, material.pbrMetallicRoughness.metallicRoughnessTexture, extension);
+                      jsonExtensionMacro(z, material.pbrMetallicRoughness.metallicRoughnessTexture, extensions);
                       jsonExtensionMacro(z, material.pbrMetallicRoughness.metallicRoughnessTexture, extras);
+                      jsonUnknownMacro(z, model.materials.pbrMetallicRoughness.metallicRoughnessTexture);
                     }
                     continue;
                   }
                   jsonConvertMacro(y, material.pbrMetallicRoughness, metallicFactor, float);
                   jsonConvertMacro(y, material.pbrMetallicRoughness, roughnessFactor, float);
-                  jsonExtensionMacro(y, material.pbrMetallicRoughness, extension);
+                  jsonExtensionMacro(y, material.pbrMetallicRoughness, extensions);
                   jsonExtensionMacro(y, material.pbrMetallicRoughness, extras);
+                  jsonUnknownMacro(y, model.materials.pbrMetallicRoughness);
                 }
                 continue;
               }
@@ -822,8 +881,9 @@ namespace vtuber
                   jsonConvertMacro(y, material.normalTexture, scale, float);
                   jsonConvertMacro(y, material.normalTexture, index, int);
                   jsonConvertMacro(y, material.normalTexture, texCoord, int);
-                  jsonExtensionMacro(y, material.normalTexture, extension);
+                  jsonExtensionMacro(y, material.normalTexture, extensions);
                   jsonExtensionMacro(y, material.normalTexture, extras);
+                  jsonUnknownMacro(y,model.materials.normalTexture);
                 }
                 continue;
               }
@@ -834,8 +894,9 @@ namespace vtuber
                   jsonConvertMacro(y, material.occlusionTexture, strength, float);
                   jsonConvertMacro(y, material.occlusionTexture, index, int);
                   jsonConvertMacro(y, material.occlusionTexture, texCoord, int);
-                  jsonExtensionMacro(y, material.occlusionTexture, extension);
+                  jsonExtensionMacro(y, material.occlusionTexture, extensions);
                   jsonExtensionMacro(y, material.occlusionTexture, extras);
+                  jsonUnknownMacro(y,model.materials.occlusionTexture);
                 }
                 continue;
               }
@@ -845,8 +906,9 @@ namespace vtuber
                 {
                   jsonConvertMacro(y, material.emissiveTexture, index, int);
                   jsonConvertMacro(y, material.emissiveTexture, texCoord, int);
-                  jsonExtensionMacro(y, material.emissiveTexture, extension);
+                  jsonExtensionMacro(y, material.emissiveTexture, extensions);
                   jsonExtensionMacro(y, material.emissiveTexture, extras);
+                  jsonUnknownMacro(y,model.materials.emisiveTexture);
                 }
                 continue;
               }
@@ -879,8 +941,9 @@ namespace vtuber
               }
               jsonConvertMacro(x, material, alphaCutoff, float);
               jsonConvertMacro(x, material, doubleSided, bool);
-              jsonExtensionMacro(x, material, extension);
+              jsonExtensionMacro(x, material, extensions);
               jsonExtensionMacro(x, material, extras);
+              jsonUnknownMacro(x,model.materials);
             }
             gltf.materials.push_back(material);
           }
@@ -915,7 +978,9 @@ namespace vtuber
                         jsonConvertMacro(z, primitive.attributes, COLOR_0, int);
                         jsonConvertMacro(z, primitive.attributes, JOINTS_0, int);
                         jsonConvertMacro(z, primitive.attributes, WEIGHTS_0, int);
+                        jsonUnknownMacro(z,model.meshes.primitives.attributes)
                       }
+                      continue;
                     }
                     jsonConvertMacro(y, primitive, material, int);
                     if (std::string(y.key()) == "targets")
@@ -928,29 +993,24 @@ namespace vtuber
                           jsonConvertMacro(z, target, POSITION, int);
                           jsonConvertMacro(z, target, NORMAL, int);
                           jsonConvertMacro(z, target, TANGENT, int);
+                          jsonUnknownMacro(z,model.meshes.primitives.targets);
                         }
                         primitive.targets.push_back(target);
                       }
+                      continue;
                     }
-                    jsonExtensionMacro(y, primitive, extension);
+                    jsonExtensionMacro(y, primitive, extensions);
                     jsonExtensionMacro(y, primitive, extras);
+                    jsonUnknownMacro(y,model.meshes.primitives);
                   }
                   mesh.primitives.push_back(primitive);
                 }
                 continue;
               }
               jsonArrayMacro(x, mesh, weights, float, j);
-              // if (std::string(x.key()) == "weights")
-              // {
-              //   std::vector<float> weights;
-              //   for (uint j = 0; j < x.value().size(); j++)
-              //   {
-              //     weights.push_back(x.value()[j].get<float>());
-              //   }
-              //   mesh.weights = weights;
-              // }
-              jsonExtensionMacro(x, mesh, extension);
+              jsonExtensionMacro(x, mesh, extensions);
               jsonExtensionMacro(x, mesh, extras);
+              jsonUnknownMacro(x,model.meshes);
             }
             gltf.meshes.push_back(mesh);
           }
@@ -973,8 +1033,9 @@ namespace vtuber
               jsonConvertMacro(x, node, skin, int);
               jsonArrayMacro(x, node, weights, float, j);
               jsonConvertMacro(x, node, camera, int);
-              jsonExtensionMacro(x, node, extension);
+              jsonExtensionMacro(x, node, extensions);
               jsonExtensionMacro(x, node, extras);
+              jsonUnknownMacro(x,model.nodes);
             }
             if (node.matrix.size() == 0)
             {
@@ -999,8 +1060,9 @@ namespace vtuber
               jsonConvertMacro(x, skin, inverseBindMatrices, int);
               jsonArrayMacro(x, skin, joints, int, j);
               jsonConvertMacro(x, skin, skeleton, int);
-              jsonExtensionMacro(x, skin, extension);
+              jsonExtensionMacro(x, skin, extensions);
               jsonExtensionMacro(x, skin, extras);
+              jsonUnknownMacro(x,model.skins);
             }
             gltf.skins.push_back(skin);
           }
@@ -1020,8 +1082,9 @@ namespace vtuber
             {
               jsonConvertMacro(x, scene, name, std::string);
               jsonArrayMacro(x, scene, nodes, int, j);
-              jsonExtensionMacro(x, scene, extension);
+              jsonExtensionMacro(x, scene, extensions);
               jsonExtensionMacro(x, scene, extras);
+              jsonUnknownMacro(x,model.scene);
             }
             gltf.scenes.push_back(scene);
           }
@@ -1068,13 +1131,15 @@ namespace vtuber
                           }
                           continue;
                         }
-                        jsonExtensionMacro(z, channel.target, extension);
+                        jsonExtensionMacro(z, channel.target, extensions);
                         jsonExtensionMacro(z, channel.target, extras);
+                        jsonUnknownMacro(z,model.animations.channels.target);
                       }
                       continue;
                     }
-                    jsonExtensionMacro(y, channel, extension);
+                    jsonExtensionMacro(y, channel, extensions);
                     jsonExtensionMacro(y, channel, extras);
+                    jsonUnknownMacro(y,model.animations.channels);
                   }
                   animation.channels.push_back(channel);
                 }
@@ -1105,15 +1170,17 @@ namespace vtuber
                       continue;
                     }
                     jsonConvertMacro(y, sampler, output, int);
-                    jsonExtensionMacro(y, sampler, extension);
+                    jsonExtensionMacro(y, sampler, extensions);
                     jsonExtensionMacro(y, sampler, extras);
+                    jsonUnknownMacro(y,model.animations.samplers);
                   }
                   animation.samplers.push_back(sampler);
                 }
                 continue;
               }
-              jsonExtensionMacro(x, animation, extension);
+              jsonExtensionMacro(x, animation, extensions);
               jsonExtensionMacro(x, animation, extras);
+              jsonUnknownMacro(x,model.animations);
             }
             gltf.animations.push_back(animation);
           }
@@ -1135,8 +1202,9 @@ namespace vtuber
                   jsonConvertMacro(y, camera.orthographic, ymag, float);
                   jsonConvertMacro(y, camera.orthographic, zfar, float);
                   jsonConvertMacro(y, camera.orthographic, znear, float);
-                  jsonExtensionMacro(y, camera.orthographic, extension);
+                  jsonExtensionMacro(y, camera.orthographic, extensions);
                   jsonExtensionMacro(y, camera.orthographic, extras);
+                  jsonUnknownMacro(y,model.cameras.orthographic);
                 }
                 continue;
               }
@@ -1148,8 +1216,9 @@ namespace vtuber
                   jsonConvertMacro(y, camera.perspective, yfov, float);
                   jsonConvertMacro(y, camera.perspective, zfar, float);
                   jsonConvertMacro(y, camera.perspective, znear, float);
-                  jsonExtensionMacro(y, camera.perspective, extension);
+                  jsonExtensionMacro(y, camera.perspective, extensions);
                   jsonExtensionMacro(y, camera.perspective, extras);
+                  jsonUnknownMacro(y,model.cameras.perspective);
                 }
                 continue;
               }
@@ -1165,8 +1234,9 @@ namespace vtuber
                 }
                 continue;
               }
-              jsonExtensionMacro(x, camera, extension);
+              jsonExtensionMacro(x, camera, extensions);
               jsonExtensionMacro(x, camera, extras);
+              jsonUnknownMacro(x,model.cameras);
             }
             gltf.cameras.push_back(camera);
           }
@@ -1174,10 +1244,10 @@ namespace vtuber
         }
         jsonArrayMacro(item, gltf, extensionsUsed, std::string, i);
         jsonArrayMacro(item, gltf, extensionsRequired, std::string, i);
-        jsonExtensionMacro(item, gltf, extension);
+        jsonExtensionMacro(item, gltf, extensions);
         jsonExtensionMacro(item, gltf, extras);
       }
-
+#undef jsonUnknownMacro
 #undef jsonNodeArrayMacro
 #undef jsonFunctionMacro
 #undef jsonExtensionMacro
@@ -1236,7 +1306,7 @@ namespace vtuber
         }
         this->directory = dir;
       }
-      
+
       for (uint i = 0; i < model.buffers.size(); i++)
       {
         if (model.buffers[i].uri.find("data:") == 0) // data URI
@@ -1260,13 +1330,12 @@ namespace vtuber
           input.close();
 
           model.buffers[i].buffer = new uchar[bytes.size()];
-          memcpy(model.buffers[i].buffer,bytes.data(),bytes.size());
+          memcpy(model.buffers[i].buffer, bytes.data(), bytes.size());
         }
       }
-      
+
       for (uint i = 0; i < model.images.size(); i++)
       {
-
       }
     }
 

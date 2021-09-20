@@ -30,17 +30,30 @@
 [x] (skinning) figure out how skeleton root node functions (absolutly useless)
 [x] (debug) fix skinning
 [x] (glb rendering) lighting : https://learnopengl.com/Lighting/Colors
+[x] (gltf loading) textures that are not bfviews
+[x] (extensions) KHR_materials_unlit
+[x] (extensions) KHR_texture_transform
 
 ## working on
-[ ] (glb loading) extensions/extra glb storage
+[ ] (extensions) VRM
+[ ] (vrm rendering) https://github.com/vrm-c/vrm-specification/tree/master/specification/0.0#vrm-rules
+
 
 
 ## upcoming
+[ ] (optimization) morph could be passed to gpu (maybe look into geometry shader)
+[ ] (extensions) VRMC_materials_mtoon
+[ ] (extensions) VRMC_materials_hdr_emissiveMultiplier
+[ ] (extensions) VRMC_springBone
+[ ] (extensions) VRMC_node_constraint
+[ ] (morph) extras.targetNames specify a morph target
+
 [ ] (animations) reverse kinematic
 [ ] (housekeeping) gltf buffer mem leak
+[ ] (housekeeping) extensions mem leak
 [ ] (loading) warning if file has unexpexted value
 
-[ ] (optimization) morph could be passed to gpu
+[ ] (rendering) specific UV(texCoord) per texture
 [ ] (animations) max and min in accessors
 [ ] (animations) interpolation cubic spline
 [ ] (glb rendering) normal texture
@@ -49,13 +62,13 @@
 [ ] (research) https://github.com/netmail-open/wjelement , https://github.com/petehug/wjelement-cpp/wiki
 
 ## wants
-[ ] blinn-phong lighting https://learnopengl.com/Advanced-Lighting/Advanced-Lighting 
-[ ] (gltf loading) textures that are not bfviews
 [ ] (glb rendering) https://learnopengl.com/Advanced-OpenGL/Instancing
+[ ] (rendering) pbr rendering
 [ ] (workflow) remedybg debugger
 [ ] (workflow) 4coder
 
 ## quality of life
+[ ] (lighting) blinn-phong lighting https://learnopengl.com/Advanced-Lighting/Advanced-Lighting 
 [-] (math) m4 and matrix multiplications and transforms
 [ ] (glb rendering) reflection textures
 [ ] (glb rendering) when material uses multiple texcoords ie texcoord_1 (make larger VAO)

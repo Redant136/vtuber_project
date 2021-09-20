@@ -191,6 +191,9 @@ namespace chevan_utils
   {                    \
     vec4List(v)        \
   }
+#define membuild(type, name, data) \
+  type name;                       \
+  memcpy(&name, data, sizeof(type));
 
   typedef unsigned char uchar;
   typedef unsigned short ushort;

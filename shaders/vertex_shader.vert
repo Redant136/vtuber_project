@@ -5,9 +5,13 @@
 
 layout (location = 0) in vec3 a_pos;
 layout (location = 1) in vec3 a_normal;
-layout (location = 2) in vec2 a_texCoords;
-layout (location = 3) in vec4 a_joints;
-layout (location = 4) in vec4 a_weights;
+layout (location = 2) in vec2 a_texCoords_0;
+layout (location = 3) in vec2 a_texCoords_1;
+layout (location = 4) in vec2 a_texCoords_2;
+layout (location = 5) in vec4 a_joints;
+layout (location = 6) in vec4 a_weights;
+
+uniform int texCoordIndex;
 
 out vec3 Pos;
 out vec3 Normal;
@@ -23,7 +27,14 @@ uniform mat4 projection;// camera
 
 void main()
 {
-    TexCoords = a_texCoords;
+    if(texCoordIndex==0){
+        TexCoords=a_texCoords_0;
+    }else if(texCoordIndex==1){
+        TexCoords=a_texCoords_1;
+    }else if(texCoordIndex==2){
+        TexCoords=a_texCoords_2;
+    }
+    TexCoords = a_texCoords_0;
     Normal = a_normal;
 
     mat4 skinMatrix = mat4(1.f);

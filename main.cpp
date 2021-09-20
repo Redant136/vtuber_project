@@ -4,7 +4,7 @@
 // #define VMODEL "models/AntiqueCamera.glb"
 // #define VMODEL "models/simple_morph_target.gltf"
 // #define VMODEL "models/eva/scene.gltf"
-#define VMODEL "models/wave/scene.gltf"
+// #define VMODEL "models/wave/scene.gltf"
 // #define VMODEL "models/leopard/scene.gltf"
 
 #include "learnopengl/camera.h"
@@ -26,8 +26,8 @@ int main()
   launch(
       [&vmodel, &shader](GLFWwindow *window)
       {
-        vmodel.loadModel(VMODEL,vtuber::Filetype::gltf);
-        // vmodel.loadModel(VMODEL);
+        // vmodel.loadModel(VMODEL,vtuber::Filetype::gltf);
+        vmodel.loadModel(VMODEL);
 
         vmodel.animate(0);
 

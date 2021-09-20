@@ -40,6 +40,7 @@ using namespace chevan_utils;
 #define SCREEN_HEIGHT 1080
 #ifndef VMODEL
 #define VMODEL "models/male1.glb"
+// #define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
 #endif
 #define VERTEX_SHADER "shaders/vertex_shader.vert"
 #define FRAGMENT_SHADER "shaders/fragment_shader.frag"
@@ -185,40 +186,40 @@ namespace vtuber
     {
       glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
     }
-    
-    void setBoolArr(const std::string &name,uint size, bool *value) const
+
+    void setBoolArr(const std::string &name, uint size, bool *value) const
     {
-      glUniform1iv(glGetUniformLocation(ID, name.c_str()), size, (int*)value);
+      glUniform1iv(glGetUniformLocation(ID, name.c_str()), size, (int *)value);
     }
-    void setIntArr(const std::string &name,uint size, int *value) const
+    void setIntArr(const std::string &name, uint size, int *value) const
     {
       glUniform1iv(glGetUniformLocation(ID, name.c_str()), size, value);
     }
-    void setFloatArr(const std::string &name,uint size, float *value) const
+    void setFloatArr(const std::string &name, uint size, float *value) const
     {
       glUniform1fv(glGetUniformLocation(ID, name.c_str()), size, value);
     }
-    void setVec2Arr(const std::string &name,uint size, const float *value) const
+    void setVec2Arr(const std::string &name, uint size, const float *value) const
     {
       glUniform2fv(glGetUniformLocation(ID, name.c_str()), size, value);
     }
-    void setVec3Arr(const std::string &name,uint size, const float *value) const
+    void setVec3Arr(const std::string &name, uint size, const float *value) const
     {
       glUniform3fv(glGetUniformLocation(ID, name.c_str()), size, value);
     }
-    void setVec4Arr(const std::string &name,uint size, const float *value) const
+    void setVec4Arr(const std::string &name, uint size, const float *value) const
     {
       glUniform4fv(glGetUniformLocation(ID, name.c_str()), size, value);
     }
-    void setMat2Arr(const std::string &name,uint size, const float *mat) const
+    void setMat2Arr(const std::string &name, uint size, const float *mat) const
     {
       glUniformMatrix2fv(glGetUniformLocation(ID, name.c_str()), size, GL_FALSE, mat);
     }
-    void setMat3Arr(const std::string &name,uint size, const float *mat) const
+    void setMat3Arr(const std::string &name, uint size, const float *mat) const
     {
       glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), size, GL_FALSE, mat);
     }
-    void setMat4Arr(const std::string &name,uint size, const float *mat) const
+    void setMat4Arr(const std::string &name, uint size, const float *mat) const
     {
       glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), size, GL_FALSE, mat);
     }
@@ -452,13 +453,13 @@ namespace vtuber
           {
             std::string accName;
             int attribIndex;
-          } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TEXCOORD", 2}, {"JOINTS", 3}, {"WEIGHTS", 4}};
+          } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TEXCOORD_0", 2}, {"TEXCOORD_1", 3}, {"TEXCOORD_2", 4}, {"JOINTS_0", 5}, {"WEIGHTS_0", 6}};
 
           for (uint k = 0; k < sizeof(attribs) / sizeof(attribs[0]); k++)
           {
-            if (gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName, 0) == -1)
+            if (gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName) == -1)
               continue;
-            const gltf::Accessor &accessor = model.accessors[gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName, 0)];
+            const gltf::Accessor &accessor = model.accessors[gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName)];
             glBindBuffer(GL_ARRAY_BUFFER, gltfBufferViewVBO[accessor.bufferView]);
 
             uint attribIndex = attribs[k].attribIndex;
@@ -490,7 +491,7 @@ namespace vtuber
             glVertexAttribPointer(attribIndex, gltf::gltf_num_components(accessor.type),
                                   accessor.componentType,
                                   accessor.normalized ? GL_TRUE : GL_FALSE,
-                                  byteStride, reinterpret_cast<void*>(accessor.byteOffset));
+                                  byteStride, reinterpret_cast<void *>(accessor.byteOffset));
             glEnableVertexAttribArray(attribIndex);
           }
         }
@@ -511,7 +512,7 @@ namespace vtuber
                                      bufferView.byteLength, &width, &height, &channels, 0);
           glDeleteBuffers(1, gltfBufferViewVBO + image.bufferView);
           gltfBufferViewVBO[image.bufferView] = 0;
-          
+
           // NOTE(ANT) why doesnt this work??
           // glTexBuffer(GL_TEXTURE_2D, GL_RGB, gltfBufferViewVBO[image.bufferView]);
         }
@@ -552,7 +553,6 @@ namespace vtuber
 
         gltfImageTextureIndex[i] = tex;
       }
-
     }
     void drawSkeleton(Shader &shader)
     {
@@ -591,7 +591,7 @@ namespace vtuber
       {
         nodeSkeleton(scene.nodes[i]);
       }
-      
+
       shader.setVec4("baseColorFactor", glm::vec4(0, 0, 0, 1));
       glGenBuffers(1, &VBO);
       glGenVertexArrays(1, &VAO);
@@ -892,8 +892,9 @@ namespace vtuber
         animationData.animationStartTime = glfwGetTime();
       }
     }
+
   private:
-    static glm::mat4 getNodeTRS(const gltf::Node&node)
+    static glm::mat4 getNodeTRS(const gltf::Node &node)
     {
       glm::mat4 t = glm::mat4(1.f);
       glm::mat4 r = glm::mat4(1.f);
@@ -911,7 +912,7 @@ namespace vtuber
       {
         t = glm::translate(glm::mat4(1.f), glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
       }
-      return t*r*s;
+      return t * r * s;
     }
     void updateMorph(gltf::Node &node)
     {
@@ -1097,7 +1098,7 @@ namespace vtuber
       glm::mat4 mat = glm::mat4(1.f);
       mat = parentTransform * mat;
       if (model.nodes[node].matrix.size() != 0)
-        mat *= glm::make_mat4((float*)model.nodes[node].matrix.data());
+        mat *= glm::make_mat4((float *)model.nodes[node].matrix.data());
       mat *= getNodeTRS(model.nodes[node]);
       nodeTransforms[node] = mat;
 
@@ -1108,6 +1109,35 @@ namespace vtuber
       }
     }
 
+    void bindTexture(const Shader &shader, const gltf::Texture &texture, uint &texCoord,uint sampler_obj,uint GL_TextureIndex)
+    {
+      if (gltf::findExtensionIndex("KHR_texture_transform", texture) != -1)
+      {
+        gltf::Extensions::KHR_texture_transform *ext = (gltf::Extensions::KHR_texture_transform *)texture.extensions[gltf::findExtensionIndex("KHR_texture_transform", texture)].data;
+        texCoord = ext->texCoord;
+        membuild(glm::vec2, offset, ext->offset.data());
+        membuild(glm::vec2, scale, ext->scale.data());
+        shader.setBool("KHR_texture_transform", true);
+        shader.setVec2("u_offset", offset);
+        shader.setFloat("u_rotation", ext->rotation);
+        shader.setVec2("u_scale", scale);
+      }
+      else
+      {
+        shader.setBool("KHR_texture_transform", false);
+      }
+
+      const gltf::Sampler &sampler = model.samplers[texture.sampler];
+      glSamplerParameterf(sampler_obj, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
+      glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
+      glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
+      glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
+
+      glActiveTexture(GL_TEXTURE0 + GL_TextureIndex);
+
+      glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
+      glBindSampler(GL_TEXTURE_2D, sampler_obj);
+    }
     void drawNode(Shader &shader, const gltf::Node &node, glm::mat4 mat)
     {
       if (node.mesh > -1)
@@ -1149,25 +1179,18 @@ namespace vtuber
           glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gltfBufferViewVBO[indexAccessor.bufferView]);
 
           // material rendering
-          bool hasMaterial=0;
+          bool hasBaseColorTexture = 0;
           if (primitive.material >= 0)
           {
             const gltf::Material &material = model.materials[primitive.material];
+            uint texCoord = 0;
+            bool KHR_materials_unlit=gltf::findExtensionIndex("KHR_materials_unlit", material) != -1;
             if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
             {
-              hasMaterial = 1;
+              texCoord = material.pbrMetallicRoughness.baseColorTexture.texCoord;
+              hasBaseColorTexture = 1;
               const gltf::Texture &texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
-
-              const gltf::Sampler &sampler = model.samplers[texture.sampler];
-              glSamplerParameterf(sampler_obj, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
-              glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
-              glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
-              glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
-
-              glActiveTexture(GL_TEXTURE0);
-
-              glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
-              glBindSampler(GL_TEXTURE_2D, sampler_obj);
+              bindTexture(shader, texture, texCoord, sampler_obj, 0);
             }
             if (material.pbrMetallicRoughness.baseColorFactor.size() > 0)
             {
@@ -1175,24 +1198,19 @@ namespace vtuber
               memcpy(&baseColorFactor, material.pbrMetallicRoughness.baseColorFactor.data(), sizeof(float) * 4);
               shader.setVec4("baseColorFactor", baseColorFactor);
             }
-            if (material.emissiveTexture.index >= 0)
+            if (material.emissiveTexture.index >= 0 && KHR_materials_unlit)
             {
-              hasMaterial = 1;
+              texCoord = material.emissiveTexture.texCoord;
+              hasBaseColorTexture = 1;
               const gltf::Texture &texture = model.textures[material.emissiveTexture.index];
-
-              const gltf::Sampler &sampler = model.samplers[texture.sampler];
-              glSamplerParameterf(sampler_obj, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
-              glSamplerParameterf(sampler_obj, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
-              glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_S, sampler.wrapS);
-              glTexParameteri(sampler_obj, GL_TEXTURE_WRAP_T, sampler.wrapT);
-
-              glActiveTexture(GL_TEXTURE4);
-
-              glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
-              glBindSampler(GL_TEXTURE_2D, sampler_obj);
+              bindTexture(shader, texture, texCoord, sampler_obj, 3);
             }
+
+            shader.setBool("KHR_materials_unlit", KHR_materials_unlit);
+
+            shader.setInt("texCoordIndex", texCoord);
           }
-          shader.setBool("hasMaterial",hasMaterial);
+          shader.setBool("hasBaseColorTexture", hasBaseColorTexture);
 
           glDrawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType,
                          reinterpret_cast<void *>(indexAccessor.byteOffset));
@@ -1204,7 +1222,7 @@ namespace vtuber
       for (size_t i = 0; i < node.children.size(); i++)
       {
         assert(node.children[i] < model.nodes.size());
-        drawNode(shader, model.nodes[node.children[i]], mat);
+        drawNode(shader, model.nodes[node.children[i]], nodeTransforms[node.children[i]]);
       }
     }
   };
