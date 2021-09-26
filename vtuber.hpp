@@ -504,7 +504,7 @@ namespace vtuber
       {
         const gltf::Image &image = model.images[i];
         int width, height, channels;
-        uchar *im;
+        uchar *im=NULL;
         if (image.bufferView != -1)
         {
           const gltf::BufferView &bufferView = model.bufferViews[image.bufferView];
@@ -1022,7 +1022,8 @@ namespace vtuber
               if (memcmp(write_mem, &position, sizeof(float) * 3) != 0)
               {
                 memcpy(write_mem, &position, sizeof(float) * 3);
-                glNamedBufferSubData(gltfBufferViewVBO[accessor.bufferView], accessor.byteOffset + (byteStride)*j, sizeof(float) * 3, &position);
+                glBindBuffer(GL_ARRAY_BUFFER,gltfBufferViewVBO[accessor.bufferView]);
+                glBufferSubData(GL_ARRAY_BUFFER, accessor.byteOffset + (byteStride)*j, sizeof(float) * 3, &position);
               }
             }
           }

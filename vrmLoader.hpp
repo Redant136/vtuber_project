@@ -31,9 +31,9 @@ namespace vtuber
     typedef std::string string;
 
     static const struct {
-      string KHR_materials_unlit = "KHR_materials_unlit";
-      string KHR_texture_transform = "KHR_texture_transform";
-
+      const string KHR_materials_unlit = "KHR_materials_unlit";
+      const string KHR_texture_transform = "KHR_texture_transform";
+      // const string VRM = "VRM";
     } SUPPORTED_EXTENSIONS;
 
     struct Extension
@@ -57,6 +57,67 @@ namespace vtuber
         int texCoord = 0;
         std::vector<Extension> extensions;
         std::vector<Extension> extras;
+      };
+      struct VRM
+      {
+        string exporterVersion;
+        struct Meta
+        {
+          string title;
+          string version;
+          string author;
+          string contactInformation;
+          string reference;
+          int texture;
+          enum
+          {
+            OnlyAuthor,
+            ExplicitlyLicensedPerson,
+            Everyone
+          } allowedUserName;
+          string violentUssageName;
+          string sexualUssageName;
+          string commercialUssageName;
+          string otherPermissionUrl;
+          enum
+          {
+            Redistribution_Prohibited,
+            CC0,
+            CC_BY,
+            CC_BY_NC,
+            CC_BY_SA,
+            CC_BY_NC_SA,
+            CC_BY_ND,
+            CC_BY_NC_ND,
+            Other
+          } licenseName;
+          string otherLicenseUrl;
+        } meta;
+        struct Humanoid
+        {
+          struct Bone
+          {
+          };
+          std::vector<Bone> humanBones;
+          float armStretch, legStretch, upperArmTwist, lowerArmTwist, upperLegTwist, lowerLegTwist, feetSpacing;
+          bool hasTranslationDoF;
+        } humanoid;
+        struct FirstPerson
+        {
+
+        } firstPerson;
+        struct BlendShapeMaster
+        {
+
+        } blendShapeMaster;
+        struct SecondaryAnimation
+        {
+
+        } secondaryAnimation;
+        struct MaterialProperties
+        {
+
+        } materialProperties;
       };
     }
 
@@ -1376,7 +1437,7 @@ namespace vtuber
       }
 
       if (chuncks.size() != 2)
-        throw std::invalid_argument("unknown chunk count: " + chuncks.size());
+        throw std::invalid_argument("unknown chunk count: " + std::to_string(chuncks.size()));
       if (chuncks[0].chuckType != 0x4E4F534A)
         throw std::invalid_argument("chunk 0 is not JSON");
       if (chuncks[1].chuckType != 0x004E4942)

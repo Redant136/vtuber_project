@@ -39,7 +39,6 @@
 [ ] (vrm rendering) https://github.com/vrm-c/vrm-specification/tree/master/specification/0.0#vrm-rules
 
 
-
 ## upcoming
 [ ] (optimization) morph could be passed to gpu (maybe look into geometry shader)
 [ ] (extensions) VRMC_materials_mtoon
