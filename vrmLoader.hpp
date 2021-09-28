@@ -4,6 +4,8 @@
 #include <cstdint>
 
 #include <GLFW/glfw3.h>
+#include "chevan_utils.hpp"
+#include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -33,7 +35,7 @@ namespace vtuber
     static const struct {
       const string KHR_materials_unlit = "KHR_materials_unlit";
       const string KHR_texture_transform = "KHR_texture_transform";
-      // const string VRM = "VRM";
+      const string VRM = "VRM";
     } SUPPORTED_EXTENSIONS;
 
     struct Extension
@@ -61,6 +63,7 @@ namespace vtuber
       struct VRM
       {
         string exporterVersion;
+        string specVersion;
         struct Meta
         {
           string title;
@@ -104,15 +107,123 @@ namespace vtuber
         } humanoid;
         struct FirstPerson
         {
-
+          struct MeshAnnotations
+          {
+            int mesh = -1;
+            string type = "";
+          };
+          struct DegreeMap
+          {
+            std::vector<float> curve;
+            float xRange;
+            float yRange;
+          };
+          int firstPersonBone;
+          union {
+            struct
+            {
+              float x, y, z;
+            };
+            chevan_utils::chevanut_vec::v3 vec;
+            glm::vec3 glm_vec;
+          } firstPersonBoneOffset;
+          std::vector<MeshAnnotations> meshAnnotations;
+          enum
+          {
+            Bone,
+            BlendShape
+          } lookAtTypeName;
+          DegreeMap lookAtHorizontalInner;
+          DegreeMap lookAtHorizontalOuter;
+          DegreeMap lookAtVerticalDown;
+          DegreeMap lookAtVerticalUp;
         } firstPerson;
         struct BlendShapeMaster
         {
-
+          struct BlendShapeGroup
+          {
+            struct Bind
+            {
+              uint mesh;
+              uint index;
+              float weight;
+            };
+            struct MaterialBind
+            {
+              string type;
+              string propertyName;
+              std::vector<float> targetValue;
+            };
+            string name = "";
+            enum PresetNames
+            {
+              unknown,
+              neutral,
+              a,
+              i,
+              u,
+              e,
+              o,
+              blink,
+              joy,
+              angry,
+              sorrow,
+              fun,
+              lookup,
+              lookdown,
+              lookleft,
+              lookright,
+              blink_l,
+              blink_r
+            } presetName;
+            std::vector<Bind> binds;
+            std::vector<MaterialBind> materialValues;
+            bool isBinary;
+          };
+          std::vector<BlendShapeGroup> blendShapeGroups;
         } blendShapeMaster;
         struct SecondaryAnimation
         {
-
+          struct Spring
+          {
+            string comment;
+            float stiffiness;
+            float gravityPower;
+            union
+            {
+              struct
+              {
+                float x, y, z;
+              };
+              chevan_utils::chevanut_vec::v3 vec;
+              glm::vec3 glm_vec;
+            } gravityDir;
+            float dragForce;
+            int center;
+            float hitRadius;
+            std::vector<uint> bones;
+            std::vector<int> colliderGroups;
+          };
+          struct ColliderGroup
+          {
+            struct Collider
+            {
+              union
+              {
+                struct
+                {
+                  float x, y, z;
+                };
+                chevan_utils::chevanut_vec::v3 vec;
+                glm::vec3 glm_vec;
+              } offset;
+              float radius;
+            };
+            int node;
+            std::vector<Collider> colliders;
+          };
+          std::vector<Spring> boneGroups;
+          std::vector<ColliderGroup> colliderGroups;
         } secondaryAnimation;
         struct MaterialProperties
         {
@@ -652,6 +763,10 @@ namespace vtuber
           }
           transform->texCoord=x.value()["texCoord"].get<int>();
           ext.data = transform;
+        }
+        else if (ext.name == gltf::SUPPORTED_EXTENSIONS.VRM)
+        {
+          
         }
         else
         {
@@ -1377,7 +1492,7 @@ namespace vtuber
             assert(0 && "can only decode base64");
           }
           std::string data = model.buffers[i].uri.substr(model.buffers[i].uri.find(",") + 1);
-          data = base64::decode(data);
+          data = chevanut_base64::decode(data);
           model.buffers[i].buffer = new uchar[data.length()];
           memcpy(model.buffers[i].buffer, data.data(), data.length());
         }

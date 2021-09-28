@@ -17,21 +17,17 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define CHEVAN_UTILS_incl
-#define CHEVAN_UTILS_B64
 #define CHEVAN_UTILS_VEC2 glm::vec2
 #define CHEVAN_UTILS_VEC3 glm::vec3
 #define CHEVAN_UTILS_VEC4 glm::vec4
-#define CHEVAN_UTILS_PRINT
-#include "utils.hpp"
-namespace chevan_utils
-{
-  void println(glm::mat4 mat)
-  {
-    printMat4((float *)&mat);
-  }
-};
+void print(glm::mat4 mat);
+#include "chevan_utils.hpp"
 using namespace chevan_utils;
+using namespace chevanut_print;
+void print(glm::mat4 mat)
+{
+  printMat4((float *)&mat);
+}
 #define print println
 
 #include "vrmLoader.hpp"

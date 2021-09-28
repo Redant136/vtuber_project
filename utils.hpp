@@ -1,7 +1,7 @@
 #pragma once
 #ifndef CHEVAN_UTILS_H
 #define CHEVAN_UTILS_H
-#define CHEVAN_UTILS_VERSION "1.4.1"
+#define CHEVAN_UTILS_VERSION "1.4.2"
 
 #ifndef CHEVAN_UTILS_NO_SHORTHANDS
 
@@ -52,7 +52,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <functional>
-#include <string>
+#include <string.h>
 
 #endif // CHEVAN_UTILS_COMMON_INCLUDES
 
@@ -73,16 +73,16 @@
 #ifdef CHEVAN_UTILS_VECTOR
 #include <stdint.h>
 #define toVec2(type, v) type((v).x, (v).y)
-#define toVec3(type, v) type((v).x, (v).y,(v).z)
-#define toVec4(type, v) type((v).x, (v).y,(v.z,(v).w))
-#define toV2(v) toVec2(v2,v)
-#define toV3(v) toVec3(v3,v)
-#define toV4(v) toVec4(v4,v)
-#define toIV2(v) toVec2(iv2,v)
-#define toIV3(v) toVec3(iv3,v)
-#define toIV4(v) toVec4(iv4,v)
+#define toVec3(type, v) type((v).x, (v).y, (v).z)
+#define toVec4(type, v) type((v).x, (v).y, (v.z, (v).w))
+#define toV2(v) toVec2(v2, v)
+#define toV3(v) toVec3(v3, v)
+#define toV4(v) toVec4(v4, v)
+#define toIV2(v) toVec2(iv2, v)
+#define toIV3(v) toVec3(iv3, v)
+#define toIV4(v) toVec4(iv4, v)
 
-#endif // CHEVAN_UTILS_VECTOR
+#endif                   // CHEVAN_UTILS_VECTOR
 #ifdef CHEVAN_UTILS_MATH // must be used with chevan_vectors or define CHEVAN_UTILS_MATH_VEC
 #include <cmath>
 #include <string.h>
@@ -676,7 +676,7 @@ namespace chevan_utils
   }
   static void printSep()
   {
-    std::cout<<"---------------------------------"<<std::endl;
+    std::cout << "---------------------------------" << std::endl;
   }
   template <typename Printable>
   static void print(Printable p)
@@ -686,15 +686,16 @@ namespace chevan_utils
   template <typename Printable>
   static void println(Printable p)
   {
-    std::cout << p << std::endl;
+    print(p);
+    std::cout << std::endl;
   }
   static void print(uchar *p)
   {
     std::cout << (void *)p;
   }
-  static void println(uchar *p)
+  static void print(uchar p)
   {
-    std::cout << (void *)p << std::endl;
+    print((int)p);
   }
   template <typename L>
   static void print(Array<char, L> arr, L length = 256)
@@ -703,22 +704,10 @@ namespace chevan_utils
     std::cout << std::string(arr.arr, arr.arr + l);
   }
   template <typename L>
-  static void println(Array<char, L> arr, L length = 256)
-  {
-    L l = arr.length < length ? arr.length : length;
-    std::cout << std::string(arr.arr, arr.arr + l) << std::endl;
-  }
-  template <typename L>
   static void print(Array<uchar, L> arr, L length = 256)
   {
     L l = arr.length < length ? arr.length : length;
     std::cout << std::string(arr.arr, arr.arr + l);
-  }
-  template <typename L>
-  static void println(Array<uchar, L> arr, L length = 256)
-  {
-    L l = arr.length < length ? arr.length : length;
-    std::cout << std::string(arr.arr, arr.arr + l) << std::endl;
   }
   template <typename T, typename L>
   static void print(Array<T, L> arr, L length = 256)
@@ -732,19 +721,6 @@ namespace chevan_utils
     }
     s += "}";
     std::cout << s;
-  }
-  template <typename T, typename L>
-  static void println(Array<T, L> arr, L length = 256)
-  {
-    L l = arr.length < length ? arr.length : length;
-    std::string s = "{";
-    s += std::to_string(arr[0]);
-    for (uint i = 1; i < l; i++)
-    {
-      s += "," + std::to_string(arr[i]);
-    }
-    s += "}";
-    std::cout << s << std::endl;
   }
 #ifdef CHEVAN_UTILS_VEC2
   static void print(CHEVAN_UTILS_VEC2 v)
@@ -761,19 +737,11 @@ namespace chevan_utils
   {
     print("{", v.x, ", ", v.y, ", ", v.z, "}");
   }
-  static void println(CHEVAN_UTILS_VEC3 v)
-  {
-    println("{", v.x, ", ", v.y, ", ", v.z, "}");
-  }
 #endif
 #ifdef CHEVAN_UTILS_VEC4
   static void print(CHEVAN_UTILS_VEC4 v)
   {
     print("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
-  }
-  static void println(CHEVAN_UTILS_VEC4 v)
-  {
-    println("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
   }
 #endif
   template <typename Printable, typename... Printable2>
