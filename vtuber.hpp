@@ -17,6 +17,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#define CHEVAN_UTILS_MACRO_MAGIC
 #define CHEVAN_UTILS_VEC2 glm::vec2
 #define CHEVAN_UTILS_VEC3 glm::vec3
 #define CHEVAN_UTILS_VEC4 glm::vec4
@@ -516,6 +517,12 @@ namespace vtuber
         {
           std::string filename = importer.directory + "/" + image.uri;
           im = stbi_load(filename.c_str(), &width, &height, &channels, 0);
+        }
+        else
+        {
+          width = 0;
+          height = 0;
+          channels = 0;
         }
 
         GLuint tex;

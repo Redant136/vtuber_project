@@ -1,7 +1,7 @@
 #pragma once
 #ifndef CHEVAN_UTILS_H
 #define CHEVAN_UTILS_H
-#define CHEVAN_UTILS_VERSION "2.0.0"
+#define CHEVAN_UTILS_VERSION "2.1.1"
 
 #include <iostream>
 #include <string>
@@ -44,6 +44,7 @@
 #endif
 
 #ifndef MAP
+#define EMPTY()
 #define FIRST(a, ...) a
 #define SECOND(a, b, ...) b
 #define DEFER1(m) m EMPTY()
@@ -77,6 +78,17 @@
           DEFER2(_MAP)()(m, __VA_ARGS__))(/* Do nothing, just terminate */ \
       )
 #define _MAP() MAP
+
+#define _parseEnumCheck(dst,src,valLoc,val) if(std::string(src)==#val){dst=valLoc val;}
+#define parseEnum2(dst, src, valLoc, firstEnum, ...)                                           \
+  _parseEnumCheck(dst, src, valLoc, firstEnum)                                                  \
+      IF_ELSE(HAS_ARGS(__VA_ARGS__))(                                                           \
+          DEFER2(_parseEnum2)()(dst, src, valLoc, __VA_ARGS__))(/* Do nothing, just terminate */ \
+      )
+#define _parseEnum2() parseEnum2
+
+#define parseEnum(dst, src, valLoc, ...) \
+  EVAL(parseEnum2(dst, src, valLoc, __VA_ARGS__))
 #endif // MAP
 
 #endif // CHEVAN_UTILS_MACRO_MAGIC
@@ -171,6 +183,8 @@ namespace chevan_utils
 
   namespace chevanut_vec
   {
+// will not work in unions if disabled
+#ifndef CHEVAN_UTILS_NO_TEMPLATE_VEC
     template <typename T>
     struct Vec2;
     template <typename T>
@@ -194,8 +208,8 @@ namespace chevan_utils
     template <typename T>
     struct Vec2
     {
-      T x = 0, y = 0;
-      Vec2() = default;
+      T x, y;
+      constexpr Vec2() = default;
 #define _chevanut_v2_init(type) \
   Vec2(type x, type y)          \
   {                             \
@@ -263,20 +277,20 @@ namespace chevan_utils
     {
       union
       {
-        T x = 0;
+        T x;
         T r;
       };
       union
       {
-        T y = 0;
+        T y;
         T g;
       };
       union
       {
-        T z = 0;
+        T z;
         T b;
       };
-      Vec3() = default;
+      constexpr Vec3() = default;
 #define _chevanut_v3_init(type) \
   Vec3(type x, type y, type z)  \
   {                             \
@@ -364,27 +378,27 @@ namespace chevan_utils
     {
       union
       {
-        T x = 0;
+        T x;
         T r;
       };
       union
       {
-        T y = 0;
+        T y;
         T g;
       };
       union
       {
-        T z = 0;
+        T z;
         T width;
         T b;
       };
       union
       {
-        T w = 0;
+        T w;
         T height;
         T a;
       };
-      Vec4() = default;
+      constexpr Vec4() = default;
 #define _chevanut_v4_init(type)        \
   Vec4(type x, type y, type z, type w) \
   {                                    \
@@ -499,22 +513,728 @@ namespace chevan_utils
         z /= a;
       }
     };
-    typedef Vec2<float> v2;
-    typedef Vec2<int32_t> iv2;
-    typedef Vec3<float> v3;
-    typedef Vec3<int32_t> iv3;
-    typedef Vec4<float> v4;
-    typedef Vec4<int32_t> iv4;
+    typedef Vec2<float> vec2;
+    typedef Vec2<int32_t> ivec2;
+    typedef Vec3<float> vec3;
+    typedef Vec3<int32_t> ivec3;
+    typedef Vec4<float> vec4;
+    typedef Vec4<int32_t> ivec4;
 #undef _chevanut_apply_all_types
+#else
+    struct vec2;
+    struct vec3;
+    struct vec4;
+    struct ivec2;
+    struct ivec3;
+    struct ivec4;
+
+    struct vec2
+    {
+      float x = 0;
+      float y = 0;
+      constexpr vec2() = default;
+      vec2(float x)
+      {
+        this->x = x;
+      }
+      vec2(float x, float y)
+      {
+        this->x = x;
+        this->y = y;
+      }
+      vec2(const vec2&b);
+      vec2(const vec3&b);
+      vec2(const vec4&b);
+      vec2(const ivec2 &b);
+      vec2(const ivec3 &b);
+      vec2(const ivec4 &b);
+      vec2 operator+(const vec2 &a) { return {x + a.x, y + a.y}; }
+      vec2 operator-(const vec2 &a) { return {x - a.x, y - a.y}; }
+      void operator+=(const vec2 &a)
+      {
+        x += a.x;
+        y += a.y;
+      }
+      void operator-=(const vec2 &a)
+      {
+        x -= a.x;
+        y -= a.y;
+      }
+      vec2 operator+(const float &a) { return {x + a, y + a}; }
+      vec2 operator-(const float &a) { return {x - a, y - a}; }
+      vec2 operator*(const float &a) { return {x * a, y * a}; }
+      vec2 operator/(const float &a) { return {x / a, y / a}; }
+      void operator+=(const float &a)
+      {
+        x += a;
+        y += a;
+      }
+      void operator-=(const float &a)
+      {
+        x -= a;
+        y -= a;
+      }
+      void operator*=(const float &a)
+      {
+        x *= a;
+        y *= a;
+      }
+      void operator/=(const float &a)
+      {
+        x /= a;
+        y /= a;
+      }
+    };
+    struct vec3
+    {
+      union
+      {
+        float x=0.f, r;
+      };
+      union
+      {
+        float y=0.f, g;
+      };
+      union
+      {
+        float z=0.f, b;
+      };
+      constexpr vec3() = default;
+      vec3(float x)
+      {
+        this->x = x;
+      }
+      vec3(float x, float y)
+      {
+        this->x = x;
+        this->y = y;
+      }
+      vec3(float x, float y,float z)
+      {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+      }
+      vec3(const vec2 &b, float z=0);
+      vec3(const vec3 &b);
+      vec3(const vec4 &b);
+      vec3(const ivec2 &b, float z=0);
+      vec3(const ivec3 &b);
+      vec3(const ivec4 &b);
+      vec3 operator+(const vec3 &a) { return {x + a.x, y + a.y, z + a.z}; }
+      vec3 operator-(const vec3 &a) { return {x - a.x, y - a.y, z - a.z}; }
+      void operator+=(const vec3 &a)
+      {
+        x += a.x;
+        y += a.y;
+        z += a.z;
+      }
+      void operator-=(const vec3 &a)
+      {
+        x -= a.x;
+        y -= a.y;
+        z -= a.z;
+      }
+      vec3 operator+(const float &a) { return {x + a, y + a, z + a}; }
+      vec3 operator-(const float &a) { return {x - a, y - a, z - a}; }
+      vec3 operator*(const float &a) { return {x * a, y * a, z * a}; }
+      vec3 operator/(const float &a) { return {x / a, y / a, z / a}; }
+      void operator+=(const float &a)
+      {
+        x += a;
+        y += a;
+        z += a;
+      }
+      void operator-=(const float &a)
+      {
+        x -= a;
+        y -= a;
+        z -= a;
+      }
+      void operator*=(const float &a)
+      {
+        x *= a;
+        y *= a;
+        z *= a;
+      }
+      void operator/=(const float &a)
+      {
+        x /= a;
+        y /= a;
+        z /= a;
+      }
+    };
+    struct vec4
+    {
+      union
+      {
+        float x = 0;
+        float r;
+      };
+      union
+      {
+        float y = 0;
+        float g;
+      };
+      union
+      {
+        float z = 0;
+        float width;
+        float b;
+      };
+      union
+      {
+        float w = 0;
+        float height;
+        float a;
+      };
+      constexpr vec4() = default;
+      vec4(float x)
+      {
+        this->x = x;
+      }
+      vec4(float x, float y)
+      {
+        this->x = x;
+        this->y = y;
+      }
+      vec4(float x, float y, float z)
+      {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+      }
+      vec4(float x, float y, float z, float w)
+      {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+        this->w = w;
+      }
+      vec4(const vec2 &b, float z = 0, float w = 0);
+      vec4(const vec3 &b, float w = 0);
+      vec4(const vec4 &b);
+      vec4(const ivec2 &b, float z = 0, float w = 0);
+      vec4(const ivec3 &b, float w = 0);
+      vec4(const ivec4 &b);
+      vec4 operator+(const vec4 &a) { return {x + a.x, y + a.y, z + a.z, w + a.w}; }
+      vec4 operator-(const vec4 &a) { return {x - a.x, y - a.y, z - a.z, w - a.w}; }
+      void operator+=(const vec4 &a)
+      {
+        x += a.x;
+        y += a.y;
+        z += a.z;
+        w += a.w;
+      }
+      void operator-=(const vec4 &a)
+      {
+        x -= a.x;
+        y -= a.y;
+        z -= a.z;
+        w -= a.w;
+      }
+      vec4 operator+(const float &a) { return {x + a, y + a, z + a, w + a}; }
+      vec4 operator-(const float &a) { return {x - a, y - a, z - a, w - a}; }
+      vec4 operator*(const float &a) { return {x * a, y * a, z * a, w * a}; }
+      vec4 operator/(const float &a) { return {x / a, y / a, z / a, w / a}; }
+      void operator+=(const float &a)
+      {
+        x += a;
+        y += a;
+        z += a;
+        z += a;
+      }
+      void operator-=(const float &a)
+      {
+        x -= a;
+        y -= a;
+        z -= a;
+        z -= a;
+      }
+      void operator*=(const float &a)
+      {
+        x *= a;
+        y *= a;
+        z *= a;
+        z *= a;
+      }
+      void operator/=(const float &a)
+      {
+        x /= a;
+        y /= a;
+        z /= a;
+        z /= a;
+      }
+    };
+
+    struct ivec2
+    {
+      int32_t x = 0;
+      int32_t y = 0;
+      constexpr ivec2() = default;
+      ivec2(int32_t x)
+      {
+        this->x = x;
+      }
+      ivec2(int32_t x, int32_t y)
+      {
+        this->x = x;
+        this->y = y;
+      }
+      ivec2(const vec2 &b);
+      ivec2(const vec3 &b);
+      ivec2(const vec4 &b);
+      ivec2(const ivec2 &b);
+      ivec2(const ivec3 &b);
+      ivec2(const ivec4 &b);
+      ivec2 operator+(const ivec2 &a) { return {x + a.x, y + a.y}; }
+      ivec2 operator-(const ivec2 &a) { return {x - a.x, y - a.y}; }
+      void operator+=(const ivec2 &a)
+      {
+        x += a.x;
+        y += a.y;
+      }
+      void operator-=(const ivec2 &a)
+      {
+        x -= a.x;
+        y -= a.y;
+      }
+      ivec2 operator+(const int32_t &a) { return {x + a, y + a}; }
+      ivec2 operator-(const int32_t &a) { return {x - a, y - a}; }
+      ivec2 operator*(const int32_t &a) { return {x * a, y * a}; }
+      ivec2 operator/(const int32_t &a) { return {x / a, y / a}; }
+      void operator+=(const int32_t &a)
+      {
+        x += a;
+        y += a;
+      }
+      void operator-=(const int32_t &a)
+      {
+        x -= a;
+        y -= a;
+      }
+      void operator*=(const int32_t &a)
+      {
+        x *= a;
+        y *= a;
+      }
+      void operator/=(const int32_t &a)
+      {
+        x /= a;
+        y /= a;
+      }
+    };
+    struct ivec3
+    {
+      union
+      {
+        int32_t x = 0;
+        int32_t r;
+      };
+      union
+      {
+        int32_t y = 0;
+        int32_t g;
+      };
+      union
+      {
+        int32_t z = 0;
+        int32_t b;
+      };
+      constexpr ivec3() = default;
+      ivec3(int32_t x)
+      {
+        this->x = x;
+      }
+      ivec3(int32_t x, int32_t y)
+      {
+        this->x = x;
+        this->y = y;
+      }
+      ivec3(int32_t x, int32_t y, int32_t z)
+      {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+      }
+      ivec3(const vec2 &b, int32_t z = 0);
+      ivec3(const vec3 &b);
+      ivec3(const vec4 &b);
+      ivec3(const ivec2 &b, int32_t z = 0);
+      ivec3(const ivec3 &b);
+      ivec3(const ivec4 &b);
+      ivec3 operator+(const ivec3 &a) { return {x + a.x, y + a.y, z + a.z}; }
+      ivec3 operator-(const ivec3 &a) { return {x - a.x, y - a.y, z - a.z}; }
+      void operator+=(const ivec3 &a)
+      {
+        x += a.x;
+        y += a.y;
+        z += a.z;
+      }
+      void operator-=(const ivec3 &a)
+      {
+        x -= a.x;
+        y -= a.y;
+        z -= a.z;
+      }
+      ivec3 operator+(const int32_t &a) { return {x + a, y + a, z + a}; }
+      ivec3 operator-(const int32_t &a) { return {x - a, y - a, z - a}; }
+      ivec3 operator*(const int32_t &a) { return {x * a, y * a, z * a}; }
+      ivec3 operator/(const int32_t &a) { return {x / a, y / a, z / a}; }
+      void operator+=(const int32_t &a)
+      {
+        x += a;
+        y += a;
+        z += a;
+      }
+      void operator-=(const int32_t &a)
+      {
+        x -= a;
+        y -= a;
+        z -= a;
+      }
+      void operator*=(const int32_t &a)
+      {
+        x *= a;
+        y *= a;
+        z *= a;
+      }
+      void operator/=(const int32_t &a)
+      {
+        x /= a;
+        y /= a;
+        z /= a;
+      }
+    };
+    struct ivec4
+    {
+      union
+      {
+        int32_t x = 0;
+        int32_t r;
+      };
+      union
+      {
+        int32_t y = 0;
+        int32_t g;
+      };
+      union
+      {
+        int32_t z = 0;
+        int32_t width;
+        int32_t b;
+      };
+      union
+      {
+        int32_t w = 0;
+        int32_t height;
+        int32_t a;
+      };
+      constexpr ivec4() = default;
+      ivec4(int32_t x)
+      {
+        this->x = x;
+      }
+      ivec4(int32_t x, int32_t y)
+      {
+        this->x = x;
+        this->y = y;
+      }
+      ivec4(int32_t x, int32_t y, int32_t z)
+      {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+      }
+      ivec4(int32_t x, int32_t y, int32_t z, int32_t w)
+      {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+        this->w = w;
+      }
+      ivec4(const vec2 &b, int32_t z = 0, int32_t w = 0);
+      ivec4(const vec3 &b, int32_t w = 0);
+      ivec4(const vec4 &b);
+      ivec4(const ivec2 &b, int32_t z = 0, int32_t w = 0);
+      ivec4(const ivec3 &b, int32_t w = 0);
+      ivec4(const ivec4 &b);
+      ivec4 operator+(const ivec4 &a) { return {x + a.x, y + a.y, z + a.z, w + a.w}; }
+      ivec4 operator-(const ivec4 &a) { return {x - a.x, y - a.y, z - a.z, w - a.w}; }
+      void operator+=(const ivec4 &a)
+      {
+        x += a.x;
+        y += a.y;
+        z += a.z;
+        w += a.w;
+      }
+      void operator-=(const ivec4 &a)
+      {
+        x -= a.x;
+        y -= a.y;
+        z -= a.z;
+        w -= a.w;
+      }
+      ivec4 operator+(const int32_t &a) { return {x + a, y + a, z + a, w + a}; }
+      ivec4 operator-(const int32_t &a) { return {x - a, y - a, z - a, w - a}; }
+      ivec4 operator*(const int32_t &a) { return {x * a, y * a, z * a, w * a}; }
+      ivec4 operator/(const int32_t &a) { return {x / a, y / a, z / a, w / a}; }
+      void operator+=(const int32_t &a)
+      {
+        x += a;
+        y += a;
+        z += a;
+        z += a;
+      }
+      void operator-=(const int32_t &a)
+      {
+        x -= a;
+        y -= a;
+        z -= a;
+        z -= a;
+      }
+      void operator*=(const int32_t &a)
+      {
+        x *= a;
+        y *= a;
+        z *= a;
+        z *= a;
+      }
+      void operator/=(const int32_t &a)
+      {
+        x /= a;
+        y /= a;
+        z /= a;
+        z /= a;
+      }
+    };
+
+    vec2::vec2(const vec2 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    vec2::vec2(const vec3 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    vec2::vec2(const vec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    vec2::vec2(const ivec2 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    vec2::vec2(const ivec3 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    vec2::vec2(const ivec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    vec3::vec3(const vec2 &b, float z)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = z;
+    }
+    vec3::vec3(const vec3 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+    }
+    vec3::vec3(const vec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+    }
+    vec3::vec3(const ivec2 &b, float z)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = z;
+    }
+    vec3::vec3(const ivec3 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+    }
+    vec3::vec3(const ivec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    vec4::vec4(const vec2 &b, float z, float w)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = z;
+      this->w = w;
+    }
+    vec4::vec4(const vec3 &b, float w)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+      this->w = w;
+    }
+    vec4::vec4(const vec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+      this->w = b.w;
+    }
+    vec4::vec4(const ivec2 &b, float z, float w)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = z;
+      this->w = w;
+    }
+    vec4::vec4(const ivec3 &b, float w)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+      this->w = w;
+    }
+    vec4::vec4(const ivec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+      this->w = b.w;
+    }
+
+    ivec2::ivec2(const vec2 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    ivec2::ivec2(const vec3 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    ivec2::ivec2(const vec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    ivec2::ivec2(const ivec2 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    ivec2::ivec2(const ivec3 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    ivec2::ivec2(const ivec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    ivec3::ivec3(const vec2 &b, int32_t z)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = z;
+    }
+    ivec3::ivec3(const vec3 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+    }
+    ivec3::ivec3(const vec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+    }
+    ivec3::ivec3(const ivec2 &b, int32_t z)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = z;
+    }
+    ivec3::ivec3(const ivec3 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+    }
+    ivec3::ivec3(const ivec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+    }
+    ivec4::ivec4(const vec2 &b, int32_t z, int32_t w)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = z;
+      this->w = w;
+    }
+    ivec4::ivec4(const vec3 &b, int32_t w)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+      this->w = w;
+    }
+    ivec4::ivec4(const vec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+      this->w = b.w;
+    }
+    ivec4::ivec4(const ivec2 &b, int32_t z, int32_t w )
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = z;
+      this->w = w;
+    }
+    ivec4::ivec4(const ivec3 &b, int32_t w)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+      this->w = w;
+    }
+    ivec4::ivec4(const ivec4 &b)
+    {
+      this->x = b.x;
+      this->y = b.y;
+      this->z = b.z;
+      this->w = b.w;
+    }
+
+#endif
 
 #ifndef CHEVAN_UTILS_VEC2
-#define CHEVAN_UTILS_VEC2 chevan_utils::chevanut_vec::v2
+#define CHEVAN_UTILS_VEC2 chevan_utils::chevanut_vec::vec2
 #endif // !CHEVAN_UTILS_VEC2
 #ifndef CHEVAN_UTILS_VEC3
-#define CHEVAN_UTILS_VEC3 chevan_utils::chevanut_vec::v3
+#define CHEVAN_UTILS_VEC3 chevan_utils::chevanut_vec::vec3
 #endif // !CHEVAN_UTILS_VEC3
 #ifndef CHEVAN_UTILS_VEC4
-#define CHEVAN_UTILS_VEC4 chevan_utils::chevanut_vec::v4
+#define CHEVAN_UTILS_VEC4 chevan_utils::chevanut_vec::vec4
 #endif // !CHEVAN_UTILS_VEC2
   }
 

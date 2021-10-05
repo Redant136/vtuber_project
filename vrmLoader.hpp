@@ -32,7 +32,8 @@ namespace vtuber
 #define GLTF_COMPONENT_DOUBLE (5130)
     typedef std::string string;
 
-    static const struct {
+    static const struct
+    {
       const string KHR_materials_unlit = "KHR_materials_unlit";
       const string KHR_texture_transform = "KHR_texture_transform";
       const string VRM = "VRM";
@@ -62,6 +63,25 @@ namespace vtuber
       };
       struct VRM
       {
+        union Vec3
+        {
+          glm::vec3 glm_vec;
+          chevan_utils::chevanut_vec::vec3 vec;
+          struct
+          {
+            float x, y, z;
+          };
+        };
+        union Vec4
+        {
+          glm::vec4 glm_vec;
+          chevan_utils::chevanut_vec::vec4 vec;
+          struct
+          {
+            float x, y, z, w;
+          };
+        };
+        VRM() = default;
         string exporterVersion;
         string specVersion;
         struct Meta
@@ -100,6 +120,68 @@ namespace vtuber
         {
           struct Bone
           {
+            enum
+            {
+              hips,
+              leftUpperLeg,
+              rightUpperLeg,
+              leftLowerLeg,
+              rightLowerLeg,
+              leftFoot,
+              rightFoot,
+              spine,
+              chest,
+              neck,
+              head,
+              leftShoulder,
+              rightShoulder,
+              leftUpperArm,
+              rightUpperArm,
+              leftLowerArm,
+              rightLowerArm,
+              leftHand,
+              rightHand,
+              leftToes,
+              rightToes,
+              leftEye,
+              rightEye,
+              jaw,
+              leftThumbProximal,
+              leftThumbIntermediate,
+              leftThumbDistal,
+              leftIndexProximal,
+              leftIndexIntermediate,
+              leftIndexDistal,
+              leftMiddleProximal,
+              leftMiddleIntermediate,
+              leftMiddleDistal,
+              leftRingProximal,
+              leftRingIntermediate,
+              leftRingDistal,
+              leftLittleProximal,
+              leftLittleIntermediate,
+              leftLittleDistal,
+              rightThumbProximal,
+              rightThumbIntermediate,
+              rightThumbDistal,
+              rightIndexProximal,
+              rightIndexIntermediate,
+              rightIndexDistal,
+              rightMiddleProximal,
+              rightMiddleIntermediate,
+              rightMiddleDistal,
+              rightRingProximal,
+              rightRingIntermediate,
+              rightRingDistal,
+              rightLittleProximal,
+              rightLittleIntermediate,
+              rightLittleDistal,
+              upperChest
+            } bone;
+            int node;
+            bool useDefaultValues;
+            Vec3 min, max, center;
+            float axisLength;
           };
           std::vector<Bone> humanBones;
           float armStretch, legStretch, upperArmTwist, lowerArmTwist, upperLegTwist, lowerLegTwist, feetSpacing;
@@ -119,14 +201,7 @@ namespace vtuber
             float yRange;
           };
           int firstPersonBone;
-          union {
-            struct
-            {
-              float x, y, z;
-            };
-            chevan_utils::chevanut_vec::v3 vec;
-            glm::vec3 glm_vec;
-          } firstPersonBoneOffset;
+          Vec3 firstPersonBoneOffset;
           std::vector<MeshAnnotations> meshAnnotations;
           enum
           {
@@ -189,15 +264,7 @@ namespace vtuber
             string comment;
             float stiffiness;
             float gravityPower;
-            union
-            {
-              struct
-              {
-                float x, y, z;
-              };
-              chevan_utils::chevanut_vec::v3 vec;
-              glm::vec3 glm_vec;
-            } gravityDir;
+            Vec3 gravityDir;
             float dragForce;
             int center;
             float hitRadius;
@@ -208,15 +275,7 @@ namespace vtuber
           {
             struct Collider
             {
-              union
-              {
-                struct
-                {
-                  float x, y, z;
-                };
-                chevan_utils::chevanut_vec::v3 vec;
-                glm::vec3 glm_vec;
-              } offset;
+              Vec3 offset;
               float radius;
             };
             int node;
@@ -227,7 +286,28 @@ namespace vtuber
         } secondaryAnimation;
         struct MaterialProperties
         {
-
+          string name;
+          string shader;
+          int renderQueue;
+          struct FloatProperties
+          {
+            float _Cutoff, _BumpScale, _ReceiveShadowRate, _ShadingGradeRate, _ShadeShift, _ShadeToony, _LightColorAttenuation, _IndirectLightIntensity, _OutlineWidth, _OutlineScaledMaxDistance, _OutlineLightingMix, _DebugMode, _BlendMode, _OutlineWidthMode, _OutlineColorMode, _CullMode, _OutlineCullMode, _SrcBlend, _DstBlend, _ZWrite;
+          } floatProperties;
+          struct VectorProperties
+          {
+            Vec4 _Color, _ShadeColor, _MainTex, _ShadeTexture, _BumpMap, _ReceiveShadowTexture, _ShadingGradeTexture, _SphereAdd, _EmissionColor, _EmissionMap, _OutlineWidthTexture, _OutlineColor;
+          } vectorProperties;
+          struct
+          {
+            int _MainTex, _ShadeTexture, _BumpMap, _SphereAdd, _EmissionMap;
+          } textureProperties;
+          struct
+          {
+            bool MTOON_OUTLINE_COLOR_FIXED, MTOON_OUTLINE_WIDTH_WORLD, _ALPHATEST_ON, _NORMALMAP;
+          } keywordMap;
+          struct{
+            string RenderType;
+          } tagMap;
         } materialProperties;
       };
     }
@@ -599,15 +679,7 @@ namespace vtuber
   {                                        \
     attrib = (int *)(&attribute.att_name); \
   }
-      parseAttrib(POSITION) 
-      else parseAttrib(NORMAL) 
-      else parseAttrib(TANGENT) 
-      else parseAttrib(TEXCOORD_0) 
-      else parseAttrib(TEXCOORD_1)
-      else parseAttrib(TEXCOORD_2) 
-      else parseAttrib(COLOR_0) 
-      else parseAttrib(JOINTS_0) 
-      else parseAttrib(WEIGHTS_0) else
+      parseAttrib(POSITION) else parseAttrib(NORMAL) else parseAttrib(TANGENT) else parseAttrib(TEXCOORD_0) else parseAttrib(TEXCOORD_1) else parseAttrib(TEXCOORD_2) else parseAttrib(COLOR_0) else parseAttrib(JOINTS_0) else parseAttrib(WEIGHTS_0) else
       {
         std::cout << "no such attribute" << std::endl;
         assert(0);
@@ -736,7 +808,450 @@ namespace vtuber
       return r;
     }
 
-    std::vector<gltf::Extension> deserialize_extensions(json extensions)
+    gltf::Extensions::VRM deserializeVRM(json json)
+    {
+      typedef std::string string;
+
+      gltf::Extensions::VRM vrm;
+#define jsonget(type, dst, name, v) dst.name = v[#name].get<type>();
+#define jsongetItem(type, dst, name, item) \
+  if (string(item.key()) == #name)         \
+  {                                        \
+    dst.name = item.value().get<type>();   \
+    continue;                              \
+  }
+#define jsongetArr(type, dst, name, item, i)       \
+  if (string(item.key()) == #name)                 \
+  {                                                \
+    dst.name.resize(item.value().size());          \
+    for (uint i = 0; i < item.value().size(); i++) \
+    {                                              \
+      dst.name[i] = item.value()[i].get<type>();   \
+    }                                              \
+    continue;                                      \
+  }
+#define jsongetArrObj(dst, name, item, i, parseFunc) \
+  if (string(item.key()) == #name)                   \
+  {                                                  \
+    dst.name.resize(item.value().size());            \
+    for (uint i = 0; i < item.value().size(); i++)   \
+    {                                                \
+      dst.name[i] = parseFunc(item.value()[i]);      \
+    }                                                \
+    continue;                                        \
+  }
+
+#define jsonUnknownMacro(item, location) println(__FILE__, ":", __LINE__, " ", item.key(), ": unknow item in object ", #location);
+      vrm.exporterVersion = json["exporterVersion"].get<string>();
+      vrm.specVersion = json["specVersion"].get<string>();
+      for (auto &x : json["meta"].items())
+      {
+        jsongetItem(string, vrm.meta, title, x);
+        jsongetItem(string, vrm.meta, version, x);
+        jsongetItem(string, vrm.meta, author, x);
+        jsongetItem(string, vrm.meta, contactInformation, x);
+        jsongetItem(string, vrm.meta, reference, x);
+        jsongetItem(int, vrm.meta, texture, x);
+        if (x.key() == "allowedUserName")
+        {
+          parseEnum(vrm.meta.allowedUserName, x.value().get<string>(), gltf::Extensions::VRM::Meta::,
+                    OnlyAuthor,
+                    ExplicitlyLicensedPerson,
+                    Everyone);
+          continue;
+        }
+        jsongetItem(string, vrm.meta, violentUssageName, x);
+        jsongetItem(string, vrm.meta, sexualUssageName, x);
+        jsongetItem(string, vrm.meta, commercialUssageName, x);
+        jsongetItem(string, vrm.meta, otherPermissionUrl, x);
+        if (x.key() == "licenseName")
+        {
+          parseEnum(vrm.meta.licenseName, x.value().get<string>(), gltf::Extensions::VRM::Meta::,
+                    Redistribution_Prohibited,
+                    CC0,
+                    CC_BY,
+                    CC_BY_NC,
+                    CC_BY_SA,
+                    CC_BY_NC_SA,
+                    CC_BY_ND,
+                    CC_BY_NC_ND,
+                    Other);
+          continue;
+        }
+        jsongetItem(string, vrm.meta, otherLicenseUrl, x);
+        jsonUnknownMacro(x, vrm.meta);
+      }
+      for (auto &x : json["humanoid"].items())
+      {
+        std::function<gltf::Extensions::VRM::Humanoid::Bone(nlohmann::json)> parseBone = [](nlohmann::json data)
+        {
+          gltf::Extensions::VRM::Humanoid::Bone bone;
+          for (auto &x : data.items())
+          {
+            if (x.key() == "bone")
+            {
+              parseEnum(bone.bone, x.value().get<string>(), gltf::Extensions::VRM::Humanoid::Bone::, hips,
+                        leftUpperLeg,
+                        rightUpperLeg,
+                        leftLowerLeg,
+                        rightLowerLeg,
+                        leftFoot,
+                        rightFoot,
+                        spine,
+                        chest,
+                        neck,
+                        head,
+                        leftShoulder,
+                        rightShoulder,
+                        leftUpperArm,
+                        rightUpperArm,
+                        leftLowerArm,
+                        rightLowerArm,
+                        leftHand,
+                        rightHand,
+                        leftToes,
+                        rightToes,
+                        leftEye,
+                        rightEye,
+                        jaw,
+                        leftThumbProximal,
+                        leftThumbIntermediate,
+                        leftThumbDistal,
+                        leftIndexProximal,
+                        leftIndexIntermediate,
+                        leftIndexDistal,
+                        leftMiddleProximal,
+                        leftMiddleIntermediate,
+                        leftMiddleDistal,
+                        leftRingProximal,
+                        leftRingIntermediate,
+                        leftRingDistal,
+                        leftLittleProximal,
+                        leftLittleIntermediate,
+                        leftLittleDistal,
+                        rightThumbProximal,
+                        rightThumbIntermediate,
+                        rightThumbDistal,
+                        rightIndexProximal,
+                        rightIndexIntermediate,
+                        rightIndexDistal,
+                        rightMiddleProximal,
+                        rightMiddleIntermediate,
+                        rightMiddleDistal,
+                        rightRingProximal,
+                        rightRingIntermediate,
+                        rightRingDistal,
+                        rightLittleProximal,
+                        rightLittleIntermediate,
+                        rightLittleDistal,
+                        upperChest);
+              continue;
+            }
+            jsongetItem(int, bone, node, x);
+            jsongetItem(bool, bone, useDefaultValues, x);
+            if (x.key() == "min")
+            {
+              jsonget(float, bone.min, x, x.value());
+              jsonget(float, bone.min, y, x.value());
+              jsonget(float, bone.min, z, x.value());
+              continue;
+            }
+            if (x.key() == "max")
+            {
+              jsonget(float, bone.max, x, x.value());
+              jsonget(float, bone.max, y, x.value());
+              jsonget(float, bone.max, z, x.value());
+              continue;
+            }
+            if (x.key() == "center")
+            {
+              jsonget(float, bone.center, x, x.value());
+              jsonget(float, bone.center, y, x.value());
+              jsonget(float, bone.center, z, x.value());
+              continue;
+            }
+            jsongetItem(float, bone, axisLength, x);
+            jsonUnknownMacro(x, gltf::Extensions::VRM::Bone)
+          }
+          return bone;
+        };
+        jsongetArrObj(vrm.humanoid, humanBones, x, i, parseBone);
+        jsongetItem(float, vrm.humanoid, armStretch, x);
+        jsongetItem(float, vrm.humanoid, legStretch, x);
+        jsongetItem(float, vrm.humanoid, upperArmTwist, x);
+        jsongetItem(float, vrm.humanoid, lowerArmTwist, x);
+        jsongetItem(float, vrm.humanoid, upperLegTwist, x);
+        jsongetItem(float, vrm.humanoid, lowerLegTwist, x);
+        jsongetItem(float, vrm.humanoid, feetSpacing, x);
+        jsongetItem(bool, vrm.humanoid, hasTranslationDoF, x);
+        jsonUnknownMacro(x, vrm.humanoid);
+      }
+      for (auto &x : json["firstPerson"].items())
+      {
+        std::function<gltf::Extensions::VRM::FirstPerson::DegreeMap(nlohmann::json)> parseDegreeMap = [](nlohmann::json data)
+        {
+          gltf::Extensions::VRM::FirstPerson::DegreeMap degreeMap;
+          for (auto &x : data.items())
+          {
+            jsongetArr(float, degreeMap, curve, x, i);
+            jsongetItem(float, degreeMap, xRange, x);
+            jsongetItem(float, degreeMap, yRange, x);
+          }
+          return degreeMap;
+        };
+        jsongetItem(int, vrm.firstPerson, firstPersonBone, x);
+        if (x.key() == "firstPersonBoneOffset")
+        {
+          jsonget(float, vrm.firstPerson.firstPersonBoneOffset, x, x.value());
+          jsonget(float, vrm.firstPerson.firstPersonBoneOffset, y, x.value());
+          jsonget(float, vrm.firstPerson.firstPersonBoneOffset, z, x.value());
+          continue;
+        }
+        if (x.key() == "meshAnnotations")
+        {
+          std::function<gltf::Extensions::VRM::FirstPerson::MeshAnnotations(nlohmann::json)> parse = [](nlohmann::json json)
+          {
+            gltf::Extensions::VRM::FirstPerson::MeshAnnotations annotation;
+            for (auto &x : json.items())
+            {
+              jsongetItem(int, annotation, mesh, x);
+              jsongetItem(string, annotation, type, x);
+            }
+            return annotation;
+          };
+          jsongetArrObj(vrm.firstPerson, meshAnnotations, x, i, parse);
+          continue;
+        }
+        if (x.key() == "lookAtTypeName")
+        {
+          parseEnum(vrm.firstPerson.lookAtTypeName, x.value().get<string>(), gltf::Extensions::VRM::FirstPerson::,
+                    Bone,
+                    BlendShape);
+          continue;
+        }
+        if (x.key() == "lookAtHorizontalInner")
+        {
+          vrm.firstPerson.lookAtHorizontalInner = parseDegreeMap(x.value());
+          continue;
+        }
+        if (x.key() == "lookAtHorizontalOuter")
+        {
+          vrm.firstPerson.lookAtHorizontalOuter = parseDegreeMap(x.value());
+          continue;
+        }
+        if (x.key() == "lookAtVerticalDown")
+        {
+          vrm.firstPerson.lookAtVerticalDown = parseDegreeMap(x.value());
+          continue;
+        }
+        if (x.key() == "lookAtVerticalUp")
+        {
+          vrm.firstPerson.lookAtVerticalUp = parseDegreeMap(x.value());
+          continue;
+        }
+        jsonUnknownMacro(x, vrm.firstPerson);
+      }
+      for (auto &x : json["blendShapeMaster"].items())
+      {
+        typedef gltf::Extensions::VRM::BlendShapeMaster::BlendShapeGroup BlendShapeGroup;
+        std::function<BlendShapeGroup(nlohmann::json)> parseBlendShapeGroup = [](nlohmann::json data)
+        {
+          BlendShapeGroup group;
+          for (auto &x : data.items())
+          {
+            jsongetItem(string, group, name, x);
+            if (x.key() == "presetName")
+            {
+              parseEnum(group.presetName, x.value().get<string>(),
+                        gltf::Extensions::VRM::BlendShapeMaster::BlendShapeGroup::PresetNames::,
+                        unknown,
+                        neutral,
+                        a,
+                        i,
+                        u,
+                        e,
+                        o,
+                        blink,
+                        joy,
+                        angry,
+                        sorrow,
+                        fun,
+                        lookup,
+                        lookdown,
+                        lookleft,
+                        lookright,
+                        blink_l,
+                        blink_r);
+              continue;
+            }
+            if (x.key() == "binds")
+            {
+              group.binds.resize(x.value().size());
+              for (uint i = 0; i < x.value().size(); i++)
+              {
+                BlendShapeGroup::Bind bind;
+                jsonget(uint, bind, mesh, x.value()[i]);
+                jsonget(uint, bind, index, x.value()[i]);
+                jsonget(float, bind, weight, x.value()[i]);
+                group.binds[i] = bind;
+              }
+              continue;
+            }
+            if (x.key() == "materialValues")
+            {
+              group.materialValues.resize(x.value().size());
+              for (uint i = 0; i < x.value().size(); i++)
+              {
+                BlendShapeGroup::MaterialBind bind;
+                jsonget(string, bind, type, x.value()[i]);
+                jsonget(string, bind, propertyName, x.value()[i]);
+                bind.targetValue.resize(x.value()["targetValue"].size());
+                for (uint j = 0; j < x.value()["targetValue"].size(); j++)
+                {
+                  bind.targetValue[j] = x.value()["targetValue"][j].get<float>();
+                }
+                group.materialValues[i] = bind;
+              }
+              continue;
+            }
+            jsongetItem(bool, group, isBinary, x);
+            jsonUnknownMacro(x, BlendShapeGroup);
+          }
+          return group;
+        };
+        jsongetArrObj(vrm.blendShapeMaster, blendShapeGroups, x, i, parseBlendShapeGroup);
+        jsonUnknownMacro(x,vrm.blendShapeMaster);
+      }
+      for (auto &x : json["secondaryAnimation"].items())
+      {
+        typedef gltf::Extensions::VRM::SecondaryAnimation SecondaryAnimation;
+        std::function<SecondaryAnimation::Spring(nlohmann::json)> parseSpring = [](nlohmann::json data)
+        {
+          SecondaryAnimation::Spring spring;
+          for (auto &x : data.items())
+          {
+            jsongetItem(string, spring, comment, x);
+            jsongetItem(float, spring, stiffiness, x);
+            jsongetItem(float, spring, gravityPower, x);
+            if (x.key() == "gravityDir")
+            {
+              jsonget(float, spring.gravityDir, x, x.value());
+              jsonget(float, spring.gravityDir, y, x.value());
+              jsonget(float, spring.gravityDir, z, x.value());
+              continue;
+            }
+            jsongetItem(float, spring, dragForce, x);
+            jsongetItem(int, spring, center, x);
+            jsongetItem(float, spring, hitRadius, x);
+            jsongetArr(uint, spring, bones, x, i);
+            jsongetArr(float, spring, colliderGroups, x, i);
+            jsonUnknownMacro(x, SecondaryAnimation::Spring);
+          }
+          return spring;
+        };
+        std::function<SecondaryAnimation::ColliderGroup(nlohmann::json)> parseColliderGroup = [](nlohmann::json data)
+        {
+          SecondaryAnimation::ColliderGroup group;
+          for (auto &x : data.items())
+          {
+            jsongetItem(int, group, node, x);
+            if (x.key() == "colliders")
+            {
+              group.colliders.resize(x.value().size());
+              for (uint i = 0; i < x.value().size(); i++)
+              {
+                jsonget(float, group.colliders[i].offset, x, x.value()[i]["offset"]);
+                jsonget(float, group.colliders[i].offset, y, x.value()[i]["offset"]);
+                jsonget(float, group.colliders[i].offset, z, x.value()[i]["offset"]);
+                jsonget(float, group.colliders[i], radius, x.value()[i]);
+              }
+              continue;
+            }
+            jsonUnknownMacro(x,SecondaryAnimation::ColliderGroup);
+          }
+          return group;
+        };
+        jsongetArrObj(vrm.secondaryAnimation, boneGroups, x, i, parseSpring);
+        jsongetArrObj(vrm.secondaryAnimation, colliderGroups, x, i, parseColliderGroup);
+        jsonUnknownMacro(x,vrm.secondaryAnimation);
+      }
+      for (auto &x : json["materialProperties"].items())
+      {
+        jsongetItem(string, vrm.materialProperties, name, x);
+        jsongetItem(string, vrm.materialProperties, shader, x);
+        jsongetItem(int, vrm.materialProperties, renderQueue, x);
+        if (x.key() == "floatProperties")
+        {
+#define f(name) jsongetItem(float, vrm.materialProperties.floatProperties, name, y)
+          for (auto &y : x.value().items())
+          {
+            EVAL(MAP(f,
+             _Cutoff, _BumpScale, _ReceiveShadowRate, _ShadingGradeRate, _ShadeShift,
+            _ShadeToony, _LightColorAttenuation, _IndirectLightIntensity, _OutlineWidth, 
+            _OutlineScaledMaxDistance, _OutlineLightingMix, _DebugMode, _BlendMode, 
+            _OutlineWidthMode, _OutlineColorMode, _CullMode, _OutlineCullMode, _SrcBlend, _DstBlend, _ZWrite));
+            jsonUnknownMacro(y,vrm.materialProperties.floatProperties);
+          }
+          continue;
+#undef f
+        }
+        if (x.key() == "vectorProperties")
+        {
+#define f(name)                                                               \
+  vrm.materialProperties.vectorProperties.name.x = y.value()[0].get<float>(); \
+  vrm.materialProperties.vectorProperties.name.y = y.value()[1].get<float>(); \
+  vrm.materialProperties.vectorProperties.name.z = y.value()[2].get<float>(); \
+  vrm.materialProperties.vectorProperties.name.w = y.value()[3].get<float>();
+          for (auto &y : x.value().items())
+          {
+            EVAL(MAP(f, _Color, _ShadeColor, _MainTex, _ShadeTexture,
+                     _BumpMap, _ReceiveShadowTexture, _ShadingGradeTexture, _SphereAdd,
+                     _EmissionColor, _EmissionMap, _OutlineWidthTexture, _OutlineColor));
+            jsonUnknownMacro(y, vrm.materialProperties.vectorProperties);
+          }
+#undef f
+        }
+        if (x.key() == "textureProperties")
+        {
+#define f(name) jsongetItem(int, vrm.materialProperties.textureProperties,name,y)
+          for (auto &y : x.value().items())
+          {
+            EVAL(MAP(f, _MainTex, _ShadeTexture, _BumpMap, _SphereAdd, _EmissionMap));
+            jsonUnknownMacro(y, vrm.materialProperties.textureProperties);
+          }
+#undef f
+        }
+        if (x.key() == "keywordMap")
+        {
+#define f(name) jsongetItem(bool, vrm.materialProperties.keywordMap, name, y)
+          for (auto &y : x.value().items())
+          {
+            EVAL(MAP(f, MTOON_OUTLINE_COLOR_FIXED, MTOON_OUTLINE_WIDTH_WORLD, _ALPHATEST_ON, _NORMALMAP));
+            jsonUnknownMacro(y, vrm.materialProperties.keywordMap);
+          }
+#undef f
+        }
+        if (x.key() == "tagMap")
+        {
+#define f(name) jsongetItem(string, vrm.materialProperties.tagMap, name, y)
+          for (auto &y : x.value().items())
+          {
+            EVAL(MAP(f, RenderType));
+            jsonUnknownMacro(y, vrm.materialProperties.tagMap);
+          }
+#undef f
+        }
+      }
+#undef jsonget
+#undef jsongetItem
+#undef jsongetArr
+#undef jsongetArrObj
+#undef jsonUnknownMacro
+      return vrm;
+    }
+
+    std::vector<gltf::Extension>
+    deserialize_extensions(json extensions)
     {
       std::vector<gltf::Extension> vec;
       for (auto x : extensions.items())
@@ -761,23 +1276,27 @@ namespace vtuber
           {
             transform->scale[i] = x.value()["scale"][i].get<float>();
           }
-          transform->texCoord=x.value()["texCoord"].get<int>();
+          transform->texCoord = x.value()["texCoord"].get<int>();
           ext.data = transform;
         }
         else if (ext.name == gltf::SUPPORTED_EXTENSIONS.VRM)
         {
-          
+          gltf::Extensions::VRM tmpExt = deserializeVRM(x.value());
+          gltf::Extensions::VRM *vrm = new gltf::Extensions::VRM();
+          *vrm = tmpExt;
+          ext.data = vrm;
         }
         else
         {
-          print(x.key(),": extension not supported");
+          print(x.key(), ": extension not supported");
         }
         vec.push_back(ext);
       }
       return vec;
     }
 
-    std::vector<gltf::Extension> deserialize_extras(json extras){
+    std::vector<gltf::Extension> deserialize_extras(json extras)
+    {
       return std::vector<gltf::Extension>();
     }
 
@@ -795,7 +1314,7 @@ namespace vtuber
 #define jsonConvertCastMacro(item, dst, id, type, castType) jsonFunctionMacro(item, id, dst.id = (castType)item.value().get<type>();)
 #define jsonArrayMacro(item, dst, id, type, i) jsonFunctionMacro( \
     item, id, dst.id.resize(item.value().size()); for (uint i = 0; i < item.value().size(); i++) { dst.id[i] = item.value()[i].get<type>(); });
-#define jsonUnknownMacro(item, location) print(__FILE__, ":",__LINE__," ",item.key(), ": unknow item in object ", #location);
+#define jsonUnknownMacro(item, location) println(__FILE__, ":", __LINE__, " ", item.key(), ": unknow item in object ", #location);
 
       gltf::glTFModel gltf;
 
@@ -812,7 +1331,7 @@ namespace vtuber
             jsonConvertMacro(x, gltf.asset, minVersion, std::string);
             jsonExtensionMacro(x, gltf.asset, extensions);
             jsonExtensionMacro(x, gltf.asset, extras);
-            jsonUnknownMacro(x,model.asset);
+            jsonUnknownMacro(x, model.asset);
           }
           continue;
         }
@@ -828,7 +1347,7 @@ namespace vtuber
               jsonConvertMacro(x, buffer, name, std::string);
               jsonExtensionMacro(x, buffer, extensions);
               jsonExtensionMacro(x, buffer, extras);
-              jsonUnknownMacro(x,model.buffers);
+              jsonUnknownMacro(x, model.buffers);
             }
             gltf.buffers.push_back(buffer);
           }
@@ -849,7 +1368,7 @@ namespace vtuber
               jsonConvertMacro(x, bufferV, name, std::string);
               jsonExtensionMacro(x, bufferV, extensions);
               jsonExtensionMacro(x, bufferV, extras);
-              jsonUnknownMacro(x,model.bufferViews);
+              jsonUnknownMacro(x, model.bufferViews);
             }
             gltf.bufferViews.push_back(bufferV);
           }
@@ -927,13 +1446,12 @@ namespace vtuber
                 }
                 jsonExtensionMacro(x, accessor.sparse, extensions);
                 jsonExtensionMacro(x, accessor.sparse, extras);
-                jsonUnknownMacro(x,model.accessors.sparse)
-                continue;
+                jsonUnknownMacro(x, model.accessors.sparse) continue;
               }
               jsonConvertMacro(x, accessor, name, std::string);
               jsonExtensionMacro(x, accessor, extensions);
               jsonExtensionMacro(x, accessor, extras);
-              jsonUnknownMacro(x,model.accessors);
+              jsonUnknownMacro(x, model.accessors);
             }
             gltf.accessors.push_back(accessor);
           }
@@ -951,7 +1469,7 @@ namespace vtuber
               jsonConvertMacro(x, texture, name, std::string);
               jsonExtensionMacro(x, texture, extensions);
               jsonExtensionMacro(x, texture, extras);
-              jsonUnknownMacro(x,model.textures);
+              jsonUnknownMacro(x, model.textures);
             }
             gltf.textures.push_back(texture);
           }
@@ -971,7 +1489,7 @@ namespace vtuber
               jsonConvertMacro(x, sampler, name, std::string);
               jsonExtensionMacro(x, sampler, extensions);
               jsonExtensionMacro(x, sampler, extras);
-              jsonUnknownMacro(x,model.samplers);
+              jsonUnknownMacro(x, model.samplers);
             }
             gltf.samplers.push_back(sampler);
           }
@@ -990,7 +1508,7 @@ namespace vtuber
               jsonConvertMacro(x, image, mimeType, std::string);
               jsonExtensionMacro(x, image, extensions);
               jsonExtensionMacro(x, image, extras);
-              jsonUnknownMacro(x,model.images);
+              jsonUnknownMacro(x, model.images);
             }
             gltf.images.push_back(image);
           }
@@ -1016,7 +1534,7 @@ namespace vtuber
                       jsonConvertMacro(z, material.pbrMetallicRoughness.baseColorTexture, texCoord, int);
                       jsonExtensionMacro(z, material.pbrMetallicRoughness.baseColorTexture, extensions);
                       jsonExtensionMacro(z, material.pbrMetallicRoughness.baseColorTexture, extras);
-                      jsonUnknownMacro(z,model.materials.pbrMetallicRoughness.baseColorTexture);
+                      jsonUnknownMacro(z, model.materials.pbrMetallicRoughness.baseColorTexture);
                     }
                     continue;
                   }
@@ -1059,7 +1577,7 @@ namespace vtuber
                   jsonConvertMacro(y, material.normalTexture, texCoord, int);
                   jsonExtensionMacro(y, material.normalTexture, extensions);
                   jsonExtensionMacro(y, material.normalTexture, extras);
-                  jsonUnknownMacro(y,model.materials.normalTexture);
+                  jsonUnknownMacro(y, model.materials.normalTexture);
                 }
                 continue;
               }
@@ -1072,7 +1590,7 @@ namespace vtuber
                   jsonConvertMacro(y, material.occlusionTexture, texCoord, int);
                   jsonExtensionMacro(y, material.occlusionTexture, extensions);
                   jsonExtensionMacro(y, material.occlusionTexture, extras);
-                  jsonUnknownMacro(y,model.materials.occlusionTexture);
+                  jsonUnknownMacro(y, model.materials.occlusionTexture);
                 }
                 continue;
               }
@@ -1084,7 +1602,7 @@ namespace vtuber
                   jsonConvertMacro(y, material.emissiveTexture, texCoord, int);
                   jsonExtensionMacro(y, material.emissiveTexture, extensions);
                   jsonExtensionMacro(y, material.emissiveTexture, extras);
-                  jsonUnknownMacro(y,model.materials.emisiveTexture);
+                  jsonUnknownMacro(y, model.materials.emisiveTexture);
                 }
                 continue;
               }
@@ -1119,7 +1637,7 @@ namespace vtuber
               jsonConvertMacro(x, material, doubleSided, bool);
               jsonExtensionMacro(x, material, extensions);
               jsonExtensionMacro(x, material, extras);
-              jsonUnknownMacro(x,model.materials);
+              jsonUnknownMacro(x, model.materials);
             }
             gltf.materials.push_back(material);
           }
@@ -1154,7 +1672,7 @@ namespace vtuber
                         jsonConvertMacro(z, primitive.attributes, COLOR_0, int);
                         jsonConvertMacro(z, primitive.attributes, JOINTS_0, int);
                         jsonConvertMacro(z, primitive.attributes, WEIGHTS_0, int);
-                        jsonUnknownMacro(z,model.meshes.primitives.attributes)
+                        jsonUnknownMacro(z, model.meshes.primitives.attributes)
                       }
                       continue;
                     }
@@ -1169,7 +1687,7 @@ namespace vtuber
                           jsonConvertMacro(z, target, POSITION, int);
                           jsonConvertMacro(z, target, NORMAL, int);
                           jsonConvertMacro(z, target, TANGENT, int);
-                          jsonUnknownMacro(z,model.meshes.primitives.targets);
+                          jsonUnknownMacro(z, model.meshes.primitives.targets);
                         }
                         primitive.targets.push_back(target);
                       }
@@ -1177,7 +1695,7 @@ namespace vtuber
                     }
                     jsonExtensionMacro(y, primitive, extensions);
                     jsonExtensionMacro(y, primitive, extras);
-                    jsonUnknownMacro(y,model.meshes.primitives);
+                    jsonUnknownMacro(y, model.meshes.primitives);
                   }
                   mesh.primitives.push_back(primitive);
                 }
@@ -1186,7 +1704,7 @@ namespace vtuber
               jsonArrayMacro(x, mesh, weights, float, j);
               jsonExtensionMacro(x, mesh, extensions);
               jsonExtensionMacro(x, mesh, extras);
-              jsonUnknownMacro(x,model.meshes);
+              jsonUnknownMacro(x, model.meshes);
             }
             gltf.meshes.push_back(mesh);
           }
@@ -1211,7 +1729,7 @@ namespace vtuber
               jsonConvertMacro(x, node, camera, int);
               jsonExtensionMacro(x, node, extensions);
               jsonExtensionMacro(x, node, extras);
-              jsonUnknownMacro(x,model.nodes);
+              jsonUnknownMacro(x, model.nodes);
             }
             if (node.matrix.size() == 0)
             {
@@ -1238,7 +1756,7 @@ namespace vtuber
               jsonConvertMacro(x, skin, skeleton, int);
               jsonExtensionMacro(x, skin, extensions);
               jsonExtensionMacro(x, skin, extras);
-              jsonUnknownMacro(x,model.skins);
+              jsonUnknownMacro(x, model.skins);
             }
             gltf.skins.push_back(skin);
           }
@@ -1260,7 +1778,7 @@ namespace vtuber
               jsonArrayMacro(x, scene, nodes, int, j);
               jsonExtensionMacro(x, scene, extensions);
               jsonExtensionMacro(x, scene, extras);
-              jsonUnknownMacro(x,model.scene);
+              jsonUnknownMacro(x, model.scene);
             }
             gltf.scenes.push_back(scene);
           }
@@ -1309,13 +1827,13 @@ namespace vtuber
                         }
                         jsonExtensionMacro(z, channel.target, extensions);
                         jsonExtensionMacro(z, channel.target, extras);
-                        jsonUnknownMacro(z,model.animations.channels.target);
+                        jsonUnknownMacro(z, model.animations.channels.target);
                       }
                       continue;
                     }
                     jsonExtensionMacro(y, channel, extensions);
                     jsonExtensionMacro(y, channel, extras);
-                    jsonUnknownMacro(y,model.animations.channels);
+                    jsonUnknownMacro(y, model.animations.channels);
                   }
                   animation.channels.push_back(channel);
                 }
@@ -1348,7 +1866,7 @@ namespace vtuber
                     jsonConvertMacro(y, sampler, output, int);
                     jsonExtensionMacro(y, sampler, extensions);
                     jsonExtensionMacro(y, sampler, extras);
-                    jsonUnknownMacro(y,model.animations.samplers);
+                    jsonUnknownMacro(y, model.animations.samplers);
                   }
                   animation.samplers.push_back(sampler);
                 }
@@ -1356,7 +1874,7 @@ namespace vtuber
               }
               jsonExtensionMacro(x, animation, extensions);
               jsonExtensionMacro(x, animation, extras);
-              jsonUnknownMacro(x,model.animations);
+              jsonUnknownMacro(x, model.animations);
             }
             gltf.animations.push_back(animation);
           }
@@ -1380,7 +1898,7 @@ namespace vtuber
                   jsonConvertMacro(y, camera.orthographic, znear, float);
                   jsonExtensionMacro(y, camera.orthographic, extensions);
                   jsonExtensionMacro(y, camera.orthographic, extras);
-                  jsonUnknownMacro(y,model.cameras.orthographic);
+                  jsonUnknownMacro(y, model.cameras.orthographic);
                 }
                 continue;
               }
@@ -1394,7 +1912,7 @@ namespace vtuber
                   jsonConvertMacro(y, camera.perspective, znear, float);
                   jsonExtensionMacro(y, camera.perspective, extensions);
                   jsonExtensionMacro(y, camera.perspective, extras);
-                  jsonUnknownMacro(y,model.cameras.perspective);
+                  jsonUnknownMacro(y, model.cameras.perspective);
                 }
                 continue;
               }
@@ -1412,7 +1930,7 @@ namespace vtuber
               }
               jsonExtensionMacro(x, camera, extensions);
               jsonExtensionMacro(x, camera, extras);
-              jsonUnknownMacro(x,model.cameras);
+              jsonUnknownMacro(x, model.cameras);
             }
             gltf.cameras.push_back(camera);
           }
@@ -1576,4 +2094,4 @@ namespace vtuber
 
     //TODO gltf v1
   };
-};
+}

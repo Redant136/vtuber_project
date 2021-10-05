@@ -33,6 +33,7 @@
 [x] (gltf loading) textures that are not bfviews
 [x] (extensions) KHR_materials_unlit
 [x] (extensions) KHR_texture_transform
+[x] (extensions) desirialize VRM
 
 ## working on
 [ ] (extensions) VRM
