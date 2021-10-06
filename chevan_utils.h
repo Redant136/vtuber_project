@@ -3,12 +3,6 @@
 #define CHEVAN_UTILS_H
 #define CHEVAN_UTILS_VERSION "2.1.1"
 
-#include <iostream>
-#include <string>
-#include <stdint.h>
-#include <string.h>
-#include <vector>
-#include <cmath>
 
 #ifndef CHEVAN_UTILS_NO_EXTRA_INCLUDES
 #include <stdexcept>
@@ -94,6 +88,21 @@
   EVAL(parseEnum2(dst, src, valLoc, __VA_ARGS__))
 
 #endif // CHEVAN_UTILS_MACRO_MAGIC
+
+#ifdef __cplusplus
+#include <iostream>
+#include <string>
+#include <stdint.h>
+#include <string.h>
+#include <vector>
+#include <cmath>
+
+#ifndef CHEVAN_UTILS_NO_EXTRA_INCLUDES
+#include <stdexcept>
+#include <assert.h>
+#include <stdlib.h>
+#include <functional>
+#endif
 
 namespace chevan_utils
 {
@@ -2371,5 +2380,147 @@ namespace chevan_utils
 #endif // __cplusplus >= 201703L
   }
 }
+
+#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <stdint.h>
+#include <assert.h>
+
+
+#define convertVec2(dest, src) \
+  dest.x = src.x;              \
+  dest.y = src.y;
+#define convertVec3(dest, src) convertVec2(dest, src) dest.z = src.z;
+#define convertVec4(dest, src) convertVec3(dest, src) dest.w = src.w;
+#define vec2List(v) (v).x, (v).y
+#define vec3List(v) vec2List(v), (v).z
+#define vec4List(v) vec3List(v), (v).w
+#define vec2ToArray(v) \
+  {                    \
+    vec2List(v)        \
+  }
+#define vec3ToArray(v) \
+  {                    \
+    vec3List(v)        \
+  }
+#define vec4ToArray(v) \
+  {                    \
+    vec4List(v)        \
+  }
+#define membuild(type, name, data) \
+  type name;                       \
+  memcpy(&name, data, sizeof(type));
+
+typedef unsigned char uchar;
+typedef unsigned short ushort;
+typedef unsigned int uint;
+typedef unsigned long ulong;
+typedef unsigned long long ullong;
+typedef long long llong;
+
+#ifdef CHEVAN_UTILS_BYTE_TYPEDEF
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef float f32;
+typedef double f64;
+#endif
+
+enum Cardinal8dir
+{
+  NORTH,
+  SOUTH,
+  EAST,
+  WEST,
+  NORTH_EAST,
+  NORTH_WEST,
+  SOUTH_EAST,
+  SOUTH_WEST,
+  CENTER
+};
+static inline float degreeToRad(float degree) { return degree / 180.f * 3.1415926535897f; }
+static inline float radToDegree(float rad) { return rad / 3.1415926535897f * 180; }
+static inline float randf() { return rand() / RAND_MAX; }
+
+#define println(...)             \
+  EVAL(MAP(_print, __VA_ARGS__)) \
+  _printEndL()
+
+#define _printEndL() printf("\n");
+static void _print_str(const char*str){printf("%s",str);}
+static void _print_uchar(uchar t) { printf("%c", t); }
+static void _print_char(char t) { printf("%c", t); }
+
+#define _print_macro(type) static void _print_##type(type t){printf("%d",t);}
+_print_macro(ushort);
+_print_macro(short);
+_print_macro(uint);
+_print_macro(int);
+_print_macro(ulong);
+_print_macro(long);
+_print_macro(ullong);
+_print_macro(llong);
+#undef _print_macro
+static void _print_float(float t)
+{
+  printf("%f", t);
+}
+static void _print_double(double t)
+{
+  printf("%f", t);
+}
+
+#define printVec2(v) println("{", v.x, ", ", v.y, "}")
+#define printVec3(v) println("{", v.x, ", ", v.y, ", ", v.z, "}")
+#define printVec4(v) println("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}")
+    static void
+    printMat4(float mat[16])
+{
+  for (uint i = 0; i < 4; i++)
+  {
+    println(mat[0 + i * 4], ", ", mat[1 + i * 4], ", ", mat[2 + i * 4], ", ", mat[3 + i * 4]);
+  }
+}
+static void printMem(void *p, ulong length = 256)
+{
+  const char* s = malloc(length+1);
+  for (uint i = 0; i < length; i++)
+  {
+    s[i] = ((uchar *)p)[i];
+  }
+  s[length]=0;
+  printf("%s",s);
+  free(s);
+}
+static void printSep()
+{
+  printf("---------------------------------\n");
+}
+
+#define _print(x) _Generic((x),        \
+                           char*:_print_str\
+                           uchar : _print_uchar,    \
+                           char:_print_char\
+                           ushort:_print_ushort\
+                           short:_print_short\
+                           uint:_print_uint\
+                           int:_print_int\
+                           ulong:_print_ulong\
+                           long:_print_long\
+                           ullong:_print_ullong\
+                           llong :_print_llong  \
+                           float  :_print_float\
+                           double:_print_double)\
+                            (x)
+
+#endif
 
 #endif

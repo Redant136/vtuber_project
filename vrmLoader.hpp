@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include <GLFW/glfw3.h>
-#include "chevan_utils.hpp"
+#include "chevan_utils.h"
 #include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>

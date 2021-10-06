@@ -22,7 +22,7 @@
 #define CHEVAN_UTILS_VEC3 glm::vec3
 #define CHEVAN_UTILS_VEC4 glm::vec4
 void print(glm::mat4 mat);
-#include "chevan_utils.hpp"
+#include "chevan_utils.h"
 using namespace chevan_utils;
 using namespace chevanut_print;
 void print(glm::mat4 mat)
