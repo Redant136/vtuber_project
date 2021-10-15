@@ -14,6 +14,8 @@ uniform int lightSourcesLength;
 // color
 uniform vec4 baseColorFactor;
 uniform bool hasBaseColorTexture;
+uniform int alphaMode;
+uniform float alphaCutoff;
 
 // textures
 uniform sampler2D texture_base;
@@ -34,7 +36,7 @@ uniform float u_rotation;
 
 vec4 blend(vec4 source, vec4 dest, float alpha)
 {
-    return source * alpha + dest * (1.0-alpha);
+  return source * alpha + dest * (1.0-alpha);
 }
 
 void main()
@@ -66,6 +68,18 @@ void main()
       vec4 diffuse=max(dot(normalize(Normal),lightDirection),0.f)*vec4(1,1,1,1);
       color=(ambient+diffuse)*color;
     }
+  }
+
+  if(alphaMode==0){
+    color=vec4(color.xyz,1);
+  }else if(alphaMode==1){
+    if(color.w<alphaCutoff){
+      color=vec4(color.xyz,0);
+    }else{
+      color=vec4(color.xyz,1);
+    }
+  }else if(alphaMode==2){
+    color=color;
   }
 
 

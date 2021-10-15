@@ -13,6 +13,8 @@ typedef nlohmann::json json;
 
 namespace vtuber
 {
+  using namespace chevan_utils;
+
   enum class Filetype
   {
     glb,
@@ -181,10 +183,10 @@ namespace vtuber
             int node;
             bool useDefaultValues;
             Vec3 min, max, center;
-            float axisLength;
+            float axisLength; //figure out what this does
           };
           std::vector<Bone> humanBones;
-          float armStretch, legStretch, upperArmTwist, lowerArmTwist, upperLegTwist, lowerLegTwist, feetSpacing;
+          float armStretch, legStretch, upperArmTwist, lowerArmTwist, upperLegTwist, lowerLegTwist, feetSpacing; // inverse kinematic bounds
           bool hasTranslationDoF;
         } humanoid;
         struct FirstPerson
@@ -291,21 +293,22 @@ namespace vtuber
           int renderQueue;
           struct FloatProperties
           {
-            float _Cutoff, _BumpScale, _ReceiveShadowRate, _ShadingGradeRate, _ShadeShift, _ShadeToony, _LightColorAttenuation, _IndirectLightIntensity, _OutlineWidth, _OutlineScaledMaxDistance, _OutlineLightingMix, _DebugMode, _BlendMode, _OutlineWidthMode, _OutlineColorMode, _CullMode, _OutlineCullMode, _SrcBlend, _DstBlend, _ZWrite;
+            float _Cutoff, _BumpScale, _ReceiveShadowRate, _ShadingGradeRate, _ShadeShift, _ShadeToony, _LightColorAttenuation, _IndirectLightIntensity, _RimLightingMix, _RimFresnelPower, _RimLift, _OutlineWidth, _OutlineScaledMaxDistance, _OutlineLightingMix, _DebugMode, _BlendMode, _OutlineWidthMode, _OutlineColorMode, _CullMode, _OutlineCullMode, _SrcBlend, _DstBlend, _ZWrite;
           } floatProperties;
           struct VectorProperties
           {
-            Vec4 _Color, _ShadeColor, _MainTex, _ShadeTexture, _BumpMap, _ReceiveShadowTexture, _ShadingGradeTexture, _SphereAdd, _EmissionColor, _EmissionMap, _OutlineWidthTexture, _OutlineColor;
+            Vec4 _Color, _ShadeColor, _MainTex, _MainTex_ST, _ShadeTexture, _BumpMap, _ReceiveShadowTexture, _ShadingGradeTexture, _SphereAdd, _RimColor, _EmissionColor, _EmissionMap, _OutlineWidthTexture, _OutlineColor, _UvAnimMaskTexture;
           } vectorProperties;
           struct
           {
-            int _MainTex, _ShadeTexture, _BumpMap, _SphereAdd, _EmissionMap;
+            int _MainTex, _ShadeTexture, _BumpMap, _ReceiveShadowTexture, _ShadingGradeTexture, _RimTexture, _SphereAdd, _EmissionMap, _OutlineWidthTexture, _UvAnimMaskTexture;
           } textureProperties;
           struct
           {
-            bool MTOON_OUTLINE_COLOR_FIXED, MTOON_OUTLINE_WIDTH_WORLD, _ALPHATEST_ON, _NORMALMAP;
+            bool MTOON_CLIP_IF_OUTLINE_IS_NONE, MTOON_OUTLINE_WIDTH_WORLD, MTOON_OUTLINE_WIDTH_SCREEN, _ALPHATEST_ON, _ALPHABLEND_ON, _NORMALMAP, MTOON_FORWARD_ADD, MTOON_OUTLINE_COLOR_FIXED, MTOON_OUTLINE_COLOR_MIXED, MTOON_DEBUG_NORMAL, MTOON_DEBUG_LITSHADERATE;
           } keywordMap;
-          struct{
+          struct
+          {
             string RenderType;
           } tagMap;
         } materialProperties;
@@ -844,6 +847,7 @@ namespace vtuber
 #define jsonUnknownMacro(item, location) println(__FILE__, ":", __LINE__, " ", item.key(), ": unknow item in object ", #location);
       vrm.exporterVersion = json["exporterVersion"].get<string>();
       vrm.specVersion = json["specVersion"].get<string>();
+      assert(vrm.specVersion == "0.0");
       for (auto &x : json["meta"].items())
       {
         jsongetItem(string, vrm.meta, title, x);
@@ -1120,7 +1124,7 @@ namespace vtuber
           return group;
         };
         jsongetArrObj(vrm.blendShapeMaster, blendShapeGroups, x, i, parseBlendShapeGroup);
-        jsonUnknownMacro(x,vrm.blendShapeMaster);
+        jsonUnknownMacro(x, vrm.blendShapeMaster);
       }
       for (auto &x : json["secondaryAnimation"].items())
       {
@@ -1167,13 +1171,13 @@ namespace vtuber
               }
               continue;
             }
-            jsonUnknownMacro(x,SecondaryAnimation::ColliderGroup);
+            jsonUnknownMacro(x, SecondaryAnimation::ColliderGroup);
           }
           return group;
         };
         jsongetArrObj(vrm.secondaryAnimation, boneGroups, x, i, parseSpring);
         jsongetArrObj(vrm.secondaryAnimation, colliderGroups, x, i, parseColliderGroup);
-        jsonUnknownMacro(x,vrm.secondaryAnimation);
+        jsonUnknownMacro(x, vrm.secondaryAnimation);
       }
       for (auto &x : json["materialProperties"].items())
       {
@@ -1186,11 +1190,13 @@ namespace vtuber
           for (auto &y : x.value().items())
           {
             EVAL(MAP(f,
-             _Cutoff, _BumpScale, _ReceiveShadowRate, _ShadingGradeRate, _ShadeShift,
-            _ShadeToony, _LightColorAttenuation, _IndirectLightIntensity, _OutlineWidth, 
-            _OutlineScaledMaxDistance, _OutlineLightingMix, _DebugMode, _BlendMode, 
-            _OutlineWidthMode, _OutlineColorMode, _CullMode, _OutlineCullMode, _SrcBlend, _DstBlend, _ZWrite));
-            jsonUnknownMacro(y,vrm.materialProperties.floatProperties);
+                    _Cutoff, _BumpScale, _ReceiveShadowRate,
+                    _ShadingGradeRate, _ShadeShift, _ShadeToony,
+                    _LightColorAttenuation, _IndirectLightIntensity, _RimLightingMix,
+                    _RimFresnelPower, _RimLift, _OutlineWidth, _OutlineScaledMaxDistance,
+                    _OutlineLightingMix, _DebugMode, _BlendMode, _OutlineWidthMode, _OutlineColorMode,
+                    _CullMode, _OutlineCullMode, _SrcBlend, _DstBlend, _ZWrite));
+            jsonUnknownMacro(y, vrm.materialProperties.floatProperties);
           }
           continue;
 #undef f
@@ -1204,19 +1210,18 @@ namespace vtuber
   vrm.materialProperties.vectorProperties.name.w = y.value()[3].get<float>();
           for (auto &y : x.value().items())
           {
-            EVAL(MAP(f, _Color, _ShadeColor, _MainTex, _ShadeTexture,
-                     _BumpMap, _ReceiveShadowTexture, _ShadingGradeTexture, _SphereAdd,
-                     _EmissionColor, _EmissionMap, _OutlineWidthTexture, _OutlineColor));
+            EVAL(MAP(f, _Color, _ShadeColor, _MainTex, _MainTex_ST, _ShadeTexture, _BumpMap, _ReceiveShadowTexture, 
+              _ShadingGradeTexture, _SphereAdd, _RimColor, _EmissionColor, _EmissionMap, _OutlineWidthTexture, _OutlineColor, _UvAnimMaskTexture));
             jsonUnknownMacro(y, vrm.materialProperties.vectorProperties);
           }
 #undef f
         }
         if (x.key() == "textureProperties")
         {
-#define f(name) jsongetItem(int, vrm.materialProperties.textureProperties,name,y)
+#define f(name) jsongetItem(int, vrm.materialProperties.textureProperties, name, y)
           for (auto &y : x.value().items())
           {
-            EVAL(MAP(f, _MainTex, _ShadeTexture, _BumpMap, _SphereAdd, _EmissionMap));
+            EVAL(MAP(f, _MainTex, _ShadeTexture, _BumpMap, _ReceiveShadowTexture, _ShadingGradeTexture, _RimTexture, _SphereAdd, _EmissionMap, _OutlineWidthTexture, _UvAnimMaskTexture));
             jsonUnknownMacro(y, vrm.materialProperties.textureProperties);
           }
 #undef f
@@ -1226,7 +1231,9 @@ namespace vtuber
 #define f(name) jsongetItem(bool, vrm.materialProperties.keywordMap, name, y)
           for (auto &y : x.value().items())
           {
-            EVAL(MAP(f, MTOON_OUTLINE_COLOR_FIXED, MTOON_OUTLINE_WIDTH_WORLD, _ALPHATEST_ON, _NORMALMAP));
+            EVAL(MAP(f, MTOON_CLIP_IF_OUTLINE_IS_NONE, MTOON_OUTLINE_WIDTH_WORLD, MTOON_OUTLINE_WIDTH_SCREEN, _ALPHATEST_ON, 
+              _ALPHABLEND_ON, _NORMALMAP, MTOON_FORWARD_ADD, _ALPHABLEND_ON, MTOON_FORWARD_ADD, MTOON_OUTLINE_COLOR_FIXED, 
+              MTOON_OUTLINE_COLOR_MIXED, MTOON_DEBUG_NORMAL, MTOON_DEBUG_LITSHADERATE));
             jsonUnknownMacro(y, vrm.materialProperties.keywordMap);
           }
 #undef f

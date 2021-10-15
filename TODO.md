@@ -34,19 +34,28 @@
 [x] (extensions) KHR_materials_unlit
 [x] (extensions) KHR_texture_transform
 [x] (extensions) desirialize VRM
+[x] (vrm) fix face (enable blend when necessary)
+[x] (extensions) load VRM
 
 ## working on
-[ ] (extensions) VRM
-[ ] (vrm rendering) https://github.com/vrm-c/vrm-specification/tree/master/specification/0.0#vrm-rules
+[ ] (camera) camera pos from gltf
+[ ] (vrm) unlit shader, only add extension (easy)
+[ ] (vrm) mtoon shader
 
 
 ## upcoming
-[ ] (optimization) morph could be passed to gpu (maybe look into geometry shader)
+[ ] (research) https://fr.slideshare.net/hgruen/oit-and-indirect-illumination-using-dx11-linked-lists
+[ ] (extensions) parse extras
+[ ] (extensions) consider making vrm MaterialProperties properties a dictionnary instead of static object
+[ ] (physics) find out how unity humanoid functions
+[ ] (shader) color attribute
 [ ] (extensions) VRMC_materials_mtoon
 [ ] (extensions) VRMC_materials_hdr_emissiveMultiplier
 [ ] (extensions) VRMC_springBone
 [ ] (extensions) VRMC_node_constraint
 [ ] (morph) extras.targetNames specify a morph target
+[ ] (optimization) morph could be passed to gpu (maybe look into geometry shader)
+[ ] (vrm) mtoon https://www.slideshare.net/VirtualCast/vrm-mtoon HELP!!!
 
 [ ] (animations) reverse kinematic
 [ ] (housekeeping) gltf buffer mem leak
@@ -62,12 +71,14 @@
 [ ] (research) https://github.com/netmail-open/wjelement , https://github.com/petehug/wjelement-cpp/wiki
 
 ## wants
+[ ] (vrm) vrm 1.0 instead of 0.0
 [ ] (glb rendering) https://learnopengl.com/Advanced-OpenGL/Instancing
 [ ] (rendering) pbr rendering
 [ ] (workflow) remedybg debugger
 [ ] (workflow) 4coder
 
 ## quality of life
+[~] (utils) c utils https://en.cppreference.com/w/c/variadic https://stackoverflow.com/questions/58900903/what-is-compile-time-encapsulation-in-c
 [ ] (lighting) blinn-phong lighting https://learnopengl.com/Advanced-Lighting/Advanced-Lighting 
 [-] (math) m4 and matrix multiplications and transforms
 [ ] (glb rendering) reflection textures

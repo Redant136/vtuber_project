@@ -1,23 +1,28 @@
 #version 330 core
-// #define MAX_JOINT_MATRIX 256
-#define MAX_JOINT_MATRIX 128
+// #define MAX_JOINT_MATRIX 128
+// #define MAX_MORPH 16
 
 
 layout (location = 0) in vec3 a_pos;
 layout (location = 1) in vec3 a_normal;
-layout (location = 2) in vec2 a_texCoords_0;
-layout (location = 3) in vec2 a_texCoords_1;
-layout (location = 4) in vec2 a_texCoords_2;
-layout (location = 5) in vec4 a_joints;
-layout (location = 6) in vec4 a_weights;
+layout (location = 2) in vec4 a_tangent;
+layout (location = 3) in vec2 a_texCoords_0;
+layout (location = 4) in vec2 a_texCoords_1;
+layout (location = 5) in vec2 a_texCoords_2;
+layout (location = 6) in vec4 a_color_0;
+layout (location = 7) in vec4 a_joints;
+layout (location = 8) in vec4 a_weights;
+
 
 uniform int texCoordIndex;
 
 out vec3 Pos;
 out vec3 Normal;
+// out vec4 Tangent
 out vec2 TexCoords;
 
 uniform mat4 u_jointMatrix[MAX_JOINT_MATRIX];// joint matrices
+
 
 uniform mat4 node;// specific node transform
 
@@ -34,8 +39,7 @@ void main()
     }else if(texCoordIndex==2){
         TexCoords=a_texCoords_2;
     }
-    TexCoords = a_texCoords_0;
-    Normal = a_normal;
+
 
     mat4 skinMatrix = mat4(1.f);
 
@@ -52,7 +56,12 @@ void main()
         }
     }
     vec4 pos = projection * view * model * node * skinMatrix * vec4(a_pos, 1.0);
+    vec3 normal = a_normal;
+    vec4 tangent = a_tangent;
+
     Pos = vec3(pos);
+    Normal = normal;
+    // Tangent = tangent;
     gl_Position = pos;
 
 }

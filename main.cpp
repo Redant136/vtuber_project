@@ -31,9 +31,9 @@ int main()
 
         vmodel.animate(0);
 
-        shader = Shader(VERTEX_SHADER, FRAGMENT_SHADER);
+        shader = vmodel.genShader();
 
-        // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         glfwSetCursorPosCallback(window, [](GLFWwindow *window, double xpos, double ypos)
                                  {
                                    if (firstMouse)

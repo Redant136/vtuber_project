@@ -1,7 +1,4 @@
 #pragma once
-#ifndef CHEVAN_UTILS_H
-#define CHEVAN_UTILS_H
-#define CHEVAN_UTILS_VERSION "2.1.1"
 
 #include <iostream>
 #include <string>
@@ -17,83 +14,18 @@
 #include <functional>
 #endif
 
+#ifndef PIf
 #define PIf 3.1415926535897f
+#endif
+#ifndef ONE_OVER_SQUARE_ROOT_OF_TWO_PI
 #define ONE_OVER_SQUARE_ROOT_OF_TWO_PI 0.3989422804
+#endif
+#ifndef EULERS_NUMBER
 #define EULERS_NUMBER 2.7182818284590452353602874713527
+#endif
 #ifndef CHEVAN_UTILS_FASTCALC_PRECISION
 #define CHEVAN_UTILS_FASTCALC_PRECISION 9
 #endif
-
-#ifdef CHEVAN_UTILS_MACRO_MAGIC
-#ifndef CONCAT
-#define CONCAT(a, b) a##b
-#endif
-#ifndef EVAL
-#define EVAL(...) EVAL1024(__VA_ARGS__)
-#define EVAL1024(...) EVAL512(EVAL512(__VA_ARGS__))
-#define EVAL512(...) EVAL256(EVAL256(__VA_ARGS__))
-#define EVAL256(...) EVAL128(EVAL128(__VA_ARGS__))
-#define EVAL128(...) EVAL64(EVAL64(__VA_ARGS__))
-#define EVAL64(...) EVAL32(EVAL32(__VA_ARGS__))
-#define EVAL32(...) EVAL16(EVAL16(__VA_ARGS__))
-#define EVAL16(...) EVAL8(EVAL8(__VA_ARGS__))
-#define EVAL8(...) EVAL4(EVAL4(__VA_ARGS__))
-#define EVAL4(...) EVAL2(EVAL2(__VA_ARGS__))
-#define EVAL2(...) EVAL1(EVAL1(__VA_ARGS__))
-#define EVAL1(...) __VA_ARGS__
-#endif
-
-#define EMPTY()
-#define FIRST(a, ...) a
-#define SECOND(a, b, ...) b
-#define DEFER1(m) m EMPTY()
-#define DEFER2(m) m EMPTY EMPTY()()
-#define DEFER3(m) m EMPTY EMPTY EMPTY()()()
-#define DEFER4(m) m EMPTY EMPTY EMPTY EMPTY()()()()
-
-#define IS_PROBE(...) SECOND(__VA_ARGS__, 0)
-#define PROBE() ~, 1
-
-#define NOT(x) IS_PROBE(CONCAT(_NOT_, x))
-#define _NOT_0 PROBE()
-
-#define BOOL(x) NOT(NOT(x))
-
-#define IF_ELSE(condition) _IF_ELSE(BOOL(condition))
-#define _IF_ELSE(condition) CONCAT(_IF_, condition)
-
-#define _IF_1(...) __VA_ARGS__ _IF_1_ELSE
-#define _IF_0(...) _IF_0_ELSE
-
-#define _IF_1_ELSE(...)
-#define _IF_0_ELSE(...) __VA_ARGS__
-
-#define HAS_ARGS(...) BOOL(FIRST(_END_OF_ARGUMENTS_ __VA_ARGS__)())
-#define _END_OF_ARGUMENTS_() 0
-
-#define MAP(m, first, ...)                                                 \
-  m(first)                                                                 \
-      IF_ELSE(HAS_ARGS(__VA_ARGS__))(                                      \
-          DEFER2(_MAP)()(m, __VA_ARGS__))(/* Do nothing, just terminate */ \
-      )
-#define _MAP() MAP
-
-#define _parseEnumCheck(dst, src, valLoc, val) \
-  if (std::string(src) == #val)                \
-  {                                            \
-    dst = valLoc val;                          \
-  }
-
-#define parseEnum2(dst, src, valLoc, firstEnum, ...) \
-  _parseEnumCheck(dst, src, valLoc, firstEnum)       \
-      IF_ELSE(HAS_ARGS(__VA_ARGS__))(                \
-          DEFER2(_parseEnum2)()(dst, src, valLoc, __VA_ARGS__))()
-#define _parseEnum2() parseEnum2
-
-#define parseEnum(dst, src, valLoc, ...) \
-  EVAL(parseEnum2(dst, src, valLoc, __VA_ARGS__))
-
-#endif // CHEVAN_UTILS_MACRO_MAGIC
 
 namespace chevan_utils
 {
@@ -169,6 +101,7 @@ namespace chevan_utils
   };
   enum class Cardinal8dir
   {
+    CENTER,
     NORTH,
     SOUTH,
     EAST,
@@ -176,8 +109,7 @@ namespace chevan_utils
     NORTH_EAST,
     NORTH_WEST,
     SOUTH_EAST,
-    SOUTH_WEST,
-    CENTER
+    SOUTH_WEST
   };
   static inline float degreeToRad(float degree) { return degree / 180.f * 3.1415926535897f; }
   static inline float radToDegree(float rad) { return rad / 3.1415926535897f * 180; }
@@ -1391,6 +1323,41 @@ namespace chevan_utils
       print("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
     }
 #endif
+    static void print(Cardinal8dir dir)
+    {
+      switch (dir)
+      {
+      case Cardinal8dir::CENTER:
+        std::cout << "CENTER" << std::endl;
+        break;
+      case Cardinal8dir::NORTH:
+        std::cout << "NORTH" << std::endl;
+        break;
+      case Cardinal8dir::SOUTH:
+        std::cout << "SOUTH" << std::endl;
+        break;
+      case Cardinal8dir::EAST:
+        std::cout << "EAST" << std::endl;
+        break;
+      case Cardinal8dir::WEST:
+        std::cout << "WEST" << std::endl;
+        break;
+      case Cardinal8dir::NORTH_EAST:
+        std::cout << "NORTH_EAST" << std::endl;
+        break;
+      case Cardinal8dir::NORTH_WEST:
+        std::cout << "NORTH_WEST" << std::endl;
+        break;
+      case Cardinal8dir::SOUTH_EAST:
+        std::cout << "SOUTH_EAST" << std::endl;
+        break;
+      case Cardinal8dir::SOUTH_WEST:
+        std::cout << "SOUTH_WEST" << std::endl;
+        break;
+      default:
+        break;
+      }
+    }
     template <typename Printable, typename... Printable2>
     static void print(Printable p, Printable2... p2)
     {
@@ -2371,5 +2338,3 @@ namespace chevan_utils
 #endif // __cplusplus >= 201703L
   }
 }
-
-#endif

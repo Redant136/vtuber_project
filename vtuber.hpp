@@ -38,6 +38,7 @@ void print(glm::mat4 mat)
 #ifndef VMODEL
 #define VMODEL "models/male1.glb"
 // #define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
+// #define VMODEL "models/1565609261024596092.vrm"
 #endif
 #define VERTEX_SHADER "shaders/vertex_shader.vert"
 #define FRAGMENT_SHADER "shaders/fragment_shader.frag"
@@ -48,15 +49,24 @@ namespace vtuber
   {
   public:
     uint ID;
+    std::string defines = "";
     Shader() : ID(0)
     {
     }
+    Shader(const char *defines) : ID(0)
+    {
+      this->defines = defines;
+    }
     Shader(const char *vertexPath, const char *fragmentPath, const char *geometryPath = nullptr)
     {
+      create(vertexPath, fragmentPath, geometryPath);
+    }
+    Shader create(const char *vertexPath, const char *fragmentPath, const char *geometryPath = nullptr)
+    {
       // 1. retrieve the vertex/fragment source code from filePath
-      std::string vertexCode;
-      std::string fragmentCode;
-      std::string geometryCode;
+      std::string vertexCode = "";
+      std::string fragmentCode = "";
+      std::string geometryCode = "";
       std::ifstream vShaderFile;
       std::ifstream fShaderFile;
       std::ifstream gShaderFile;
@@ -78,6 +88,7 @@ namespace vtuber
         fShaderFile.close();
         // convert stream into string
         vertexCode = vShaderStream.str();
+        vertexCode.insert(vertexCode.find("\n", vertexCode.find("#version")) + 1, defines);
         fragmentCode = fShaderStream.str();
         // if geometry shader path is present, also load a geometry shader
         if (geometryPath != nullptr)
@@ -130,6 +141,7 @@ namespace vtuber
       glDeleteShader(fragment);
       if (geometryPath != nullptr)
         glDeleteShader(geometry);
+      return *this;
     }
     void use()
     {
@@ -259,6 +271,8 @@ namespace vtuber
     Array<uint> gltfImageTextureIndex;
     Array<bool> updatedNodeMorphs;
     Array<glm::mat4> nodeTransforms;
+    uint MAX_JOINT_MATRIX;
+    uint current_alphaMode;
 
     struct
     {
@@ -324,7 +338,11 @@ namespace vtuber
           node.weights = std::vector<float>(maxSize);
           for (uint j = 0; j < node.weights.size(); j++)
           {
-            node.weights[j] = 1;
+            node.weights[j] = 0;
+          }
+          if (node.mesh > -1)
+          {
+            model.meshes[node.mesh].weights = std::vector<float>(maxSize);
           }
         }
       }
@@ -432,12 +450,36 @@ namespace vtuber
         nodeTransforms[i] = glm::mat4(1.f);
       }
 
+      // Extensions
+      if (gltf::findExtensionIndex("VRM", model) != -1)
+      {
+        typedef gltf::Extensions::VRM VRM;
+        VRM vrm = *(VRM *)model.extensions[gltf::findExtensionIndex("VRM", model)].data;
+
+        for (VRM::BlendShapeMaster::BlendShapeGroup blend : vrm.blendShapeMaster.blendShapeGroups)
+        {
+          if (blend.presetName == VRM::BlendShapeMaster::BlendShapeGroup::neutral)
+          {
+            for (VRM::BlendShapeMaster::BlendShapeGroup::Bind b : blend.binds)
+            {
+              model.meshes[b.mesh].weights[b.index] = b.weight / 100.f;
+            }
+          }
+        }
+      }
+
       update();
 
       // VAOs
       gltfMeshVAO = Array<uint>(model.meshes.size());
       for (uint i = 0; i < model.meshes.size(); i++)
       {
+        const struct
+        {
+          const std::string accName;
+          const int attribIndex;
+        } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
+
         const gltf::Mesh &mesh = model.meshes[i];
         uint VAO;
         glGenVertexArrays(1, &VAO);
@@ -445,12 +487,6 @@ namespace vtuber
         for (uint j = 0; j < mesh.primitives.size(); j++)
         {
           const gltf::Mesh::Primitive &primitive = mesh.primitives[j];
-
-          struct
-          {
-            std::string accName;
-            int attribIndex;
-          } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TEXCOORD_0", 2}, {"TEXCOORD_1", 3}, {"TEXCOORD_2", 4}, {"JOINTS_0", 5}, {"WEIGHTS_0", 6}};
 
           for (uint k = 0; k < sizeof(attribs) / sizeof(attribs[0]); k++)
           {
@@ -501,7 +537,7 @@ namespace vtuber
       {
         const gltf::Image &image = model.images[i];
         int width, height, channels;
-        uchar *im=NULL;
+        uchar *im = NULL;
         if (image.bufferView != -1)
         {
           const gltf::BufferView &bufferView = model.bufferViews[image.bufferView];
@@ -556,6 +592,21 @@ namespace vtuber
 
         gltfImageTextureIndex[i] = tex;
       }
+    }
+    Shader genShader()
+    {
+      std::string defines = "";
+      MAX_JOINT_MATRIX = 0;
+      for (uint i = 0; i < model.nodes.size(); i++)
+      {
+        if (model.nodes[i].skin != -1 && MAX_JOINT_MATRIX < model.skins[model.nodes[i].skin].joints.size())
+        {
+          MAX_JOINT_MATRIX = model.skins[model.nodes[i].skin].joints.size();
+        }
+      }
+      defines += "#define MAX_JOINT_MATRIX " + std::to_string(MAX_JOINT_MATRIX) + "\n";
+
+      return Shader((defines).c_str()).create(VERTEX_SHADER, FRAGMENT_SHADER);
     }
     void drawSkeleton(Shader &shader)
     {
@@ -622,9 +673,13 @@ namespace vtuber
       update();
 
       const gltf::Scene &scene = model.scenes[model.scene > -1 ? model.scene : 0];
-      for (uint i : scene.nodes)
+      for (uint mode = gltf::Material::OPAQUE; mode <= gltf::Material::BLEND; mode++)
       {
-        drawNode(shader, model.nodes[i], nodeTransforms[i]);
+        current_alphaMode = mode;
+        for (uint i : scene.nodes)
+        {
+          drawNode(shader, model.nodes[i], nodeTransforms[i]);
+        }
       }
       // drawSkeleton(shader);
     }
@@ -930,7 +985,7 @@ namespace vtuber
         {
           for (uint i = 0; i < weights.size(); i++)
           {
-            weights[i] *= mesh.weights[i];
+            weights[i] += mesh.weights[i];
           }
         }
 
@@ -1025,7 +1080,7 @@ namespace vtuber
               if (memcmp(write_mem, &position, sizeof(float) * 3) != 0)
               {
                 memcpy(write_mem, &position, sizeof(float) * 3);
-                glBindBuffer(GL_ARRAY_BUFFER,gltfBufferViewVBO[accessor.bufferView]);
+                glBindBuffer(GL_ARRAY_BUFFER, gltfBufferViewVBO[accessor.bufferView]);
                 glBufferSubData(GL_ARRAY_BUFFER, accessor.byteOffset + (byteStride)*j, sizeof(float) * 3, &position);
               }
             }
@@ -1113,7 +1168,7 @@ namespace vtuber
       }
     }
 
-    void bindTexture(const Shader &shader, const gltf::Texture &texture, uint &texCoord,uint sampler_obj,uint GL_TextureIndex)
+    void bindTexture(const Shader &shader, const gltf::Texture &texture, uint &texCoord, uint sampler_obj, uint GL_TextureIndex)
     {
       if (gltf::findExtensionIndex("KHR_texture_transform", texture) != -1)
       {
@@ -1184,11 +1239,15 @@ namespace vtuber
 
           // material rendering
           bool hasBaseColorTexture = 0;
-          if (primitive.material >= 0)
+          if (primitive.material > -1)
           {
             const gltf::Material &material = model.materials[primitive.material];
+            if (material.alphaMode != current_alphaMode)
+            {
+              continue;
+            }
             uint texCoord = 0;
-            bool KHR_materials_unlit=gltf::findExtensionIndex("KHR_materials_unlit", material) != -1;
+            bool KHR_materials_unlit = gltf::findExtensionIndex("KHR_materials_unlit", material) != -1;
             if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
             {
               texCoord = material.pbrMetallicRoughness.baseColorTexture.texCoord;
@@ -1211,8 +1270,17 @@ namespace vtuber
             }
 
             shader.setBool("KHR_materials_unlit", KHR_materials_unlit);
-
+            shader.setInt("alphaMode", material.alphaMode);
+            shader.setFloat("alphaCutoff", material.alphaCutoff);
             shader.setInt("texCoordIndex", texCoord);
+          }
+          else
+          {
+            // so that we only render the primitive on the first pass
+            if (current_alphaMode != 0)
+            {
+              continue;
+            }
           }
           shader.setBool("hasBaseColorTexture", hasBaseColorTexture);
 
@@ -1265,6 +1333,8 @@ namespace vtuber
     }
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     init(window);
 
@@ -1274,7 +1344,7 @@ namespace vtuber
       glClear(GL_COLOR_BUFFER_BIT);
 
       draw(window);
-      glfwSwapInterval(1); //v-sync
+      glfwSwapInterval(1); // v-sync
       glfwSwapBuffers(window);
       glfwPollEvents();
     }
