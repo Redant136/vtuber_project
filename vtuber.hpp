@@ -36,12 +36,14 @@ void print(glm::mat4 mat)
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
 #ifndef VMODEL
-#define VMODEL "models/male1.glb"
-// #define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
+// #define VMODEL "models/male1.glb"
+#define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
 // #define VMODEL "models/1565609261024596092.vrm"
 #endif
-#define VERTEX_SHADER "shaders/vertex_shader.vert"
-#define FRAGMENT_SHADER "shaders/fragment_shader.frag"
+#define GLTF_SHADER "shaders/vertex_shader.vert", "shaders/fragment_shader.frag"
+#define MTOON_SHADER "shaders/MToon_shader.vert", "shaders/MToon_shader.frag"
+#define GEOMETRY_PASS_SHADER "shaders/geometry_pass.vert", "shaders/geometry_pass.frag"
+#define DEFERED_LIGHTING_SHADER "shaders/deferedLighting_shader.vert", "shaders/deferedLighting_shader.frag"
 
 namespace vtuber
 {
@@ -261,10 +263,124 @@ namespace vtuber
     }
   };
 
+  class ModelCamera
+  {
+  public:
+    // camera Attributes
+    glm::vec3 Position;
+    glm::vec3 Front;
+    glm::vec3 Up;
+    glm::vec3 Right;
+    glm::vec3 WorldUp;
+    // euler Angles
+    float Yaw;
+    float Pitch;
+    // camera options
+    float MovementSpeed;
+    float MouseSensitivity;
+    float Zoom;
+
+    // constructor with vectors
+    ModelCamera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = -PIf / 2, float pitch = 0) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(2.5f), MouseSensitivity(0.1f), Zoom(45.f)
+    {
+      Position = position;
+      WorldUp = up;
+      Yaw = yaw;
+      Pitch = pitch;
+      updateCameraVectors();
+    }
+    ModelCamera(glm::vec3 position, glm::vec3 front, glm::vec3 up) : MovementSpeed(2.5f), MouseSensitivity(0.1f), Zoom(45.f)
+    {
+      Position = position;
+      WorldUp = up;
+      Front = front;
+      Yaw = std::atan(front.z / front.x);
+      Pitch = std::asin(front.y);
+      updateCameraVectors();
+    }
+    // constructor with scalar values
+    ModelCamera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(2.5f), MouseSensitivity(0.1f), Zoom(45.f)
+    {
+      Position = glm::vec3(posX, posY, posZ);
+      WorldUp = glm::vec3(upX, upY, upZ);
+      Yaw = yaw;
+      Pitch = pitch;
+      updateCameraVectors();
+    }
+
+    // returns the view matrix calculated using Euler Angles and the LookAt Matrix
+    glm::mat4 GetViewMatrix()
+    {
+      return glm::lookAt(Position, Position + Front, Up);
+    }
+
+    // processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
+    void ProcessKeyboard(Camera_Movement direction, float deltaTime)
+    {
+      float velocity = MovementSpeed * deltaTime;
+      if (direction == FORWARD)
+        Position += Front * velocity;
+      if (direction == BACKWARD)
+        Position -= Front * velocity;
+      if (direction == LEFT)
+        Position -= Right * velocity;
+      if (direction == RIGHT)
+        Position += Right * velocity;
+    }
+
+    // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
+    void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
+    {
+      xoffset *= MouseSensitivity/180*PIf;
+      yoffset *= MouseSensitivity/180*PIf;
+
+      Yaw += xoffset;
+      Pitch += yoffset;
+
+      // make sure that when pitch is out of bounds, screen doesn't get flipped
+      if (constrainPitch)
+      {
+        if (Pitch > PIf/2)
+          Pitch = PIf/2;
+        if (Pitch < -PIf/2)
+          Pitch = -PIf/2;
+      }
+
+      // update Front, Right and Up Vectors using the updated Euler angles
+      updateCameraVectors();
+    }
+
+    // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
+    void ProcessMouseScroll(float yoffset)
+    {
+      Zoom -= (float)yoffset;
+      if (Zoom < 1.0f)
+        Zoom = 1.0f;
+      if (Zoom > 45.0f)
+        Zoom = 45.0f;
+    }
+
+  private:
+    // calculates the front vector from the Camera's (updated) Euler Angles
+    void updateCameraVectors()
+    {
+      // calculate the new Front vector
+      glm::vec3 front;
+      front.x = cos(Yaw) * cos(Pitch);
+      front.y = sin(Pitch);
+      front.z = sin(Yaw) * cos(Pitch);
+      Front = glm::normalize(front);
+      // also re-calculate the Right and Up vector
+      Right = glm::normalize(glm::cross(Front, WorldUp)); // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+      Up = glm::normalize(glm::cross(Right, Front));
+    }
+  };
+
   class VModel
   {
   public:
     gltf::glTFModel model;
+    ModelCamera camera = ModelCamera(glm::vec3(0, 1, -1),glm::vec3(0,0,1),glm::vec3(0,1,0));
     Array<uchar *> gltfBuffers;
     Array<uint> gltfBufferViewVBO;
     Array<uint> gltfMeshVAO;
@@ -274,11 +390,60 @@ namespace vtuber
     uint MAX_JOINT_MATRIX;
     uint current_alphaMode;
 
+
+    struct
+    {
+      struct
+      {
+        Shader shader;
+        const struct
+        {
+          const std::string accName;
+          const int attribIndex;
+        } attribs[9] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
+      } gltf;
+      struct
+      {
+        Shader shader;
+        const struct
+        {
+          const std::string accName;
+          const int attribIndex;
+        } attribs[9] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
+      } mtoon;
+      struct{
+        Shader shader;
+        const struct
+        {
+          const std::string accName;
+          const int attribIndex;
+        } attribs[9] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
+      } geometryPass;
+      struct{
+        Shader shader;
+        const struct
+        {
+          const std::string accName;
+          const int attribIndex;
+        } attribs[2] = {{"POSITION", 0},  {"TEXCOORD_0", 1}};
+      } deferedLighting;
+    } shadersSource;
+    enum class ShaderType
+    {
+      gltfShader,
+      unlit,
+      mtoon
+    } shaderType = ShaderType::gltfShader;
+    Shader shader;
+
     struct
     {
       uint animation = -1;
       float animationStartTime = 0.f;
     } animationData;
+
+    gltf::Extensions::VRM *vrmData = NULL;
+    Array<gltf::Extensions::VRM::MaterialProperties*> vrmMaterialProperties=Array<gltf::Extensions::VRM::MaterialProperties*>(0);
 
     VModel()
     {
@@ -309,6 +474,65 @@ namespace vtuber
       Importer importer;
       importer.import(path, type);
       model = importer.model;
+
+      if (gltf::findExtensionIndex("VRM", model) != -1)
+      {
+        vrmData = (gltf::Extensions::VRM *)model.extensions[gltf::findExtensionIndex("VRM", model)].data;
+      }
+
+      // Shader
+      if (1)
+      {
+        std::string defines = "";
+        MAX_JOINT_MATRIX = 1;
+        for (uint i = 0; i < model.nodes.size(); i++)
+        {
+          if (model.nodes[i].skin != -1 && MAX_JOINT_MATRIX < model.skins[model.nodes[i].skin].joints.size())
+          {
+            MAX_JOINT_MATRIX = model.skins[model.nodes[i].skin].joints.size();
+          }
+        }
+        defines += "#define MAX_JOINT_MATRIX " + std::to_string(MAX_JOINT_MATRIX) + "\n";
+
+        shadersSource.gltf.shader = Shader(defines.c_str()).create(GLTF_SHADER);
+        shadersSource.mtoon.shader = Shader(defines.c_str()).create(MTOON_SHADER);
+        shadersSource.geometryPass.shader = Shader(defines.c_str()).create(GEOMETRY_PASS_SHADER);
+        shadersSource.deferedLighting.shader = Shader(defines.c_str()).create(DEFERED_LIGHTING_SHADER);
+
+        if (gltf::findExtensionIndex("VRM", model) != -1)
+        {
+          std::string shaderName = vrmData->materialProperties[0].shader;
+          if (shaderName.find("Unlit") != std::string::npos || shaderName.find("GLTFSHADER") != std::string::npos)
+          {
+            shaderType = ShaderType::unlit;
+          }
+          else if (shaderName.find("MToon") != std::string::npos)
+          {
+            shaderType = ShaderType::mtoon;
+          }
+          else
+          {
+            assert("Unknow shader" && 0);
+          }
+        }
+        else
+        {
+          shaderType = ShaderType::gltfShader;
+        }
+
+        switch (shaderType)
+        {
+        case ShaderType::gltfShader:
+        case ShaderType::unlit:
+          shader = shadersSource.gltf.shader;
+          break;
+        case ShaderType::mtoon:
+          shader = shadersSource.mtoon.shader;
+          break;
+        default:
+          assert("no" && 0);
+        }
+      }
 
       // buffers
       gltfBuffers = Array<uchar *>(model.buffers.size());
@@ -474,11 +698,34 @@ namespace vtuber
       gltfMeshVAO = Array<uint>(model.meshes.size());
       for (uint i = 0; i < model.meshes.size(); i++)
       {
-        const struct
+        uint attribLength=0;
+        struct Attrib
         {
           const std::string accName;
           const int attribIndex;
-        } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
+        };
+        Attrib*attribs;
+        switch (shaderType)
+        {
+        case ShaderType::gltfShader:
+        case ShaderType::unlit:
+          // shader = shadersSource.gltf.shader;
+          attribs = (Attrib *)shadersSource.gltf.attribs;
+          attribLength = sizeof(shadersSource.gltf.attribs) / sizeof(shadersSource.gltf.attribs[0]);
+          break;
+        case ShaderType::mtoon:
+          attribs = (Attrib *)shadersSource.mtoon.attribs;
+          attribLength = sizeof(shadersSource.mtoon.attribs) / sizeof(shadersSource.mtoon.attribs[0]);
+          break;
+        default:
+          assert("no" && 0);
+        }
+
+        // const struct
+        // {
+        //   const std::string accName;
+        //   const int attribIndex;
+        // } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
 
         const gltf::Mesh &mesh = model.meshes[i];
         uint VAO;
@@ -488,7 +735,7 @@ namespace vtuber
         {
           const gltf::Mesh::Primitive &primitive = mesh.primitives[j];
 
-          for (uint k = 0; k < sizeof(attribs) / sizeof(attribs[0]); k++)
+          for (uint k = 0; k < attribLength; k++)
           {
             if (gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName) == -1)
               continue;
@@ -592,23 +839,23 @@ namespace vtuber
 
         gltfImageTextureIndex[i] = tex;
       }
-    }
-    Shader genShader()
-    {
-      std::string defines = "";
-      MAX_JOINT_MATRIX = 0;
-      for (uint i = 0; i < model.nodes.size(); i++)
+    
+      if(vrmData)
       {
-        if (model.nodes[i].skin != -1 && MAX_JOINT_MATRIX < model.skins[model.nodes[i].skin].joints.size())
+        vrmMaterialProperties = Array<gltf::Extensions::VRM::MaterialProperties *>(model.materials.size());
+        for (uint i = 0; i < vrmData->materialProperties.size(); i++)
         {
-          MAX_JOINT_MATRIX = model.skins[model.nodes[i].skin].joints.size();
+          for (uint j = 0; j < model.materials.size(); j++)
+          {
+            if (model.materials[j].name == vrmData->materialProperties[i].name)
+            {
+              vrmMaterialProperties[j] = &vrmData->materialProperties[i];
+            }
+          }
         }
       }
-      defines += "#define MAX_JOINT_MATRIX " + std::to_string(MAX_JOINT_MATRIX) + "\n";
-
-      return Shader((defines).c_str()).create(VERTEX_SHADER, FRAGMENT_SHADER);
     }
-    void drawSkeleton(Shader &shader)
+    void drawSkeleton()
     {
       std::vector<glm::vec3> nodes = std::vector<glm::vec3>();
       uint VBO, VAO;
@@ -668,8 +915,15 @@ namespace vtuber
       glDeleteBuffers(1, &VBO);
       jointMatrices.free();
     }
-    void draw(Shader &shader)
+    void draw()
     {
+      shadersSource.deferedLighting.shader.use();
+      shadersSource.deferedLighting.shader.setInt("gPosition", 0);
+      shadersSource.deferedLighting.shader.setInt("gNormal", 1);
+      shadersSource.deferedLighting.shader.setInt("gAlbedoSpec", 2);
+
+      shader.use();
+
       update();
 
       const gltf::Scene &scene = model.scenes[model.scene > -1 ? model.scene : 0];
@@ -678,10 +932,9 @@ namespace vtuber
         current_alphaMode = mode;
         for (uint i : scene.nodes)
         {
-          drawNode(shader, model.nodes[i], nodeTransforms[i]);
+          drawNode(model.nodes[i], nodeTransforms[i]);
         }
       }
-      // drawSkeleton(shader);
     }
 
     void update()
@@ -1168,7 +1421,7 @@ namespace vtuber
       }
     }
 
-    void bindTexture(const Shader &shader, const gltf::Texture &texture, uint &texCoord, uint sampler_obj, uint GL_TextureIndex)
+    void bindTexture(const gltf::Texture &texture, uint &texCoord, uint sampler_obj, uint GL_TextureIndex)
     {
       if (gltf::findExtensionIndex("KHR_texture_transform", texture) != -1)
       {
@@ -1197,7 +1450,7 @@ namespace vtuber
       glBindTexture(GL_TEXTURE_2D, gltfImageTextureIndex[texture.source]);
       glBindSampler(GL_TEXTURE_2D, sampler_obj);
     }
-    void drawNode(Shader &shader, const gltf::Node &node, glm::mat4 mat)
+    void drawNode(const gltf::Node &node, glm::mat4 mat)
     {
       if (node.mesh > -1)
       {
@@ -1239,6 +1492,7 @@ namespace vtuber
 
           // material rendering
           bool hasBaseColorTexture = 0;
+          bool doubleSided=false;
           if (primitive.material > -1)
           {
             const gltf::Material &material = model.materials[primitive.material];
@@ -1247,13 +1501,34 @@ namespace vtuber
               continue;
             }
             uint texCoord = 0;
-            bool KHR_materials_unlit = gltf::findExtensionIndex("KHR_materials_unlit", material) != -1;
+            bool KHR_materials_unlit = vrmData != NULL || gltf::findExtensionIndex("KHR_materials_unlit", material) != -1;
+            // TODO(ANT) Remove this
+            if (0 && shaderType == ShaderType::mtoon)
+            {
+              glEnable(GL_CULL_FACE);
+              glEnable(GL_LINE_SMOOTH);
+              glCullFace(GL_FRONT);
+              glFrontFace(GL_CCW);
+              glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+              shader.setBool("isOutline",true);
+              shader.setVec4("baseColorFactor",glm::vec4(0,0,0,1));
+
+              glDrawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType,
+                             reinterpret_cast<void *>(indexAccessor.byteOffset));
+
+              glCullFace(GL_BACK);
+              glFrontFace(GL_CCW);
+              glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+              shader.setBool("isOutline",false);
+              shader.setVec4("baseColorFactor",glm::vec4(0.f));
+            }
+
             if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
             {
               texCoord = material.pbrMetallicRoughness.baseColorTexture.texCoord;
               hasBaseColorTexture = 1;
               const gltf::Texture &texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
-              bindTexture(shader, texture, texCoord, sampler_obj, 0);
+              bindTexture(texture, texCoord, sampler_obj, 0);
             }
             if (material.pbrMetallicRoughness.baseColorFactor.size() > 0)
             {
@@ -1266,13 +1541,52 @@ namespace vtuber
               texCoord = material.emissiveTexture.texCoord;
               hasBaseColorTexture = 1;
               const gltf::Texture &texture = model.textures[material.emissiveTexture.index];
-              bindTexture(shader, texture, texCoord, sampler_obj, 3);
+              bindTexture(texture, texCoord, sampler_obj, 2);
+            }
+            if (material.normalTexture.index >= 0)
+            {
+              texCoord = material.normalTexture.texCoord;
+              const gltf::Texture &texture = model.textures[material.normalTexture.index];
+              bindTexture(texture, texCoord, sampler_obj, 1);
             }
 
             shader.setBool("KHR_materials_unlit", KHR_materials_unlit);
-            shader.setInt("alphaMode", material.alphaMode);
-            shader.setFloat("alphaCutoff", material.alphaCutoff);
+            if (material.alphaMode == gltf::Material::OPAQUE)
+            {
+              glDisable(GL_BLEND);
+            }
+            else if (material.alphaMode == gltf::Material::MASK)
+            {
+              glDisable(GL_BLEND);
+            }
+            else if (material.alphaMode == gltf::Material::BLEND)
+            {
+              glEnable(GL_BLEND);
+            }
+            doubleSided = material.doubleSided;
+
+            if (vrmData)
+            {
+              // yes, for some reason it has both material.alphaCutoff and this. My testing seems to indicate they have the same value tho
+              gltf::Extensions::VRM::MaterialProperties *materialProperties = vrmMaterialProperties[primitive.material];
+              shader.setFloat("alphaCutoff", materialProperties->floatProperties._Cutoff);
+              if (shaderType == ShaderType::mtoon)
+              {
+                shader.setFloat("shadeToony", materialProperties->floatProperties._ShadeToony);
+                shader.setFloat("shadeShift", materialProperties->floatProperties._ShadeShift);
+                shader.setVec4("materialColor", materialProperties->vectorProperties._Color.glm_vec);
+                shader.setVec4("shadeColor", materialProperties->vectorProperties._ShadeColor.glm_vec);
+
+                // printVec4(materialProperties->vectorProperties._Color);
+                // printVec4(materialProperties->vectorProperties._ShadeColor);
+              }
+            }
+            else
+            {
+              shader.setFloat("alphaCutoff", material.alphaCutoff);
+            }
             shader.setInt("texCoordIndex", texCoord);
+
           }
           else
           {
@@ -1284,6 +1598,15 @@ namespace vtuber
           }
           shader.setBool("hasBaseColorTexture", hasBaseColorTexture);
 
+          if (doubleSided)
+          {
+            glDisable(GL_CULL_FACE);
+          }
+          else
+          {
+            glEnable(GL_CULL_FACE);
+          }
+
           glDrawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType,
                          reinterpret_cast<void *>(indexAccessor.byteOffset));
         }
@@ -1294,7 +1617,7 @@ namespace vtuber
       for (size_t i = 0; i < node.children.size(); i++)
       {
         assert(node.children[i] < model.nodes.size());
-        drawNode(shader, model.nodes[node.children[i]], nodeTransforms[node.children[i]]);
+        drawNode(model.nodes[node.children[i]], nodeTransforms[node.children[i]]);
       }
     }
   };
@@ -1305,7 +1628,16 @@ namespace vtuber
     glViewport(0, 0, width, height);
   }
 
-  void launch(std::function<void(GLFWwindow *)> init, std::function<void(GLFWwindow *)> draw)
+
+  static VModel vmodel;
+  static struct {
+    float lastX = SCREEN_WIDTH / 2.0f;
+    float lastY = SCREEN_HEIGHT / 2.0f;
+    bool firstMouse = true;
+    float deltaTime = 0.0f;
+    float lastFrame = 0.0f;
+  } windowData;
+  static void launch2()
   {
     if (!glfwInit())
     {
@@ -1315,6 +1647,8 @@ namespace vtuber
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
+
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
@@ -1332,18 +1666,190 @@ namespace vtuber
       assert(0 && "could not initialize GLAD");
     }
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glEnable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_CULL_FACE);
+
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+
+#if 0
+    unsigned int gBuffer;
+    glGenFramebuffers(1, &gBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+    unsigned int gPosition, gNormal, gAlbedoSpec;
+    // gBuffer setup
+    if (1)
+    {
+      // position color buffer
+      glGenTextures(1, &gPosition);
+      glBindTexture(GL_TEXTURE_2D, gPosition);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+      // normal color buffer
+      glGenTextures(1, &gNormal);
+      glBindTexture(GL_TEXTURE_2D, gNormal);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+      // color + specular color buffer
+      glGenTextures(1, &gAlbedoSpec);
+      glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
+    }
+    // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering
+    unsigned int attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+    glDrawBuffers(3, attachments);
+    // create and attach depth buffer (renderbuffer)
+    unsigned int rboDepth;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    // finally check if framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+      std::cout << "Framebuffer not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+#endif 
+    // init
+    if (1)
+    {
+      vmodel.loadModel(VMODEL);
+
+      vmodel.animate(0);
+
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      glfwSetCursorPosCallback(window, [](GLFWwindow *window, double xpos, double ypos)
+                               {
+                                   if (windowData.firstMouse)
+                                   {
+                                     windowData.lastX = xpos;
+                                     windowData.lastY = ypos;
+                                     windowData.firstMouse = false;
+                                   }
+
+                                   float xoffset = xpos - windowData.lastX;
+                                   float yoffset = windowData.lastY - ypos; // reversed since y-coordinates go from bottom to top
+
+                                   windowData.lastX = xpos;
+                                   windowData.lastY = ypos;
+
+                                   vmodel.camera.ProcessMouseMovement(xoffset, yoffset); });
+    }
+
+    while (!glfwWindowShouldClose(window))
+    {
+      glfwMakeContextCurrent(window);
+      // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      // glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+      // draw
+      if (1)
+      {
+        Shader &shader = vmodel.shader;
+
+        float currentFrame = glfwGetTime();
+        windowData.deltaTime = currentFrame - windowData.lastFrame;
+        windowData.lastFrame = currentFrame;
+
+        glClearColor(0.3f, 0.3f, 0.3f, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        shader.use();
+
+        glm::mat4 projection = glm::perspective(glm::radians(vmodel.camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = vmodel.camera.GetViewMatrix();
+        shader.setMat4("projection", projection);
+        shader.setMat4("view", view);
+
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f) * ((float)01));
+        shader.setMat4("model", model);
+        shader.setMat4("node", model);
+        shader.setVec4("lightSource", glm::vec4(10, 0, 0, 0.2));
+        // shader.setInt("lightSourcesLength", 1);
+
+        vmodel.draw();
+
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+          glfwSetWindowShouldClose(window, true);
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+          vmodel.camera.ProcessKeyboard(FORWARD, windowData.deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+          vmodel.camera.ProcessKeyboard(BACKWARD, windowData.deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+          vmodel.camera.ProcessKeyboard(LEFT, windowData.deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+          vmodel.camera.ProcessKeyboard(RIGHT, windowData.deltaTime);
+      }
+      // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+      glfwSwapInterval(1); // v-sync
+      glfwSwapBuffers(window);
+      glfwPollEvents();
+    }
+  }
+
+  static void launch(std::function<void(GLFWwindow *)> init, std::function<void(GLFWwindow *)> draw)
+  {
+    if (!glfwInit())
+    {
+      assert(0 && "could not create context");
+      return;
+    }
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
+
+#ifdef __APPLE__
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+
+    GLFWwindow *window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "test", NULL, NULL);
+    if (window == NULL)
+    {
+      glfwTerminate();
+      assert(0 && "cannot create window");
+    }
+    glfwMakeContextCurrent(window);
+    // glfwSetWindowPos(window, 0, 0);
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+      assert(0 && "could not initialize GLAD");
+    }
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glEnable(GL_MULTISAMPLE);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_CULL_FACE);
+
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
 
     init(window);
 
     while (!glfwWindowShouldClose(window))
     {
       glfwMakeContextCurrent(window);
-      glClear(GL_COLOR_BUFFER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       draw(window);
+
       glfwSwapInterval(1); // v-sync
       glfwSwapBuffers(window);
       glfwPollEvents();

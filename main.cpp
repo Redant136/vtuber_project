@@ -21,78 +21,76 @@ float lastFrame = 0.0f;
 
 int main()
 {
-  VModel vmodel;
-  Shader shader;
-  launch(
-      [&vmodel, &shader](GLFWwindow *window)
-      {
-        // vmodel.loadModel(VMODEL,vtuber::Filetype::gltf);
-        vmodel.loadModel(VMODEL);
+  launch2();
+  // VModel vmodel;
+  // launch(
+  //     [&vmodel](GLFWwindow *window)
+  //     {
+  //       // vmodel.loadModel(VMODEL,vtuber::Filetype::gltf);
+  //       vmodel.loadModel(VMODEL);
 
-        vmodel.animate(0);
+  //       vmodel.animate(0);
 
-        shader = vmodel.genShader();
+  //       glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  //       glfwSetCursorPosCallback(window, [](GLFWwindow *window, double xpos, double ypos)
+  //                                {
+  //                                  if (firstMouse)
+  //                                  {
+  //                                    lastX = xpos;
+  //                                    lastY = ypos;
+  //                                    firstMouse = false;
+  //                                  }
 
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        glfwSetCursorPosCallback(window, [](GLFWwindow *window, double xpos, double ypos)
-                                 {
-                                   if (firstMouse)
-                                   {
-                                     lastX = xpos;
-                                     lastY = ypos;
-                                     firstMouse = false;
-                                   }
+  //                                  float xoffset = xpos - lastX;
+  //                                  float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
 
-                                   float xoffset = xpos - lastX;
-                                   float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+  //                                  lastX = xpos;
+  //                                  lastY = ypos;
 
-                                   lastX = xpos;
-                                   lastY = ypos;
+  //                                  camera.ProcessMouseMovement(xoffset, yoffset); });
 
-                                   camera.ProcessMouseMovement(xoffset, yoffset);
-                                 });
+  //       // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  //     },
 
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-      },
+  //     [&vmodel](GLFWwindow *window)
+  //     {
+  //       Shader&shader=vmodel.shader;
+        
+  //       float currentFrame = glfwGetTime();
+  //       deltaTime = currentFrame - lastFrame;
+  //       lastFrame = currentFrame;
 
-      [&vmodel, &shader](GLFWwindow *window)
-      {
-        float currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+  //       glClearColor(0.3f, 0.3f, 0.3f, 1.f);
+  //       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glClearColor(0.3f, 0.3f, 0.3f, 1.f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  //       shader.use();
 
-        shader.use();
+  //       glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+  //       glm::mat4 view = camera.GetViewMatrix();
+  //       shader.setMat4("projection", projection);
+  //       shader.setMat4("view", view);
 
-            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-            glm::mat4 view = camera.GetViewMatrix();
-            shader.setMat4("projection", projection);
-            shader.setMat4("view", view);
+  //       glm::mat4 model = glm::mat4(1.0f);
+  //       model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+  //       model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f) * ((float)01));
+  //       shader.setMat4("model", model);
+  //       shader.setMat4("node", model);
+  //       shader.setVec4("lightSource", glm::vec4(10, 0, 0, 0.2));
+  //       // shader.setInt("lightSourcesLength", 1);
 
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f) * ((float)01));
-        shader.setMat4("model", model);
-        shader.setMat4("node", model);
-        shader.setVec4("lightSources",glm::vec4(1,0,0,0.5));
-        shader.setInt("lightSourcesLength",1);
+  //       vmodel.draw();
 
-        vmodel.draw(shader);
-
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-          glfwSetWindowShouldClose(window, true);
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-          camera.ProcessKeyboard(FORWARD, deltaTime);
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-          camera.ProcessKeyboard(BACKWARD, deltaTime);
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-          camera.ProcessKeyboard(LEFT, deltaTime);
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-          camera.ProcessKeyboard(RIGHT, deltaTime);
-
-      });
+  //       if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+  //         glfwSetWindowShouldClose(window, true);
+  //       if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+  //         camera.ProcessKeyboard(FORWARD, deltaTime);
+  //       if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+  //         camera.ProcessKeyboard(BACKWARD, deltaTime);
+  //       if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+  //         camera.ProcessKeyboard(LEFT, deltaTime);
+  //       if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+  //         camera.ProcessKeyboard(RIGHT, deltaTime);
+  //     });
 
   return 0;
 }

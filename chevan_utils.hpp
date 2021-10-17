@@ -1253,17 +1253,6 @@ namespace chevan_utils
     {
       std::cout << "---------------------------------" << std::endl;
     }
-    template <typename Printable>
-    static void print(Printable p)
-    {
-      std::cout << p;
-    }
-    template <typename Printable>
-    static void println(Printable p)
-    {
-      print(p);
-      std::cout << std::endl;
-    }
     static void print(uchar *p)
     {
       std::cout << (void *)p;
@@ -1357,6 +1346,17 @@ namespace chevan_utils
       default:
         break;
       }
+    }
+    template <typename Printable>
+    static void print(Printable p)
+    {
+      std::cout << p;
+    }
+    template <typename Printable>
+    static void println(Printable p)
+    {
+      print(p);
+      std::cout << std::endl;
     }
     template <typename Printable, typename... Printable2>
     static void print(Printable p, Printable2... p2)

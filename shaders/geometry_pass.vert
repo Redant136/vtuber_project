@@ -1,7 +1,4 @@
 #version 330 core
-// #define MAX_JOINT_MATRIX 128
-// #define MAX_MORPH 16
-
 
 layout (location = 0) in vec3 a_pos;
 layout (location = 1) in vec3 a_normal;
@@ -12,7 +9,6 @@ layout (location = 5) in vec2 a_texCoords_2;
 layout (location = 6) in vec4 a_color_0;
 layout (location = 7) in vec4 a_joints;
 layout (location = 8) in vec4 a_weights;
-
 
 uniform int texCoordIndex;
 
@@ -62,6 +58,4 @@ void main()
     Pos = vec3(pos);
     Normal = normal;
     Tangent = tangent;
-    gl_Position = pos;
-
-}
+    gl_Position = pos;}

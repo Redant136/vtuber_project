@@ -183,7 +183,7 @@ namespace vtuber
             int node;
             bool useDefaultValues;
             Vec3 min, max, center;
-            float axisLength; //figure out what this does
+            float axisLength; // figure out what this does
           };
           std::vector<Bone> humanBones;
           float armStretch, legStretch, upperArmTwist, lowerArmTwist, upperLegTwist, lowerLegTwist, feetSpacing; // inverse kinematic bounds
@@ -289,7 +289,7 @@ namespace vtuber
         struct MaterialProperties
         {
           string name;
-          string shader;
+          string shader = "VRM/MToon";
           int renderQueue;
           struct FloatProperties
           {
@@ -311,7 +311,8 @@ namespace vtuber
           {
             string RenderType;
           } tagMap;
-        } materialProperties;
+        };
+        std::vector<MaterialProperties> materialProperties;
       };
     }
 
@@ -1179,75 +1180,95 @@ namespace vtuber
         jsongetArrObj(vrm.secondaryAnimation, colliderGroups, x, i, parseColliderGroup);
         jsonUnknownMacro(x, vrm.secondaryAnimation);
       }
-      for (auto &x : json["materialProperties"].items())
+      // std::function
+      std::function<gltf::Extensions::VRM::MaterialProperties(nlohmann::json)> parseMaterialProperties = [](nlohmann::json data)
       {
-        jsongetItem(string, vrm.materialProperties, name, x);
-        jsongetItem(string, vrm.materialProperties, shader, x);
-        jsongetItem(int, vrm.materialProperties, renderQueue, x);
-        if (x.key() == "floatProperties")
+        gltf::Extensions::VRM::MaterialProperties properties;
+        for (auto &x : data.items())
         {
-#define f(name) jsongetItem(float, vrm.materialProperties.floatProperties, name, y)
-          for (auto &y : x.value().items())
+          jsongetItem(string, properties, name, x);
+          jsongetItem(string, properties, shader, x);
+          jsongetItem(int, properties, renderQueue, x);
+          if (x.key() == "floatProperties")
           {
-            EVAL(MAP(f,
-                    _Cutoff, _BumpScale, _ReceiveShadowRate,
-                    _ShadingGradeRate, _ShadeShift, _ShadeToony,
-                    _LightColorAttenuation, _IndirectLightIntensity, _RimLightingMix,
-                    _RimFresnelPower, _RimLift, _OutlineWidth, _OutlineScaledMaxDistance,
-                    _OutlineLightingMix, _DebugMode, _BlendMode, _OutlineWidthMode, _OutlineColorMode,
-                    _CullMode, _OutlineCullMode, _SrcBlend, _DstBlend, _ZWrite));
-            jsonUnknownMacro(y, vrm.materialProperties.floatProperties);
-          }
-          continue;
+#define f(name) jsongetItem(float, properties.floatProperties, name, y)
+            for (auto &y : x.value().items())
+            {
+              EVAL(MAP(f,
+                       _Cutoff, _BumpScale, _ReceiveShadowRate,
+                       _ShadingGradeRate, _ShadeShift, _ShadeToony,
+                       _LightColorAttenuation, _IndirectLightIntensity, _RimLightingMix,
+                       _RimFresnelPower, _RimLift, _OutlineWidth, _OutlineScaledMaxDistance,
+                       _OutlineLightingMix, _DebugMode, _BlendMode, _OutlineWidthMode, _OutlineColorMode,
+                       _CullMode, _OutlineCullMode, _SrcBlend, _DstBlend, _ZWrite));
+              jsonUnknownMacro(y, vrm.materialProperties.floatProperties);
+            }
+            continue;
 #undef f
-        }
-        if (x.key() == "vectorProperties")
-        {
-#define f(name)                                                               \
-  vrm.materialProperties.vectorProperties.name.x = y.value()[0].get<float>(); \
-  vrm.materialProperties.vectorProperties.name.y = y.value()[1].get<float>(); \
-  vrm.materialProperties.vectorProperties.name.z = y.value()[2].get<float>(); \
-  vrm.materialProperties.vectorProperties.name.w = y.value()[3].get<float>();
-          for (auto &y : x.value().items())
+          }
+          if (x.key() == "vectorProperties")
           {
-            EVAL(MAP(f, _Color, _ShadeColor, _MainTex, _MainTex_ST, _ShadeTexture, _BumpMap, _ReceiveShadowTexture, 
-              _ShadingGradeTexture, _SphereAdd, _RimColor, _EmissionColor, _EmissionMap, _OutlineWidthTexture, _OutlineColor, _UvAnimMaskTexture));
-            jsonUnknownMacro(y, vrm.materialProperties.vectorProperties);
-          }
+#define f(name)                                                     \
+  if (string(y.key()) == #name)                                     \
+  {                                                                 \
+    properties.vectorProperties.name.x = y.value()[0].get<float>(); \
+    properties.vectorProperties.name.y = y.value()[1].get<float>(); \
+    properties.vectorProperties.name.z = y.value()[2].get<float>(); \
+    properties.vectorProperties.name.w = y.value()[3].get<float>(); \
+    continue;                                                       \
+  }
+            for (auto &y : x.value().items())
+            {
+              EVAL(MAP(f, _Color, _ShadeColor, _MainTex, _MainTex_ST, _ShadeTexture, _BumpMap, _ReceiveShadowTexture,
+                       _ShadingGradeTexture, _SphereAdd, _RimColor, _EmissionColor, _EmissionMap, _OutlineWidthTexture, _OutlineColor, _UvAnimMaskTexture));
+              jsonUnknownMacro(y, vrm.materialProperties.vectorProperties);
+            }
 #undef f
-        }
-        if (x.key() == "textureProperties")
-        {
-#define f(name) jsongetItem(int, vrm.materialProperties.textureProperties, name, y)
-          for (auto &y : x.value().items())
+            continue;
+          }
+          if (x.key() == "textureProperties")
           {
-            EVAL(MAP(f, _MainTex, _ShadeTexture, _BumpMap, _ReceiveShadowTexture, _ShadingGradeTexture, _RimTexture, _SphereAdd, _EmissionMap, _OutlineWidthTexture, _UvAnimMaskTexture));
-            jsonUnknownMacro(y, vrm.materialProperties.textureProperties);
-          }
+#define f(name) jsongetItem(int, properties.textureProperties, name, y)
+            for (auto &y : x.value().items())
+            {
+              EVAL(MAP(f, _MainTex, _ShadeTexture, _BumpMap, _ReceiveShadowTexture, _ShadingGradeTexture, _RimTexture, _SphereAdd, _EmissionMap, _OutlineWidthTexture, _UvAnimMaskTexture));
+              jsonUnknownMacro(y, vrm.materialProperties.textureProperties);
+            }
 #undef f
-        }
-        if (x.key() == "keywordMap")
-        {
-#define f(name) jsongetItem(bool, vrm.materialProperties.keywordMap, name, y)
-          for (auto &y : x.value().items())
+            continue;
+          }
+          if (x.key() == "keywordMap")
           {
-            EVAL(MAP(f, MTOON_CLIP_IF_OUTLINE_IS_NONE, MTOON_OUTLINE_WIDTH_WORLD, MTOON_OUTLINE_WIDTH_SCREEN, _ALPHATEST_ON, 
-              _ALPHABLEND_ON, _NORMALMAP, MTOON_FORWARD_ADD, _ALPHABLEND_ON, MTOON_FORWARD_ADD, MTOON_OUTLINE_COLOR_FIXED, 
-              MTOON_OUTLINE_COLOR_MIXED, MTOON_DEBUG_NORMAL, MTOON_DEBUG_LITSHADERATE));
-            jsonUnknownMacro(y, vrm.materialProperties.keywordMap);
-          }
+#define f(name) jsongetItem(bool, properties.keywordMap, name, y)
+            for (auto &y : x.value().items())
+            {
+              EVAL(MAP(f, MTOON_CLIP_IF_OUTLINE_IS_NONE, MTOON_OUTLINE_WIDTH_WORLD, MTOON_OUTLINE_WIDTH_SCREEN, _ALPHATEST_ON,
+                       _ALPHABLEND_ON, _NORMALMAP, MTOON_FORWARD_ADD, _ALPHABLEND_ON, MTOON_FORWARD_ADD, MTOON_OUTLINE_COLOR_FIXED,
+                       MTOON_OUTLINE_COLOR_MIXED, MTOON_DEBUG_NORMAL, MTOON_DEBUG_LITSHADERATE));
+              jsonUnknownMacro(y, vrm.materialProperties.keywordMap);
+            }
 #undef f
-        }
-        if (x.key() == "tagMap")
-        {
-#define f(name) jsongetItem(string, vrm.materialProperties.tagMap, name, y)
-          for (auto &y : x.value().items())
+            continue;
+          }
+          if (x.key() == "tagMap")
           {
-            EVAL(MAP(f, RenderType));
-            jsonUnknownMacro(y, vrm.materialProperties.tagMap);
-          }
+#define f(name) jsongetItem(string, properties.tagMap, name, y)
+            for (auto &y : x.value().items())
+            {
+              EVAL(MAP(f, RenderType));
+              jsonUnknownMacro(y, vrm.materialProperties.tagMap);
+            }
 #undef f
+            continue;
+          }
         }
+        return properties;
+      };
+
+      vrm.materialProperties.resize(json["materialProperties"].size());
+      for (uint i = 0; i < json["materialProperties"].size(); i++)
+      {
+        vrm.materialProperties[i] = parseMaterialProperties(json["materialProperties"][i]);
       }
 #undef jsonget
 #undef jsongetItem
@@ -1257,8 +1278,7 @@ namespace vtuber
       return vrm;
     }
 
-    std::vector<gltf::Extension>
-    deserialize_extensions(json extensions)
+    std::vector<gltf::Extension> deserialize_extensions(json extensions)
     {
       std::vector<gltf::Extension> vec;
       for (auto x : extensions.items())
@@ -2099,6 +2119,6 @@ namespace vtuber
       }
     }
 
-    //TODO gltf v1
+    // TODO gltf v1
   };
 }
