@@ -47,24 +47,29 @@
 [x] (vrm) mtoon https://www.slideshare.net/VirtualCast/vrm-mtoon HELP!!!
 
 ## working on
+[ ] (face recognition) start
+[ ] (camera) get camera
+[ ] (housekeeping) shader do be looking kinda jank, pls fix
 
 
 ## upcoming
-[ ] (rendering) get camera pos from gltf
 [ ] (shader) shadows (hard)
-[ ] (extensions) parse extras
-[ ] (morph) extras.targetNames specify a morph target
-[ ] (animations) reverse kinematic
+[ ] (animations) inverse kinematic
 [ ] (physics) find out how unity humanoid functions
-[ ] (optimization) morph could be passed to gpu (maybe look into geometry shader)
-
-[ ] (rendering) use vrm material render queue
-[ ] (rendering) switch shader mid draw
-[ ] (shader) color attribute
-[ ] (extensions) consider making vrm MaterialProperties properties a dictionnary instead of static object
+[ ] (rendering) get camera pos from gltf
 [ ] (housekeeping) gltf buffer mem leak
 [ ] (housekeeping) extensions mem leak
 
+[ ] (extensions) parse extras
+[ ] (morph) extras.targetNames specify a morph target
+[ ] (optimization) morph could be passed to gpu (maybe look into geometry shader)
+[ ] (shader) color attribute
+
+[ ] (rendering) use vrm material render queue
+[ ] (rendering) switch shader mid draw
+[ ] (extensions) consider making vrm MaterialProperties properties a dictionnary instead of static object
+
+## later
 [ ] (debug) damaged helmet textures is distorted after a while
 [ ] (vrm) vrm 1.0 also called VRMC (VRMC_materials_mtoon, VRMC_materials_hdr_emissiveMultiplier, VRMC_springBone, VRMC_node_constraint)
 [ ] (rendering) order rendering stuff, causes clipping (works now for some reason???) http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-10-transparency/

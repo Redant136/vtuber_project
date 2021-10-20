@@ -7,7 +7,6 @@
 // #define VMODEL "models/wave/scene.gltf"
 // #define VMODEL "models/leopard/scene.gltf"
 
-#include "learnopengl/camera.h"
 #include "vtuber.hpp"
 #include "vrmLoader.hpp"
 using namespace vtuber;

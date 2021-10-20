@@ -265,7 +265,14 @@ namespace vtuber
       }
     }
   };
-
+  
+  enum Camera_Movement
+  {
+    FORWARD,
+    BACKWARD,
+    LEFT,
+    RIGHT
+  };
   class ModelCamera
   {
   public:
@@ -398,7 +405,6 @@ namespace vtuber
     uint MAX_JOINT_MATRIX;
     uint current_alphaMode;
 
-
     struct
     {
       struct
@@ -445,6 +451,11 @@ namespace vtuber
 
     gltf::Extensions::VRM *vrmData = NULL;
     Array<gltf::Extensions::VRM::MaterialProperties*> vrmMaterialProperties=Array<gltf::Extensions::VRM::MaterialProperties*>(0);
+
+    // Camera related stuff
+    cv::Mat frame;
+    uint camTex;
+    cv::VideoCapture cap;
 
     VModel()
     {
@@ -819,6 +830,52 @@ namespace vtuber
           }
         }
       }
+    }
+    void initCam(){
+      // int deviceID = 0;        // 0 = open default camera
+      // int apiID = cv::CAP_ANY; // 0 = autodetect default API
+      // // open selected camera using selected API
+      // cap.open(deviceID, apiID);
+      // // check if we succeeded
+      // if (!cap.isOpened())
+      // {
+      //   std::cerr << "ERROR! Unable to open camera\n";
+      //   return;
+      // }
+      // cap.read(frame);
+      // if (frame.empty())
+      // {
+      //   std::cerr << "ERROR! blank frame grabbed\n";
+      // }
+      // // cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
+      // cv::flip(frame, frame, -1);
+
+      // opengl stuff
+      // glGenTextures(1, &camTex);
+      // glBindTexture(GL_TEXTURE_2D, camTex);
+
+      // glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      // glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+      // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+      // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, frame.cols, frame.rows, 0, GL_BGR,
+      //              GL_UNSIGNED_BYTE, frame.data);
+
+      // glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    void camMovement()
+    {
+      // cap.read(frame);
+      // cap >> frame;
+
+      // if (frame.empty())
+      // {
+      //   std::cerr << "ERROR! blank frame grabbed\n";
+      // }
+      // glBindTexture(GL_TEXTURE_2D, camTex);
+      // glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frame.cols, frame.rows, GL_BGR, GL_UNSIGNED_BYTE, frame.data);
+      // shader.setInt("CamIm",camTex);
     }
     void drawSkeleton()
     {
@@ -1728,6 +1785,7 @@ namespace vtuber
     if (1)
     {
       vmodel.loadModel(VMODEL);
+      vmodel.initCam();
       deferedShader = Shader(vmodel.shadersSource.deferedMtoonLighting.shader);
       deferedShader.use();
       deferedShader.setInt("gPosition", 0);
@@ -1797,6 +1855,7 @@ namespace vtuber
         shader.setVec3("lights[0].Color", lights.Color);
         shader.setFloat("lights[0].Intensity", lights.Intensity);
 
+        vmodel.camMovement();
         vmodel.draw();
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
