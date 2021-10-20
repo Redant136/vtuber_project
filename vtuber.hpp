@@ -1742,6 +1742,8 @@ namespace vtuber
     // gBuffer setup
     int realWindowWidth, realWindowHeight;
     glfwGetWindowSize(window, &realWindowWidth, &realWindowHeight);
+    realWindowWidth*=2;
+    realWindowHeight*=2;
     if (1)
     {
       // position
