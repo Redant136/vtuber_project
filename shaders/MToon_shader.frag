@@ -8,7 +8,6 @@ in vec2 TexCoords;
 in vec3 Tangent;
 in vec4 Color;
 in vec3 BitTangent;
-in mat4 transformationMatrix;
 
 uniform vec4 lightSource;
 uniform float shadeToony;
@@ -44,10 +43,6 @@ vec3 lerp(vec3 a,vec3 b,float w){
 vec4 lerp(vec4 a,vec4 b,float w){
     return a+w*(b-a);
 }
-
-// vec3 ShadeSH9(vec4 normal){
-  
-// }
 
 
 void main()

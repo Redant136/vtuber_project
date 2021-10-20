@@ -114,6 +114,24 @@ namespace chevan_utils
   static inline float degreeToRad(float degree) { return degree / 180.f * 3.1415926535897f; }
   static inline float radToDegree(float rad) { return rad / 3.1415926535897f * 180; }
   static inline float randf() { return rand() / RAND_MAX; }
+  static std::string toLowerCase(std::string &s)
+  {
+    std::string r = s;
+    for (uint i = 0; i < s.length(); i++)
+    {
+      r[i] = std::tolower(s[i]);
+    }
+    return r;
+  }
+  static std::string toUpperCase(std::string &s)
+  {
+    std::string r = s;
+    for (uint i = 0; i < s.length(); i++)
+    {
+      r[i] = std::toupper(s[i]);
+    }
+    return r;
+  }
 
   namespace chevanut_vec
   {

@@ -10,21 +10,31 @@ uniform sampler2D gAlbedoSpec;
 struct Light {
     vec3 Position;
     vec3 Color;
-    
-    float Linear;
-    float Quadratic;
+    float Intensity;
 };
 const int NR_LIGHTS = 32;
 uniform Light lights[NR_LIGHTS];
 uniform vec3 viewPos;
 
+
+float distanceSquare(vec2 a,vec2 b){
+    return (a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y);
+}
+float distanceSquare(vec3 a,vec3 b){
+    return (a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y)+(a.z-b.z)*(a.z-b.z);
+}
+float distanceSquare(vec4 a,vec4 b){
+    return (a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y)+(a.z-b.z)*(a.z-b.z)+(a.w-b.w)*(a.w-b.w);
+}
+
 void main()
-{             
+{
+    vec2 UV = TexCoords;
     // retrieve data from gbuffer
-    vec3 FragPos = texture(gPosition, TexCoords).rgb;
-    vec3 Normal = texture(gNormal, TexCoords).rgb;
-    vec3 Diffuse = texture(gAlbedoSpec, TexCoords).rgb;
-    float Specular = texture(gAlbedoSpec, TexCoords).a;
+    vec3 FragPos = texture(gPosition, UV).rgb;
+    vec3 Normal = texture(gNormal, UV).rgb;
+    vec3 Diffuse = texture(gAlbedoSpec, UV).rgb;
+    float Specular = texture(gAlbedoSpec, UV).a;
     
     // then calculate lighting as usual
     vec3 lighting  = Diffuse * 0.1; // hard-coded ambient component
@@ -40,7 +50,7 @@ void main()
         vec3 specular = lights[i].Color * spec * Specular;
         // attenuation
         float distance = length(lights[i].Position - FragPos);
-        float attenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
+        float attenuation = lights[i].Intensity;
         diffuse *= attenuation;
         specular *= attenuation;
         lighting += diffuse + specular;        

@@ -12,18 +12,11 @@
 #include "vrmLoader.hpp"
 using namespace vtuber;
 
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
-float lastX = SCREEN_WIDTH / 2.0f;
-float lastY = SCREEN_HEIGHT / 2.0f;
-bool firstMouse = true;
-float deltaTime = 0.0f;
-float lastFrame = 0.0f;
-
 int main()
 {
-  launch2();
+  launch();
   // VModel vmodel;
-  // launch(
+  // start(
   //     [&vmodel](GLFWwindow *window)
   //     {
   //       // vmodel.loadModel(VMODEL,vtuber::Filetype::gltf);

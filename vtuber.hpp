@@ -36,14 +36,13 @@ void print(glm::mat4 mat)
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
 #ifndef VMODEL
-// #define VMODEL "models/male1.glb"
-#define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
+#define VMODEL "models/male1.glb"
+// #define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
 // #define VMODEL "models/1565609261024596092.vrm"
 #endif
-#define GLTF_SHADER "shaders/vertex_shader.vert", "shaders/fragment_shader.frag"
-#define MTOON_SHADER "shaders/MToon_shader.vert", "shaders/MToon_shader.frag"
 #define GEOMETRY_PASS_SHADER "shaders/geometry_pass.vert", "shaders/geometry_pass.frag"
 #define DEFERED_LIGHTING_SHADER "shaders/deferedLighting_shader.vert", "shaders/deferedLighting_shader.frag"
+#define DEFERED_MTOON_LIGHTING_SHADER "shaders/deferedLighting_shader.vert", "shaders/MToon_deferedLighting.frag"
 
 namespace vtuber
 {
@@ -62,6 +61,10 @@ namespace vtuber
     Shader(const char *vertexPath, const char *fragmentPath, const char *geometryPath = nullptr)
     {
       create(vertexPath, fragmentPath, geometryPath);
+    }
+    Shader(uint ID)
+    {
+      this->ID = ID;
     }
     Shader create(const char *vertexPath, const char *fragmentPath, const char *geometryPath = nullptr)
     {
@@ -340,9 +343,9 @@ namespace vtuber
       // make sure that when pitch is out of bounds, screen doesn't get flipped
       if (constrainPitch)
       {
-        if (Pitch > PIf/2)
+        if (Pitch >= PIf/2)
           Pitch = PIf/2;
-        if (Pitch < -PIf/2)
+        if (Pitch <= -PIf/2)
           Pitch = -PIf/2;
       }
 
@@ -369,6 +372,11 @@ namespace vtuber
       front.x = cos(Yaw) * cos(Pitch);
       front.y = sin(Pitch);
       front.z = sin(Yaw) * cos(Pitch);
+      if (std::abs(Pitch - PIf / 2) < 0.0001)
+      {
+        front.x = cos(Yaw) * 0.00001;
+        front.z = sin(Yaw) * 0.00001;
+      }
       Front = glm::normalize(front);
       // also re-calculate the Right and Up vector
       Right = glm::normalize(glm::cross(Front, WorldUp)); // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
@@ -395,38 +403,31 @@ namespace vtuber
     {
       struct
       {
-        Shader shader;
-        const struct
-        {
-          const std::string accName;
-          const int attribIndex;
-        } attribs[9] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
-      } gltf;
-      struct
-      {
-        Shader shader;
-        const struct
-        {
-          const std::string accName;
-          const int attribIndex;
-        } attribs[9] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
-      } mtoon;
-      struct{
-        Shader shader;
+        uint shader;
         const struct
         {
           const std::string accName;
           const int attribIndex;
         } attribs[9] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
       } geometryPass;
-      struct{
-        Shader shader;
+      struct
+      {
+        uint shader;
         const struct
         {
           const std::string accName;
           const int attribIndex;
-        } attribs[2] = {{"POSITION", 0},  {"TEXCOORD_0", 1}};
+        } attribs[2] = {{"POSITION", 0}, {"TEXCOORD_0", 1}};
       } deferedLighting;
+      struct
+      {
+        uint shader;
+        const struct
+        {
+          const std::string accName;
+          const int attribIndex;
+        } attribs[2] = {{"POSITION", 0}, {"TEXCOORD_0", 1}};
+      } deferedMtoonLighting;
     } shadersSource;
     enum class ShaderType
     {
@@ -494,10 +495,10 @@ namespace vtuber
         }
         defines += "#define MAX_JOINT_MATRIX " + std::to_string(MAX_JOINT_MATRIX) + "\n";
 
-        shadersSource.gltf.shader = Shader(defines.c_str()).create(GLTF_SHADER);
-        shadersSource.mtoon.shader = Shader(defines.c_str()).create(MTOON_SHADER);
-        shadersSource.geometryPass.shader = Shader(defines.c_str()).create(GEOMETRY_PASS_SHADER);
-        shadersSource.deferedLighting.shader = Shader(defines.c_str()).create(DEFERED_LIGHTING_SHADER);
+        shadersSource.geometryPass.shader = Shader(defines.c_str()).create(GEOMETRY_PASS_SHADER).ID;
+        shadersSource.deferedLighting.shader = Shader(defines.c_str()).create(DEFERED_LIGHTING_SHADER).ID;
+        shadersSource.deferedMtoonLighting.shader = Shader(defines.c_str()).create(DEFERED_MTOON_LIGHTING_SHADER).ID;
+        shader.ID = shadersSource.geometryPass.shader;
 
         if (gltf::findExtensionIndex("VRM", model) != -1)
         {
@@ -518,19 +519,6 @@ namespace vtuber
         else
         {
           shaderType = ShaderType::gltfShader;
-        }
-
-        switch (shaderType)
-        {
-        case ShaderType::gltfShader:
-        case ShaderType::unlit:
-          shader = shadersSource.gltf.shader;
-          break;
-        case ShaderType::mtoon:
-          shader = shadersSource.mtoon.shader;
-          break;
-        default:
-          assert("no" && 0);
         }
       }
 
@@ -698,34 +686,11 @@ namespace vtuber
       gltfMeshVAO = Array<uint>(model.meshes.size());
       for (uint i = 0; i < model.meshes.size(); i++)
       {
-        uint attribLength=0;
-        struct Attrib
+        const struct
         {
           const std::string accName;
           const int attribIndex;
-        };
-        Attrib*attribs;
-        switch (shaderType)
-        {
-        case ShaderType::gltfShader:
-        case ShaderType::unlit:
-          // shader = shadersSource.gltf.shader;
-          attribs = (Attrib *)shadersSource.gltf.attribs;
-          attribLength = sizeof(shadersSource.gltf.attribs) / sizeof(shadersSource.gltf.attribs[0]);
-          break;
-        case ShaderType::mtoon:
-          attribs = (Attrib *)shadersSource.mtoon.attribs;
-          attribLength = sizeof(shadersSource.mtoon.attribs) / sizeof(shadersSource.mtoon.attribs[0]);
-          break;
-        default:
-          assert("no" && 0);
-        }
-
-        // const struct
-        // {
-        //   const std::string accName;
-        //   const int attribIndex;
-        // } attribs[] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
+        } attribs[9] = {{"POSITION", 0}, {"NORMAL", 1}, {"TANGENT", 2}, {"TEXCOORD_0", 3}, {"TEXCOORD_1", 4}, {"TEXCOORD_2", 5}, {"COLOR_0", 6}, {"JOINTS_0", 7}, {"WEIGHTS_0", 8}};
 
         const gltf::Mesh &mesh = model.meshes[i];
         uint VAO;
@@ -735,7 +700,7 @@ namespace vtuber
         {
           const gltf::Mesh::Primitive &primitive = mesh.primitives[j];
 
-          for (uint k = 0; k < attribLength; k++)
+          for (uint k = 0; k < sizeof(attribs)/sizeof(attribs[0]); k++)
           {
             if (gltf::getMeshPrimitiveAttribVal(primitive.attributes, attribs[k].accName) == -1)
               continue;
@@ -917,11 +882,6 @@ namespace vtuber
     }
     void draw()
     {
-      shadersSource.deferedLighting.shader.use();
-      shadersSource.deferedLighting.shader.setInt("gPosition", 0);
-      shadersSource.deferedLighting.shader.setInt("gNormal", 1);
-      shadersSource.deferedLighting.shader.setInt("gAlbedoSpec", 2);
-
       shader.use();
 
       update();
@@ -1201,6 +1161,66 @@ namespace vtuber
       {
         animationData.animation = index;
         animationData.animationStartTime = glfwGetTime();
+      }
+    }
+
+    void setExpression(std::string name)
+    {
+      if(vrmData)
+      {
+        using Expression = gltf::Extensions::VRM::BlendShapeMaster::BlendShapeGroup::PresetNames;
+        Expression expression;
+        name = toLowerCase(name);
+        if (name == "a")
+          expression = Expression::a;
+        else if (name == "i")
+          expression = Expression::i;
+        else if (name == "u")
+          expression = Expression::u;
+        else if (name == "e")
+          expression = Expression::e;
+        else if (name == "o")
+          expression = Expression::o;
+        else if (name == "blink")
+          expression = Expression::blink;
+        else if (name == "joy" || name == "happy")
+          expression = Expression::joy;
+        else if (name == "angry")
+          expression = Expression::angry;
+        else if (name == "sorrow" || name == "sad")
+          expression = Expression::sorrow;
+        else if (name == "fun")
+          expression = Expression::fun;
+        else if (name == "lookup" || name == "look_up")
+          expression = Expression::lookup;
+        else if (name == "lookdown" || name == "look_down")
+          expression = Expression::lookdown;
+        else if (name == "lookleft" || name == "look_left")
+          expression = Expression::lookleft;
+        else if (name == "lookright" || name == "look_right")
+          expression = Expression::lookright;
+        else if (name == "blink_l")
+          expression = Expression::blink_l;
+        else if (name == "blink_r")
+          expression = Expression::blink_r;
+        else
+          expression = Expression::unknown;
+        for (uint i = 0; i < vrmData->blendShapeMaster.blendShapeGroups.size(); i++)
+        {
+          if (vrmData->blendShapeMaster.blendShapeGroups[i].presetName == expression)
+          {
+            vtuber::gltf::Extensions::VRM::BlendShapeMaster::BlendShapeGroup blend = vrmData->blendShapeMaster.blendShapeGroups[i];
+            for (uint j = 0; j < blend.binds.size(); j++)
+            {
+              model.meshes[blend.binds[j].mesh].weights[blend.binds[j].index] = blend.binds[j].weight / 100.f;
+              for (uint k = 0; k < model.nodes.size(); k++)
+              {
+                if(model.nodes[k].mesh==blend.binds[j].mesh)
+                  updatedNodeMorphs[k]=true;
+              }
+            }
+          }
+        }
       }
     }
 
@@ -1502,26 +1522,7 @@ namespace vtuber
             }
             uint texCoord = 0;
             bool KHR_materials_unlit = vrmData != NULL || gltf::findExtensionIndex("KHR_materials_unlit", material) != -1;
-            // TODO(ANT) Remove this
-            if (0 && shaderType == ShaderType::mtoon)
-            {
-              glEnable(GL_CULL_FACE);
-              glEnable(GL_LINE_SMOOTH);
-              glCullFace(GL_FRONT);
-              glFrontFace(GL_CCW);
-              glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-              shader.setBool("isOutline",true);
-              shader.setVec4("baseColorFactor",glm::vec4(0,0,0,1));
-
-              glDrawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType,
-                             reinterpret_cast<void *>(indexAccessor.byteOffset));
-
-              glCullFace(GL_BACK);
-              glFrontFace(GL_CCW);
-              glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-              shader.setBool("isOutline",false);
-              shader.setVec4("baseColorFactor",glm::vec4(0.f));
-            }
+            shader.setBool("VRM", vrmMaterialProperties[primitive.material]->shader == "VRM/MToon");
 
             if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
             {
@@ -1637,7 +1638,8 @@ namespace vtuber
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
   } windowData;
-  static void launch2()
+
+  static void launch()
   {
     if (!glfwInit())
     {
@@ -1675,42 +1677,43 @@ namespace vtuber
 
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
-
-#if 0
-    unsigned int gBuffer;
+    uint gBuffer;
     glGenFramebuffers(1, &gBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-    unsigned int gPosition, gNormal, gAlbedoSpec;
+    uint gPosition, gNormal, gAlbedoSpec;
     // gBuffer setup
     if (1)
     {
-      // position color buffer
+      int width,height;
+      glfwGetWindowSize(window,&width,&height);
+      // position
       glGenTextures(1, &gPosition);
       glBindTexture(GL_TEXTURE_2D, gPosition);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
-      // normal color buffer
+      // normal
       glGenTextures(1, &gNormal);
       glBindTexture(GL_TEXTURE_2D, gNormal);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
-      // color + specular color buffer
+      // color + specular buffer
       glGenTextures(1, &gAlbedoSpec);
       glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
+#undef setupGBuffer
     }
     // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering
-    unsigned int attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
-    glDrawBuffers(3, attachments);
+    uint attachments[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,GL_COLOR_ATTACHMENT3,GL_COLOR_ATTACHMENT4,GL_COLOR_ATTACHMENT5};
+    glDrawBuffers(sizeof(attachments)/sizeof(attachments[0]), attachments);
     // create and attach depth buffer (renderbuffer)
-    unsigned int rboDepth;
+    uint rboDepth;
     glGenRenderbuffers(1, &rboDepth);
     glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -1719,11 +1722,17 @@ namespace vtuber
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
       std::cout << "Framebuffer not complete!" << std::endl;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-#endif 
+    Shader deferedShader = Shader();
+
     // init
     if (1)
     {
       vmodel.loadModel(VMODEL);
+      deferedShader = Shader(vmodel.shadersSource.deferedMtoonLighting.shader);
+      deferedShader.use();
+      deferedShader.setInt("gPosition", 0);
+      deferedShader.setInt("gNormal", 1);
+      deferedShader.setInt("gAlbedoSpec", 2);
 
       vmodel.animate(0);
 
@@ -1746,11 +1755,12 @@ namespace vtuber
                                    vmodel.camera.ProcessMouseMovement(xoffset, yoffset); });
     }
 
+    uint quadVAO = 0;
+    uint quadVBO;
     while (!glfwWindowShouldClose(window))
     {
       glfwMakeContextCurrent(window);
-      // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      // glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+      glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       // draw
@@ -1777,8 +1787,15 @@ namespace vtuber
         model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f) * ((float)01));
         shader.setMat4("model", model);
         shader.setMat4("node", model);
-        shader.setVec4("lightSource", glm::vec4(10, 0, 0, 0.2));
-        // shader.setInt("lightSourcesLength", 1);
+        struct Light
+        {
+          glm::vec3 Position;
+          glm::vec3 Color;
+          float Intensity;
+        } lights = {glm::vec3(10, 0, -10), glm::vec3(1, 1, 1), 0.2};
+        shader.setVec3("lights[0].Position", lights.Position);
+        shader.setVec3("lights[0].Color", lights.Color);
+        shader.setFloat("lights[0].Intensity", lights.Intensity);
 
         vmodel.draw();
 
@@ -1792,17 +1809,64 @@ namespace vtuber
           vmodel.camera.ProcessKeyboard(LEFT, windowData.deltaTime);
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
           vmodel.camera.ProcessKeyboard(RIGHT, windowData.deltaTime);
+        // q(A),e,i,o,u, b(blink)
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+          vmodel.setExpression("a");          
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+          vmodel.setExpression("e");
+        if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
+          vmodel.setExpression("i");
+        if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+          vmodel.setExpression("o");
+        if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS)
+          vmodel.setExpression("u");
+        if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
+          vmodel.setExpression("b");
       }
-      // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-      // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+      deferedShader.use();
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, gPosition);
+      glActiveTexture(GL_TEXTURE1);
+      glBindTexture(GL_TEXTURE_2D, gNormal);
+      glActiveTexture(GL_TEXTURE2);
+      glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+
+      deferedShader.setVec3("viewPos", vmodel.camera.Position);
+
+      if (quadVAO == 0)
+      {
+        float quadVertices[] = {
+            // positions        // texture Coords
+            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+             1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+             1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        };
+
+        // setup plane VAO
+        glGenVertexArrays(1, &quadVAO);
+        glGenBuffers(1, &quadVBO);
+        glBindVertexArray(quadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+      }
+      glBindVertexArray(quadVAO);
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+      glBindVertexArray(0);
       glfwSwapInterval(1); // v-sync
       glfwSwapBuffers(window);
       glfwPollEvents();
     }
   }
 
-  static void launch(std::function<void(GLFWwindow *)> init, std::function<void(GLFWwindow *)> draw)
+  static void start(std::function<void(GLFWwindow *)> init, std::function<void(GLFWwindow *)> draw)
   {
     if (!glfwInit())
     {
@@ -1838,8 +1902,8 @@ namespace vtuber
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_CULL_FACE);
 
-    glCullFace(GL_BACK);
-    glFrontFace(GL_CCW);
+    glCullFace(GL_FRONT);
+    glFrontFace(GL_CW);
 
     init(window);
 

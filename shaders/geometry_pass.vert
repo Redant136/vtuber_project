@@ -16,6 +16,8 @@ out vec3 Pos;
 out vec3 Normal;
 out vec4 Tangent;
 out vec2 TexCoords;
+out vec4 Color;
+out vec3 BitTangent;
 
 uniform mat4 u_jointMatrix[MAX_JOINT_MATRIX];// joint matrices
 
@@ -58,4 +60,9 @@ void main()
     Pos = vec3(pos);
     Normal = normal;
     Tangent = tangent;
-    gl_Position = pos;}
+    Color=a_color_0;
+    BitTangent=vec3(0,0,0);
+
+
+    gl_Position = pos;
+}

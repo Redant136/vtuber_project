@@ -18,8 +18,6 @@ out vec2 TexCoords;
 out vec3 Tangent;
 out vec4 Color;
 out vec3 BitTangent;
-out float IsOutline;
-out mat4 transformationMatrix;
 
 uniform mat4 u_jointMatrix[MAX_JOINT_MATRIX];// joint matrices
 
@@ -65,7 +63,6 @@ void main()
     Tangent = tangent.xyz;
     Color=a_color_0;
     BitTangent=vec3(0,0,0);
-    transformationMatrix = projection * view * model * node * skinMatrix;
 
     gl_Position = pos;
 

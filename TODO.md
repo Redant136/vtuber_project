@@ -41,13 +41,12 @@
 [x] (glb rendering) normal texture
 [x] (vrm) map materialProperties to material
 [x] (rendering) camera in vmodel
+[x] (rendering) lauch2(void)
+[x] (shader) https://learnopengl.com/Advanced-Lighting/Deferred-Shading (yes, but actually no)
+[x] (vrm) mtoon shader
+[x] (vrm) mtoon https://www.slideshare.net/VirtualCast/vrm-mtoon HELP!!!
 
 ## working on
-[ ] (shader) https://learnopengl.com/Advanced-Lighting/Deferred-Shading
-[ ] (rendering) lauch2(void)
-
-[ ] (vrm) mtoon shader
-[ ] (vrm) mtoon https://www.slideshare.net/VirtualCast/vrm-mtoon HELP!!!
 
 
 ## upcoming
@@ -57,8 +56,8 @@
 [ ] (morph) extras.targetNames specify a morph target
 [ ] (animations) reverse kinematic
 [ ] (physics) find out how unity humanoid functions
+[ ] (optimization) morph could be passed to gpu (maybe look into geometry shader)
 
-[ ] (shader) spherical harmonics lighting https://catlikecoding.com/unity/tutorials/rendering/part-5/
 [ ] (rendering) use vrm material render queue
 [ ] (rendering) switch shader mid draw
 [ ] (shader) color attribute
@@ -67,7 +66,6 @@
 [ ] (housekeeping) extensions mem leak
 
 [ ] (debug) damaged helmet textures is distorted after a while
-[ ] (optimization) morph could be passed to gpu (maybe look into geometry shader)
 [ ] (vrm) vrm 1.0 also called VRMC (VRMC_materials_mtoon, VRMC_materials_hdr_emissiveMultiplier, VRMC_springBone, VRMC_node_constraint)
 [ ] (rendering) order rendering stuff, causes clipping (works now for some reason???) http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-10-transparency/
 [ ] (rendering) specific UV(texCoord) per texture
@@ -75,6 +73,8 @@
 [ ] (animations) interpolation cubic spline
 
 ## wants
+[ ] (shader) use geometry shader to generate outline
+[ ] (shader) spherical harmonics lighting https://catlikecoding.com/unity/tutorials/rendering/part-5/
 [ ] (glb rendering) occlusion texture
 [ ] (glb rendering) roughness texture
 [ ] (research) https://github.com/netmail-open/wjelement , https://github.com/petehug/wjelement-cpp/wiki
