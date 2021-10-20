@@ -1742,8 +1742,11 @@ namespace vtuber
     // gBuffer setup
     int realWindowWidth, realWindowHeight;
     glfwGetWindowSize(window, &realWindowWidth, &realWindowHeight);
+// idk why but this fixes it
+#ifdef __APPLE__
     realWindowWidth*=2;
     realWindowHeight*=2;
+#endif
     if (1)
     {
       // position
