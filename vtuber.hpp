@@ -36,8 +36,8 @@ void print(glm::mat4 mat)
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
 #ifndef VMODEL
-#define VMODEL "models/male1.glb"
-// #define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
+// #define VMODEL "models/male1.glb"
+#define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
 // #define VMODEL "models/1565609261024596092.vrm"
 #endif
 #define GEOMETRY_PASS_SHADER "shaders/geometry_pass.vert", "shaders/geometry_pass.frag"
@@ -1734,46 +1734,46 @@ namespace vtuber
 
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
+
     uint gBuffer;
     glGenFramebuffers(1, &gBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
     uint gPosition, gNormal, gAlbedoSpec;
     // gBuffer setup
+    int realWindowWidth, realWindowHeight;
+    glfwGetWindowSize(window, &realWindowWidth, &realWindowHeight);
     if (1)
     {
-      int width,height;
-      glfwGetWindowSize(window,&width,&height);
       // position
       glGenTextures(1, &gPosition);
       glBindTexture(GL_TEXTURE_2D, gPosition);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, realWindowWidth, realWindowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
       // normal
       glGenTextures(1, &gNormal);
       glBindTexture(GL_TEXTURE_2D, gNormal);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, realWindowWidth, realWindowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
       // color + specular buffer
       glGenTextures(1, &gAlbedoSpec);
       glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, realWindowWidth, realWindowHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
-#undef setupGBuffer
     }
     // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering
-    uint attachments[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,GL_COLOR_ATTACHMENT3,GL_COLOR_ATTACHMENT4,GL_COLOR_ATTACHMENT5};
+    uint attachments[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
     glDrawBuffers(sizeof(attachments)/sizeof(attachments[0]), attachments);
     // create and attach depth buffer (renderbuffer)
     uint rboDepth;
     glGenRenderbuffers(1, &rboDepth);
     glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, realWindowWidth, realWindowHeight);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
     // finally check if framebuffer is complete
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -1835,7 +1835,7 @@ namespace vtuber
 
         shader.use();
 
-        glm::mat4 projection = glm::perspective(glm::radians(vmodel.camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(vmodel.camera.Zoom), (float)realWindowWidth / (float)realWindowHeight, 0.1f, 100.0f);
         glm::mat4 view = vmodel.camera.GetViewMatrix();
         shader.setMat4("projection", projection);
         shader.setMat4("view", view);
@@ -1844,7 +1844,6 @@ namespace vtuber
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
         model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f) * ((float)01));
         shader.setMat4("model", model);
-        shader.setMat4("node", model);
         struct Light
         {
           glm::vec3 Position;

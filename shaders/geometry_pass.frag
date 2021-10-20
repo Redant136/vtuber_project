@@ -1,6 +1,7 @@
 #version 330 core
 #define MAX_LIGHT_SOURCES 8
 
+// out vec4 FragColor;
 layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gAlbedoSpec;
@@ -124,6 +125,7 @@ void main()
     }
   }
 
+  // FragColor=color;
   gPosition = Pos;
   gNormal = normalize(normal);
   gAlbedoSpec = color;
