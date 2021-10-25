@@ -6,6 +6,7 @@
 #include <string.h>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 #ifndef CHEVAN_UTILS_NO_EXTRA_INCLUDES
 #include <stdexcept>

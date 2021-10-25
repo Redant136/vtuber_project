@@ -33,11 +33,44 @@ if(APPLE)
 endif(APPLE)
 
 add_executable(vtuber main.cpp)
+add_executable(faceDetection faceDetection.cpp)
 
 file(COPY models DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})
 
-TARGET_LINK_LIBRARIES(vtuber PRIVATE ${CMAKE_DL_LIBS})
-# add_compile_definitions(CHEVAN_UTILS_ALL)
-# target_precompile_headers(vtuber PRIVATE utils.hpp)
-add_subdirectory(extern)
+set(FFMPEG_LIBS avcodec avformat avdevice swscale avfilter avutil)
+if(NOT FFMPEG_PATH)
+    set(FFMPEG_PATH /usr/include/ffmpeg/)
+endif()
+
+
+target_link_libraries(vtuber PRIVATE ${CMAKE_DL_LIBS})
+
+
+add_subdirectory(extern/glad/)
+find_package(OpenGL REQUIRED)
+find_package(glfw QUIET NAMES glfw glfw3)
+if(NOT glfw_FOUND)
+  add_subdirectory(extern/glfw)
+endif()
+add_subdirectory(extern/glm)
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+add_subdirectory(extern/json)
+find_package(OpenCV REQUIRED HINTS PATHS "${CMAKE_BINARY_DIR}/../extern" "${CMAKE_BINARY_DIR}/../opencv_install")
+
+
+target_link_libraries(vtuber PRIVATE glad)
+target_link_libraries(vtuber PRIVATE OpenGL::GL)
+target_link_libraries(vtuber PRIVATE glfw)
+target_link_libraries(vtuber PRIVATE glm::glm)
+target_link_libraries(vtuber PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(vtuber PRIVATE ${OpenCV_LIBS})
+target_include_directories(vtuber PRIVATE ${OpenCV_INCLUDE_DIRS})
+
+target_link_libraries(vtuber PRIVATE ${FFMPEG_LIBS})
+target_include_directories(vtuber PRIVATE ${FFMPEG_PATH})
+
+
+target_link_libraries(faceDetection PRIVATE ${OpenCV_LIBS})
+target_include_directories(faceDetection PRIVATE ${OpenCV_INCLUDE_DIRS})
+

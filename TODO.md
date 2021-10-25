@@ -45,16 +45,22 @@
 [x] (shader) https://learnopengl.com/Advanced-Lighting/Deferred-Shading (yes, but actually no)
 [x] (vrm) mtoon shader
 [x] (vrm) mtoon https://www.slideshare.net/VirtualCast/vrm-mtoon HELP!!!
+[x] (camera) get camera
+[x] (shader) defered rendering is shit, remove
+[x] (rendering) DONT BE LAZY, FINISH
+[x] (housekeeping) shader do be looking kinda jank, pls fix
 
 ## working on
-[ ] (face recognition) start
-[ ] (camera) get camera
-[ ] (housekeeping) shader do be looking kinda jank, pls fix
+[ ] (optimization) optimize the hell out of draw
+[ ] (shader) shadows (hard)
 
 
 ## upcoming
-[ ] (shader) shadows (hard)
-[ ] (animations) inverse kinematic
+[ ] (face recognition) nn
+[ ] (face recognition) tensorflow test
+[ ] (camera) https://stackoverflow.com/questions/12483541/webcam-access-in-c-without-opencv
+[ ] (camera) libav open camera
+[ ] (physics) inverse kinematic
 [ ] (physics) find out how unity humanoid functions
 [ ] (rendering) get camera pos from gltf
 [ ] (housekeeping) gltf buffer mem leak
@@ -70,6 +76,7 @@
 [ ] (extensions) consider making vrm MaterialProperties properties a dictionnary instead of static object
 
 ## later
+[ ] (rendering) finish vrm lighting
 [ ] (debug) damaged helmet textures is distorted after a while
 [ ] (vrm) vrm 1.0 also called VRMC (VRMC_materials_mtoon, VRMC_materials_hdr_emissiveMultiplier, VRMC_springBone, VRMC_node_constraint)
 [ ] (rendering) order rendering stuff, causes clipping (works now for some reason???) http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-10-transparency/
@@ -80,10 +87,10 @@
 ## wants
 [ ] (shader) use geometry shader to generate outline
 [ ] (shader) spherical harmonics lighting https://catlikecoding.com/unity/tutorials/rendering/part-5/
-[ ] (glb rendering) occlusion texture
-[ ] (glb rendering) roughness texture
+[ ] (rendering) occlusion texture
+[ ] (rendering) roughness texture
 [ ] (research) https://github.com/netmail-open/wjelement , https://github.com/petehug/wjelement-cpp/wiki
-[ ] (glb rendering) https://learnopengl.com/Advanced-OpenGL/Instancing
+[ ] (rendering) https://learnopengl.com/Advanced-OpenGL/Instancing
 [ ] (rendering) pbr rendering
 [ ] (lighting) blinn-phong lighting https://learnopengl.com/Advanced-Lighting/Advanced-Lighting 
 

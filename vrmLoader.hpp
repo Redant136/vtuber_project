@@ -1184,6 +1184,23 @@ namespace vtuber
       std::function<gltf::Extensions::VRM::MaterialProperties(nlohmann::json)> parseMaterialProperties = [](nlohmann::json data)
       {
         gltf::Extensions::VRM::MaterialProperties properties;
+        for (uint i = 0; i < sizeof(properties.floatProperties) / sizeof(float); i++)
+        {
+          ((float *)&properties.floatProperties)[i] = 0.f;
+        }
+        for (uint i = 0; i < sizeof(properties.vectorProperties) / sizeof(float); i++)
+        {
+          ((float *)&properties.vectorProperties)[i] = 0.f;
+        }
+        for (uint i = 0; i < sizeof(properties.textureProperties) / sizeof(int); i++)
+        {
+          ((int *)&properties.textureProperties)[i] = 0;
+        }
+        for (uint i = 0; i < sizeof(properties.keywordMap) / sizeof(bool); i++)
+        {
+          ((bool *)&properties.keywordMap)[i] = false;
+        }
+
         for (auto &x : data.items())
         {
           jsongetItem(string, properties, name, x);
@@ -1264,7 +1281,6 @@ namespace vtuber
         }
         return properties;
       };
-
       vrm.materialProperties.resize(json["materialProperties"].size());
       for (uint i = 0; i < json["materialProperties"].size(); i++)
       {

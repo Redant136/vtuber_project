@@ -53,6 +53,9 @@ void main()
     PosDistanceSquareVec.w=distanceSquare(FragPos,texture(gPosition,UV+texOffset*vec2(0,-1)).xyz);
     float PosDistanceSquare=dot(PosDistanceSquareVec,vec4(1,1,1,1));
 
+    // FragColor=vec4(texture(camtex,UV));
+    // return;
+
     if(!(abs(UV.x)>=1||abs(UV.y)>=1)&&PosDistanceSquare*NormalDistanceSquare>0.002){
         FragColor=vec4(0,0,0,1);
         return;
