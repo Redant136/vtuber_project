@@ -39,6 +39,7 @@ void print(glm::mat4 mat)
 // #define VMODEL "models/1565609261024596092.vrm"
 #endif
 #define MTOON_SHADER "shaders/MToon_shader.vert", "shaders/MToon_shader.frag", "shaders/MToon_shader.geom"
+#define GLTF_SHADER "shaders/vertex_shader.vert", "shaders/fragment_shader.frag"
 #define GEOMETRY_PASS_SHADER "shaders/geometry_pass.vert", "shaders/geometry_pass.frag"
 #define DEFERED_LIGHTING_SHADER "shaders/deferedLighting_shader.vert", "shaders/deferedLighting_shader.frag"
 #define DEFERED_MTOON_LIGHTING_SHADER "shaders/deferedLighting_shader.vert", "shaders/MToon_deferedLighting.frag"
@@ -477,13 +478,6 @@ namespace vtuber
         }
         defines += "#define MAX_JOINT_MATRIX " + std::to_string(MAX_JOINT_MATRIX) + "\n";
 
-        // shadersSource.geometryPass.shader = Shader(defines.c_str()).create(GEOMETRY_PASS_SHADER).ID;
-        // shadersSource.deferedLighting.shader = Shader(defines.c_str()).create(DEFERED_LIGHTING_SHADER).ID;
-        // shadersSource.deferedMtoonLighting.shader = Shader(defines.c_str()).create(DEFERED_MTOON_LIGHTING_SHADER).ID;
-        // shader = Shader(defines.c_str()).create(GEOMETRY_PASS_SHADER);
-        // deferedShader = Shader(defines.c_str()).create(DEFERED_MTOON_LIGHTING_SHADER);
-        shader=Shader(defines.c_str()).create(MTOON_SHADER);
-
         if (gltf::findExtensionIndex("VRM", model) != -1)
         {
           std::string shaderName = vrmData->materialProperties[0].shader;
@@ -503,6 +497,18 @@ namespace vtuber
         else
         {
           shaderType = ShaderType::gltfShader;
+        }
+
+        switch(shaderType){
+          case ShaderType::gltfShader:
+          case ShaderType::unlit:
+            shader = Shader(defines.c_str()).create(GLTF_SHADER);
+            break;
+          case ShaderType::mtoon:
+            shader = Shader(defines.c_str()).create(MTOON_SHADER);
+            break;
+          default:
+            assert("Impossible" && 0);
         }
       }
 
@@ -1549,7 +1555,6 @@ namespace vtuber
             }
             uint texCoord = 0;
             bool KHR_materials_unlit = vrmData != NULL || gltf::findExtensionIndex("KHR_materials_unlit", material) != -1;
-            shader.setBool("VRM", vrmMaterialProperties[primitive.material]->shader == "VRM/MToon");
             
             if (material.pbrMetallicRoughness.baseColorTexture.index >= 0)
             {
@@ -1743,6 +1748,7 @@ namespace vtuber
     if (1)
     {
       vmodel.loadModel(VMODEL);
+      // vmodel.loadModel(VMODEL,Filetype::gltf);
 
       vmodel.animate(0);
 
