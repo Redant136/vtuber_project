@@ -8,8 +8,12 @@ in vec3 Normal;
 in vec2 TexCoords;
 
 // lighting
-uniform vec4 lightSources[MAX_LIGHT_SOURCES];
-uniform int lightSourcesLength;
+struct Light {
+    vec3 Position;
+    vec3 Color;
+    float Intensity;
+};
+uniform Light lights[MAX_LIGHT_SOURCES];
 
 // color
 uniform vec4 baseColorFactor;
@@ -62,13 +66,23 @@ void main()
   vec3 normal=Normal+texture(texture_normal,UV).xyz;
 
 
-  if(lightSourcesLength<lightSources.length() && !KHR_materials_unlit){
-    for(int i=0;i<lightSourcesLength;i++){
-      vec3 lightDirection=normalize(vec3(lightSources[i])-Pos);
-      vec4 ambient=lightSources[i].w*vec4(1,1,1,1);
+  // if(lightSourcesLength<lightSources.length() && !KHR_materials_unlit){
+  //   for(int i=0;i<lightSourcesLength;i++){
+  //     vec3 lightDirection=normalize(vec3(lightSources[i])-Pos);
+  //     vec4 ambient=lightSources[i].w*vec4(1,1,1,1);
+  //     vec4 diffuse=max(dot(normalize(normal),lightDirection),0.f)*vec4(1,1,1,1);
+  //     color=(ambient+diffuse)*color;
+  //   }
+  // }
+  for(int i = 0; i < lights.length(); i++)
+  {
+    if(lights[i].Intensity<=0){
+      continue;
+    }
+      vec3 lightDirection=normalize(lights[i].Position-Pos);
+      vec4 ambient=lights[i].Intensity*vec4(1,1,1,1);
       vec4 diffuse=max(dot(normalize(normal),lightDirection),0.f)*vec4(1,1,1,1);
       color=(ambient+diffuse)*color;
-    }
   }
 
   if(color.w<alphaCutoff){

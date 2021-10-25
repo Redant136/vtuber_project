@@ -17,7 +17,7 @@
 [x] (animations) TRS anim
 [x] (research) quaternions
 [x] (animations) real time switching between frames
-[x] (animations) interpolation 
+[x] (animations) interpolation
 [x] (animations) update morph more than pos
 [x] (rendering) global transform
 [x] (math) v2, v3, v4 lib
@@ -53,6 +53,7 @@
 ## working on
 [ ] (optimization) optimize the hell out of draw
 [ ] (shader) shadows (hard)
+[ ] (rendering) fix gltf
 
 
 ## upcoming
@@ -92,7 +93,7 @@
 [ ] (research) https://github.com/netmail-open/wjelement , https://github.com/petehug/wjelement-cpp/wiki
 [ ] (rendering) https://learnopengl.com/Advanced-OpenGL/Instancing
 [ ] (rendering) pbr rendering
-[ ] (lighting) blinn-phong lighting https://learnopengl.com/Advanced-Lighting/Advanced-Lighting 
+[ ] (lighting) blinn-phong lighting https://learnopengl.com/Advanced-Lighting/Advanced-Lighting
 
 ## quality of life
 [ ] (workflow) remedybg debugger
@@ -103,4 +104,3 @@
 [ ] (glb rendering) when material uses multiple texcoords ie texcoord_1 (make larger VAO)
 [ ] (glb rendering) texture double sided (gl_FrontFacing)
 [ ] (gltf loading) load gltf v1
-

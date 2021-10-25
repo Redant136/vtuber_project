@@ -34,8 +34,8 @@ void print(glm::mat4 mat)
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
 #ifndef VMODEL
-// #define VMODEL "models/male1.glb"
-#define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
+#define VMODEL "models/male1.glb"
+// #define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
 // #define VMODEL "models/1565609261024596092.vrm"
 #endif
 #define MTOON_SHADER "shaders/MToon_shader.vert", "shaders/MToon_shader.frag", "shaders/MToon_shader.geom"
