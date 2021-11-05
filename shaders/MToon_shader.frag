@@ -128,7 +128,5 @@ void main()
   }
 
   FragColor=color;
-  // TODO(ANT) uvAnim line 128 /home/chevan/UniVRM/Assets/VRMShaders/VRM/MToon/MToon/Resources/Shaders/MToonCore.cginc
-
 
 }

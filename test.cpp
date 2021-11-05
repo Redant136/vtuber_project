@@ -3,44 +3,34 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <opencv2/opencv.hpp>
 
-extern "C"
-{
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavformat/avio.h>
-#include <libswscale/swscale.h>
-#include <libavdevice/avdevice.h>
-}
-
-
+#include "webcam.h"
 int main(int argc, char **argv)
 {
-  std::cout << "start" << std::endl;
 
-  avdevice_register_all(); // for device
-  avcodec_register_all();
-  av_register_all();
+  webcamInfo*webcam=webcamInfoAlloc();
+  initWebcam(webcam);
 
-  char *dev_name = "/dev/video0"; // here mine is video0 , it may vary.
-  AVInputFormat *inputFormat = av_find_input_format("v4l2");
-  AVDictionary *options = NULL;
-  av_dict_set(&options, "framerate", "20", 0);
+  webcam_data data=initWebcamData(webcam);
 
-  AVFormatContext *pAVFormatContext = NULL;
+  cv::namedWindow("Webcam", cv::WINDOW_AUTOSIZE);
 
-  // check video source
-  if (avformat_open_input(&pAVFormatContext, dev_name, inputFormat, NULL) != 0)
+  // this will contain the image from the webcam
+  cv::Mat frame;
+  // cv::VideoCapture(0) >> frame;
+
+  frame.cols = data.width;
+  frame.rows = data.height;
+
+  while (1)
   {
-    std::cout << "\nOops, could'nt open video source\n\n";
-    return -1;
-  }
-  else
-  {
-    std::cout << "\n Success !" << std::endl;
-  }
+    readWebcamFrame(&data, webcam);
 
 
-  
-  return 0;
+    frame.data = data.data;
+    cv::imshow("Webcam", frame);
+    if (cv::waitKey(10) >= 0)
+      break;
+  }
 }

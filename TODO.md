@@ -40,8 +40,8 @@
 [x] (loading) warning if file has unexpexted value
 [x] (glb rendering) normal texture
 [x] (vrm) map materialProperties to material
-[x] (rendering) camera in vmodel
-[x] (rendering) lauch2(void)
+[x] (rendering) camera inside vmodel
+[x] (rendering) lauch2(void) (launch2electricboogaloo)
 [x] (shader) https://learnopengl.com/Advanced-Lighting/Deferred-Shading (yes, but actually no)
 [x] (vrm) mtoon shader
 [x] (vrm) mtoon https://www.slideshare.net/VirtualCast/vrm-mtoon HELP!!!
@@ -49,34 +49,42 @@
 [x] (shader) defered rendering is shit, remove
 [x] (rendering) DONT BE LAZY, FINISH
 [x] (housekeeping) shader do be looking kinda jank, pls fix
+[x] (shader) use geometry shader to generate outline (no worky)
+[x] (optimization) don't update node matrix each frame
+[x] (optimization) precalculate joint matrix
+[x] (optimization) optimize the hell out of draw
+[x] (housekeeping) memleaks in general are pretty bad ig
+[x] (housekeeping) gltf buffer mem leak
+[x] (housekeeping) extensions mem leak
+[x] (yes) upgrade chevan_utils.h
+[x] (camera) libav open camera
+[x] (camera) https://stackoverflow.com/questions/12483541/webcam-access-in-c-without-opencv
+[x] (camera) render camera onto screen
 
 ## working on
-[ ] (optimization) optimize the hell out of draw
 [ ] (shader) shadows (hard)
-[ ] (rendering) fix gltf
+[ ] (camera) yuv 422 https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/pixfmt-packed-yuv.html
+[ ] (camera) look into libav camera framerate if slow
 
 
 ## upcoming
 [ ] (face recognition) nn
 [ ] (face recognition) tensorflow test
-[ ] (camera) https://stackoverflow.com/questions/12483541/webcam-access-in-c-without-opencv
-[ ] (camera) libav open camera
+[ ] (optimization) morph could be passed to gpu (look into geometry shader)
+[ ] (camera) platform specific camera (or use opencv like a normal person)
 [ ] (physics) inverse kinematic
 [ ] (physics) find out how unity humanoid functions
 [ ] (rendering) get camera pos from gltf
-[ ] (housekeeping) gltf buffer mem leak
-[ ] (housekeeping) extensions mem leak
+[ ] (loading) runtime load
 
 [ ] (extensions) parse extras
 [ ] (morph) extras.targetNames specify a morph target
-[ ] (optimization) morph could be passed to gpu (maybe look into geometry shader)
 [ ] (shader) color attribute
 
-[ ] (rendering) use vrm material render queue
-[ ] (rendering) switch shader mid draw
 [ ] (extensions) consider making vrm MaterialProperties properties a dictionnary instead of static object
 
 ## later
+[ ] (rendering) use vrm material render queue
 [ ] (rendering) finish vrm lighting
 [ ] (debug) damaged helmet textures is distorted after a while
 [ ] (vrm) vrm 1.0 also called VRMC (VRMC_materials_mtoon, VRMC_materials_hdr_emissiveMultiplier, VRMC_springBone, VRMC_node_constraint)
@@ -85,8 +93,9 @@
 [ ] (animations) max and min in accessors
 [ ] (animations) interpolation cubic spline
 
+
 ## wants
-[ ] (shader) use geometry shader to generate outline
+[ ] (rendering) switch shader mid draw
 [ ] (shader) spherical harmonics lighting https://catlikecoding.com/unity/tutorials/rendering/part-5/
 [ ] (rendering) occlusion texture
 [ ] (rendering) roughness texture

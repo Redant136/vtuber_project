@@ -2060,7 +2060,7 @@ namespace chevan_utils
       {
         float res = 0;
         float x = -a;
-        int32_t precision = 11;
+        int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
         for (int32_t i = 1; i < precision * 2; i += 2)
         {
           res += 1.f / ((4 * i - 3) * x);

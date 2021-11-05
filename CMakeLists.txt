@@ -18,10 +18,8 @@ if((${CMAKE_CXX_COMPILER_ID} STREQUAL GNU) OR (${CMAKE_CXX_COMPILER_ID} STREQUAL
   
 elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
   message(STATUS "MSVC detected, adding compile flags")
-  # set(CMAKE_DEBUG_POSTFIX "d")
-  # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 
-  # set(CMAKE_CXX_FLAGS "-Wall")
+  set(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-unused-function")
   # set(CMAKE_CXX_FLAGS_DEBUG "-DEBUG")
   # set(CMAKE_CXX_FLAGS_RELEASE "-Ox")
 
@@ -34,13 +32,14 @@ endif(APPLE)
 
 add_executable(vtuber main.cpp)
 add_executable(faceDetection faceDetection.cpp)
+add_executable(test test.cpp)
 
 file(COPY models DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})
 
-set(FFMPEG_LIBS avcodec avformat avdevice swscale avfilter avutil)
-if(NOT FFMPEG_PATH)
-    set(FFMPEG_PATH /usr/include/ffmpeg/)
+set(LIBAV_LIBS avcodec avformat avdevice swscale avfilter avutil)
+if(NOT LIBAV_PATH)
+    set(LIBAV_PATH /usr/include/ffmpeg/)
 endif()
 
 
@@ -56,7 +55,7 @@ endif()
 add_subdirectory(extern/glm)
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(extern/json)
-find_package(OpenCV REQUIRED HINTS PATHS "${CMAKE_BINARY_DIR}/../extern" "${CMAKE_BINARY_DIR}/../opencv_install")
+find_package(OpenCV REQUIRED HINTS PATHS "${CMAKE_BINARY_DIR}/../opencv_install" "${CMAKE_BINARY_DIR}/../extern")
 
 
 target_link_libraries(vtuber PRIVATE glad)
@@ -67,10 +66,16 @@ target_link_libraries(vtuber PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(vtuber PRIVATE ${OpenCV_LIBS})
 target_include_directories(vtuber PRIVATE ${OpenCV_INCLUDE_DIRS})
 
-target_link_libraries(vtuber PRIVATE ${FFMPEG_LIBS})
-target_include_directories(vtuber PRIVATE ${FFMPEG_PATH})
+target_link_libraries(vtuber PRIVATE ${LIBAV_LIBS})
+target_include_directories(vtuber PRIVATE ${LIBAV_PATH})
 
 
 target_link_libraries(faceDetection PRIVATE ${OpenCV_LIBS})
 target_include_directories(faceDetection PRIVATE ${OpenCV_INCLUDE_DIRS})
+
+
+target_link_libraries(test PRIVATE ${OpenCV_LIBS})
+target_include_directories(test PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(test PRIVATE ${LIBAV_LIBS})
+target_include_directories(test PRIVATE ${LIBAV_PATH})
 

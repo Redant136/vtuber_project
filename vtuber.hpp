@@ -38,11 +38,8 @@ void print(glm::mat4 mat)
 // #define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
 // #define VMODEL "models/1565609261024596092.vrm"
 #endif
-#define MTOON_SHADER "shaders/MToon_shader.vert", "shaders/MToon_shader.frag", "shaders/MToon_shader.geom"
 #define GLTF_SHADER "shaders/vertex_shader.vert", "shaders/fragment_shader.frag"
-#define GEOMETRY_PASS_SHADER "shaders/geometry_pass.vert", "shaders/geometry_pass.frag"
-#define DEFERED_LIGHTING_SHADER "shaders/deferedLighting_shader.vert", "shaders/deferedLighting_shader.frag"
-#define DEFERED_MTOON_LIGHTING_SHADER "shaders/deferedLighting_shader.vert", "shaders/MToon_deferedLighting.frag"
+#define MTOON_SHADER "shaders/MToon_shader.vert", "shaders/MToon_shader.frag", "shaders/MToon_shader.geom"
 
 namespace vtuber
 {
@@ -399,11 +396,16 @@ namespace vtuber
     Array<uint> gltfBufferViewVBO;
     Array<uint> gltfMeshVAO;
     Array<uint> gltfImageTextureIndex;
+
+    // pre-calc / optimization
     Array<bool> updatedNodeMorphs;
     Array<glm::mat4> nodeTransforms;
-    uint MAX_JOINT_MATRIX;
-    uint current_alphaMode;
+    Array<std::vector<uint>> nodeSkins;
+    Array<glm::mat4> skiningMatrices;
+    Array<bool> updatedNode;
 
+    // rendering data
+    uint current_alphaMode;
     enum class ShaderType
     {
       gltfShader,
@@ -412,12 +414,14 @@ namespace vtuber
     } shaderType = ShaderType::gltfShader;
     Shader shader;
 
+    // animation
     struct
     {
       uint animation = -1;
       float animationStartTime = 0.f;
     } animationData;
 
+    // vrm
     gltf::Extensions::VRM *vrmData = NULL;
     Array<gltf::Extensions::VRM::MaterialProperties *> vrmMaterialProperties = Array<gltf::Extensions::VRM::MaterialProperties *>(0);
 
@@ -451,6 +455,15 @@ namespace vtuber
       gltfBufferViewVBO.free();
       gltfImageTextureIndex.free();
       gltfBuffers.free();
+
+      updatedNodeMorphs.free();
+      nodeTransforms.free();
+      nodeSkins.free();
+      skiningMatrices.free();
+      updatedNode.free();
+    
+      vrmMaterialProperties.free();
+      gltf::freeModel(model);
     }
 
     void loadModel(std::string path, const Filetype type = Filetype::vrm)
@@ -468,7 +481,7 @@ namespace vtuber
       if (1)
       {
         std::string defines = "";
-        MAX_JOINT_MATRIX = 1;
+        uint MAX_JOINT_MATRIX = 1;
         for (uint i = 0; i < model.nodes.size(); i++)
         {
           if (model.nodes[i].skin != -1 && MAX_JOINT_MATRIX < model.skins[model.nodes[i].skin].joints.size())
@@ -514,6 +527,7 @@ namespace vtuber
 
       // buffers
       gltfBuffers = Array<uchar *>(model.buffers.size());
+      updatedNode = Array<bool>(model.nodes.size());
       for (uint i = 0; i < model.buffers.size(); i++)
       {
         const gltf::Buffer &buffer = model.buffers[i];
@@ -521,11 +535,12 @@ namespace vtuber
         memcpy(gltfBuffers[i], buffer.buffer, buffer.byteLength);
       }
 
-      // setup morph weights and matrix
+      // setup morph weights and matrix and nodeMatrix
       updatedNodeMorphs = Array<bool>(model.nodes.size());
       for (uint i = 0; i < model.nodes.size(); i++)
       {
         updatedNodeMorphs[i] = true;
+        updatedNode[i] = true;
         gltf::Node &node = model.nodes[i];
         if (node.weights.size() == 0)
         {
@@ -546,6 +561,17 @@ namespace vtuber
           {
             model.meshes[node.mesh].weights = std::vector<float>(maxSize);
           }
+        }
+        
+      }
+
+      // setup skinMatrix
+      skiningMatrices = Array<glm::mat4>(model.nodes.size());
+      nodeSkins = Array<std::vector<uint>>(model.nodes.size());
+      for (uint i = 0; i < model.skins.size(); i++)
+      {
+        for(uint j=0;j<model.skins[i].joints.size();j++){
+          nodeSkins[j].push_back(i);
         }
       }
 
@@ -1185,7 +1211,21 @@ namespace vtuber
       {
         updateNodeMatrix(i);
       }
+      for (uint i = 0; i < model.nodes.size(); i++)
+      {
+        if (updatedNode[i])
+        {
+          for (uint j = 0; j < nodeSkins[i].size(); j++)
+          {
+            updateSkinMatrix(nodeSkins[i][j]);
+          }
+        }
+      }
 
+      for (uint i = 0; i < model.nodes.size(); i++)
+      {
+        updatedNode[i] = false;
+      }
       // NOTE(ANT) inverse kinematics
     }
     void animate(uint index)
@@ -1260,23 +1300,21 @@ namespace vtuber
   private:
     static glm::mat4 getNodeTRS(const gltf::Node &node)
     {
-      glm::mat4 t = glm::mat4(1.f);
-      glm::mat4 r = glm::mat4(1.f);
-      glm::mat4 s = glm::mat4(1.f);
+      glm::mat4 trs = glm::mat4(1.f);
 
       if (node.scale.size() != 0)
       {
-        s = glm::scale(glm::mat4(1.f), glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
+        trs = glm::scale(trs, glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
       }
       if (node.rotation.size() != 0)
       {
-        r = glm::mat4_cast(glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2]));
+        trs *= glm::mat4_cast(glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2]));
       }
       if (node.translation.size() != 0)
       {
-        t = glm::translate(glm::mat4(1.f), glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
+        trs = glm::translate(trs, glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
       }
-      return t * r * s;
+      return trs;
     }
     void updateMorph(gltf::Node &node)
     {
@@ -1460,17 +1498,27 @@ namespace vtuber
     }
     void updateNodeMatrix(uint node, glm::mat4 parentTransform = glm::mat4(1.f))
     {
-      glm::mat4 mat = glm::mat4(1.f);
-      mat = parentTransform * mat;
-      if (model.nodes[node].matrix.size() != 0)
-        mat *= glm::make_mat4((float *)model.nodes[node].matrix.data());
-      mat *= getNodeTRS(model.nodes[node]);
-      nodeTransforms[node] = mat;
+      if (updatedNode[node])
+      {
+        glm::mat4 mat = parentTransform;
+        if (model.nodes[node].matrix.size() != 0)
+          mat *= glm::make_mat4((float *)model.nodes[node].matrix.data());
+        mat *= getNodeTRS(model.nodes[node]);
+        nodeTransforms[node] = mat;
+      }
 
       for (uint i : model.nodes[node].children)
       {
-        model.nodes[i].parentNode = node;
-        updateNodeMatrix(i, mat);
+        updateNodeMatrix(i, nodeTransforms[node]);
+      }
+    }
+    void updateSkinMatrix(uint skin)
+    {
+      for (uint i = 0; i < model.skins[skin].joints.size(); i++)
+      {
+        glm::mat4 jointNodeMat = nodeTransforms[model.skins[skin].joints[i]];
+        glm::mat4 inverseBindMatrix = glm::make_mat4((float *)gltf::getDataFromAccessor(model, model.accessors[model.skins[skin].inverseBindMatrices], i));
+        skiningMatrices[model.skins[skin].joints[i]] = jointNodeMat * inverseBindMatrix;
       }
     }
 
@@ -1518,15 +1566,7 @@ namespace vtuber
           std::vector<glm::mat4> jointMatrices = std::vector<glm::mat4>(skin.joints.size());
           for (uint i = 0; i < skin.joints.size(); i++)
           {
-            glm::mat4 jointNodeMat = nodeTransforms[skin.joints[i]];
-            glm::mat4 inverseBindMatrix = glm::make_mat4((float *)gltf::getDataFromAccessor(model, model.accessors[skin.inverseBindMatrices], i));
-
-            glm::mat4 jointMatrix = glm::mat4(1.f);
-            jointMatrix *= nodeInverse;
-            jointMatrix *= jointNodeMat;
-            jointMatrix *= inverseBindMatrix;
-
-            jointMatrices[i] = jointMatrix;
+            jointMatrices[i] = nodeInverse * skiningMatrices[skin.joints[i]];
           }
           shader.setMat4Arr("u_jointMatrix", jointMatrices.size(), (float *)jointMatrices.data());
         }
@@ -1748,7 +1788,7 @@ namespace vtuber
     if (1)
     {
       vmodel.loadModel(VMODEL);
-      // vmodel.loadModel(VMODEL,Filetype::gltf);
+      // vmodel.loadModel(VMODEL, Filetype::gltf);
 
       vmodel.animate(0);
 

@@ -318,7 +318,7 @@ namespace vtuber
 
     struct Buffer
     {
-      uchar *buffer;
+      uchar *buffer=NULL;
       //----------------
       string uri = "";
       int byteLength = 0;
@@ -485,7 +485,7 @@ namespace vtuber
         MASK,
         BLEND
       } alphaMode = OPAQUE;
-      float alphaCutoff = 0.5f;
+      float alphaCutoff = 0.f;
       bool doubleSided = false;
       std::vector<Extension> extensions;
       std::vector<Extension> extras;
@@ -611,8 +611,6 @@ namespace vtuber
     };
     struct Node
     {
-      int parentNode = -1;
-      // ------------------
       string name = "";
       std::vector<uint> children = std::vector<uint>();
       std::vector<float> matrix = std::vector<float>({1, 0, 0, 0,
@@ -770,6 +768,22 @@ namespace vtuber
         }
       }
       return -1;
+    }
+
+    static void freeModel(glTFModel &model)
+    {
+      for (uint i = 0; i < model.buffers.size(); i++)
+      {
+        if (model.buffers[i].buffer)
+        {
+          delete[] model.buffers[i].buffer;
+          model.buffers[i].buffer = NULL;
+        }
+      }
+      for (uint i = 0; i < model.extensions.size(); i++)
+      {
+        free(model.extensions[i].data);
+      }
     }
   }
 
@@ -2135,6 +2149,6 @@ namespace vtuber
       }
     }
 
-    // TODO gltf v1
+    // TODO(ANT) gltf v1
   };
 }

@@ -3,9 +3,14 @@
 
 out vec4 FragColor;
 
-in vec3 Pos;
-in vec3 Normal;
-in vec2 TexCoords;
+in VS_OUT{
+  vec3 Pos;
+  vec3 Normal;
+  vec2 TexCoords;
+  vec3 Tangent;
+  vec4 Color;
+  vec3 BitTangent;
+} fs_in;
 
 // lighting
 struct Light {
@@ -37,14 +42,9 @@ uniform bool KHR_texture_transform;
 uniform vec2 u_offset, u_scale;
 uniform float u_rotation;
 
-vec4 blend(vec4 source, vec4 dest, float alpha)
-{
-  return source * alpha + dest * (1.0-alpha);
-}
-
 void main()
 {
-  vec2 UV=TexCoords;
+  vec2 UV=fs_in.TexCoords;
   if(KHR_texture_transform){
     UV = (
       mat3(1,0,0, 0,1,0, u_offset.x, u_offset.y, 1)*
@@ -52,7 +52,7 @@ void main()
             -sin(u_rotation), cos(u_rotation), 0,
             0,             0, 1)*
       mat3(u_scale.x,0,0, 0,u_scale.y,0, 0,0,1)*
-      vec3(TexCoords,1.0)).xy;
+      vec3(fs_in.TexCoords,1.0)).xy;
   }
 
   vec4 color = texture(texture_base, UV);
@@ -63,26 +63,17 @@ void main()
   }else{
     color *= baseColorFactor;
   }
-  vec3 normal=Normal+texture(texture_normal,UV).xyz;
+  vec3 normal=fs_in.Normal+texture(texture_normal,UV).xyz;
 
-
-  // if(lightSourcesLength<lightSources.length() && !KHR_materials_unlit){
-  //   for(int i=0;i<lightSourcesLength;i++){
-  //     vec3 lightDirection=normalize(vec3(lightSources[i])-Pos);
-  //     vec4 ambient=lightSources[i].w*vec4(1,1,1,1);
-  //     vec4 diffuse=max(dot(normalize(normal),lightDirection),0.f)*vec4(1,1,1,1);
-  //     color=(ambient+diffuse)*color;
-  //   }
-  // }
   for(int i = 0; i < lights.length(); i++)
   {
     if(lights[i].Intensity<=0){
       continue;
     }
-      vec3 lightDirection=normalize(lights[i].Position-Pos);
-      vec4 ambient=lights[i].Intensity*vec4(1,1,1,1);
-      vec4 diffuse=max(dot(normalize(normal),lightDirection),0.f)*vec4(1,1,1,1);
-      color=(ambient+diffuse)*color;
+    vec3 lightDirection=normalize(lights[i].Position-fs_in.Pos);
+    vec4 ambient=lights[i].Intensity*vec4(1,1,1,1);
+    vec4 diffuse=max(dot(normalize(normal),lightDirection),0.f)*vec4(1,1,1,1);
+    color=(ambient+diffuse)*color;
   }
 
   if(color.w<alphaCutoff){

@@ -16,10 +16,18 @@ layout (location = 8) in vec4 a_weights;
 
 uniform int texCoordIndex;
 
-out vec3 Pos;
-out vec3 Normal;
-out vec4 Tangent;
-out vec2 TexCoords;
+// out vec3 Pos;
+// out vec3 Normal;
+// out vec4 Tangent;
+// out vec2 TexCoords;
+out VS_OUT{
+    vec3 Pos;
+    vec3 Normal;
+    vec2 TexCoords;
+    vec3 Tangent;
+    vec4 Color;
+    vec3 BitTangent;
+} vs_out;
 
 uniform mat4 u_jointMatrix[MAX_JOINT_MATRIX];// joint matrices
 
@@ -33,13 +41,13 @@ uniform mat4 projection;// camera
 void main()
 {
     if(texCoordIndex==0){
-        TexCoords=a_texCoords_0;
+        vs_out.TexCoords=a_texCoords_0;
     }else if(texCoordIndex==1){
-        TexCoords=a_texCoords_1;
+        vs_out.TexCoords=a_texCoords_1;
     }else if(texCoordIndex==2){
-        TexCoords=a_texCoords_2;
+        vs_out.TexCoords=a_texCoords_2;
     }
-
+    vs_out.Normal = a_normal;
 
     mat4 skinMatrix = mat4(1.f);
 
@@ -59,9 +67,13 @@ void main()
     vec3 normal = a_normal;
     vec4 tangent = a_tangent;
 
-    Pos = vec3(pos);
-    Normal = normal;
-    Tangent = tangent;
+
+    vs_out.Pos = pos.xyz;
+    vs_out.Normal = normal;
+    vs_out.Tangent = tangent.xyz;
+    vs_out.Color = a_color_0;
+    vs_out.BitTangent = vec3(0,0,0);
+
     gl_Position = pos;
 
 }
