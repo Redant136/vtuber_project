@@ -60,16 +60,18 @@
 [x] (camera) libav open camera
 [x] (camera) https://stackoverflow.com/questions/12483541/webcam-access-in-c-without-opencv
 [x] (camera) render camera onto screen
+[x] (camera) yuv 422 https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/pixfmt-packed-yuv.html
 
 ## working on
-[ ] (shader) shadows (hard)
-[ ] (camera) yuv 422 https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/pixfmt-packed-yuv.html
-[ ] (camera) look into libav camera framerate if slow
+[ ] (shader) shadows (hard) https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
+[ ] (face recognition) create own MC lib
 
 
 ## upcoming
-[ ] (face recognition) nn
 [ ] (face recognition) tensorflow test
+[ ] (face recognition) nn
+[ ] (camera) macos webcam (also uses libav, just not v4l2)
+[ ] (camera) look into libav camera framerate if slow
 [ ] (optimization) morph could be passed to gpu (look into geometry shader)
 [ ] (camera) platform specific camera (or use opencv like a normal person)
 [ ] (physics) inverse kinematic

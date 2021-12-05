@@ -109,7 +109,9 @@
     "numbers": "cpp",
     "semaphore": "cpp",
     "cfenv": "cpp",
-    "*.def": "cpp"
+    "*.def": "cpp",
+    "chevan_utils.h": "c",
+    "knn.h": "c"
   },
   "git.ignoreLimitWarning": true
 }

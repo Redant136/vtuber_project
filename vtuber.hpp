@@ -34,8 +34,8 @@ void print(glm::mat4 mat)
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
 #ifndef VMODEL
-#define VMODEL "models/male1.glb"
-// #define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
+// #define VMODEL "models/male1.glb"
+#define VMODEL "models/AliciaSolid_vrm-0.51.vrm"
 // #define VMODEL "models/1565609261024596092.vrm"
 #endif
 #define GLTF_SHADER "shaders/vertex_shader.vert", "shaders/fragment_shader.frag"
@@ -287,7 +287,7 @@ namespace vtuber
     float Zoom;
 
     // constructor with vectors
-    ModelCamera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = -PIf / 2, float pitch = 0) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(2.5f), MouseSensitivity(0.1f), Zoom(45.f)
+    ModelCamera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = -M_PI / 2, float pitch = 0) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(2.5f), MouseSensitivity(0.1f), Zoom(45.f)
     {
       Position = position;
       WorldUp = up;
@@ -337,8 +337,8 @@ namespace vtuber
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
     void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
     {
-      xoffset *= MouseSensitivity / 180 * PIf;
-      yoffset *= MouseSensitivity / 180 * PIf;
+      xoffset *= MouseSensitivity / 180 * M_PI;
+      yoffset *= MouseSensitivity / 180 * M_PI;
 
       Yaw += xoffset;
       Pitch += yoffset;
@@ -346,10 +346,10 @@ namespace vtuber
       // make sure that when pitch is out of bounds, screen doesn't get flipped
       if (constrainPitch)
       {
-        if (Pitch >= PIf / 2)
-          Pitch = PIf / 2;
-        if (Pitch <= -PIf / 2)
-          Pitch = -PIf / 2;
+        if (Pitch >= M_PI / 2)
+          Pitch = M_PI / 2;
+        if (Pitch <= -M_PI / 2)
+          Pitch = -M_PI / 2;
       }
 
       // update Front, Right and Up Vectors using the updated Euler angles
@@ -375,7 +375,7 @@ namespace vtuber
       front.x = cos(Yaw) * cos(Pitch);
       front.y = sin(Pitch);
       front.z = sin(Yaw) * cos(Pitch);
-      if (std::abs(Pitch - PIf / 2) < 0.0001)
+      if (std::abs(Pitch - M_PI / 2) < 0.0001)
       {
         front.x = cos(Yaw) * 0.00001;
         front.z = sin(Yaw) * 0.00001;

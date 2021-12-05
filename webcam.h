@@ -3,18 +3,17 @@
 #include "chevan_utils.h"
 using namespace chevan_utils;
 using namespace chevanut_vec;
-#define print chevanut_print::println
 
 struct webcam_data
 {
+  // formated in rgb(a)
   uint8_t *data;
-  uint32_t width,height,channels; 
+  uint32_t width, height, channels;
 };
 struct webcamInfo;
 static int initWebcam(webcamInfo *webcam);
 static webcam_data initWebcamData(webcamInfo *webcam);
 static int readWebcamFrame(webcam_data *data, webcamInfo *webcam);
-
 
 #ifdef WebCamOpenCV
 #include <opencv2/core.hpp>
@@ -35,25 +34,24 @@ static webcamInfo *webcamInfoAlloc()
 static int initWebcam(webcamInfo *webcam)
 {
   int deviceID = 0;
-  cameraCapture.open(deviceID);
-  if (!cameraCapture.isOpened())
+  webcam->cameraCapture.open(deviceID);
+  if (!webcam->cameraCapture.isOpened())
   {
     std::cerr << "ERROR! Unable to open camera\n";
-    return;
+    return 1;
   }
-  cameraCapture >> cameraFrame;
-  if (cameraFrame.empty())
+  webcam->cameraCapture >> webcam->cameraFrame;
+  if (webcam->cameraFrame.empty())
   {
     std::cerr << "ERROR! blank frame grabbed\n";
+    return 1;
   }
-
-  webcamInfo.cameraCapture = cameraCapture;
-  webcamInfo.cameraFrame = cameraFrame;
+  return 0;
 }
 
 static webcam_data initWebcamData(webcamInfo *webcam)
 {
-  return {(uint8_t *)malloc(webcam->cameraFrame.cols * webcam->cameraFrame.cols * 3), webcam->cameraFrame.cols, webcam->cameraFrame.cols, 3};
+  return {(uint8_t *)malloc(webcam->cameraFrame.cols * webcam->cameraFrame.rows * 3), (uint32_t)webcam->cameraFrame.cols, (uint32_t)webcam->cameraFrame.rows, 3};
 }
 
 static int readWebcamFrame(webcam_data *data, webcamInfo *webcam)
@@ -62,18 +60,18 @@ static int readWebcamFrame(webcam_data *data, webcamInfo *webcam)
   if (webcam->cameraFrame.empty())
   {
     std::cerr << "ERROR! blank frame grabbed\n";
+    return 1;
   }
-
-  cv::flip(webcam->cameraFrame, webcam->cameraFrame, -1);
-
-  // glBindTexture(GL_TEXTURE_2D, cameraFrameTexture);
-  // glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, cameraFrame.cols, cameraFrame.rows, GL_BGR, GL_UNSIGNED_BYTE, cameraFrame.ptr());
-  // glGenerateMipmap(GL_TEXTURE_2D);
+  cv::cvtColor(webcam->cameraFrame, webcam->cameraFrame, cv::COLOR_BGR2RGB);
+  data->width = webcam->cameraFrame.cols;
+  data->height = webcam->cameraFrame.rows;
+  memcpy(data->data, webcam->cameraFrame.data, data->width * data->height * 3);
+  return 0;
 }
 
 #elif defined(__linux__)
 
-            extern "C"
+extern "C"
 {
 #include <libavutil/imgutils.h>
 #include <libavutil/samplefmt.h>
@@ -159,7 +157,7 @@ static int initWebcam(webcamInfo *webcam)
     return ret;
   }
   webcam->video_stream_idx = stream_index;
-  webcam->video_stream=webcam->fmt_ctx->streams[stream_index];
+  webcam->video_stream = webcam->fmt_ctx->streams[stream_index];
 
   webcam->width = webcam->dec_ctx->width;
   webcam->height = webcam->dec_ctx->height;
@@ -190,7 +188,7 @@ static int initWebcam(webcamInfo *webcam)
 
 static webcam_data initWebcamData(webcamInfo *webcam)
 {
-  return {(uint8_t *)malloc(webcam->width * webcam->height * 4), webcam->width, webcam->height, 4};
+  return {(uint8_t *)malloc(webcam->width * webcam->height * 3), webcam->width, webcam->height, 4};
 }
 
 static int readWebcamFrame(webcam_data *data, webcamInfo *webcam)
@@ -220,34 +218,52 @@ static int readWebcamFrame(webcam_data *data, webcamInfo *webcam)
     return ret;
   }
 
-  // while (ret >= 0)
-  // {
-    ret = avcodec_receive_frame(webcam->dec_ctx, webcam->frame);
-    if (ret < 0)
-    {
-      // those two return values are special and mean there is no output
-      // frame available, but there were no errors during decoding
-      if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN))
-        return 0;
+  ret = avcodec_receive_frame(webcam->dec_ctx, webcam->frame);
+  if (ret < 0)
+  {
+    // those two return values are special and mean there is no output
+    // frame available, but there were no errors during decoding
+    if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN))
+      return 0;
 
-      // fprintf(stderr, "Error during decoding (%s)\n", av_err2str(ret));
-      return ret;
+    // fprintf(stderr, "Error during decoding (%s)\n", av_err2str(ret));
+    return ret;
+  }
+
+  av_image_copy(webcam->video_data, webcam->video_linesize,
+                (const uint8_t **)(webcam->frame->data), webcam->frame->linesize,
+                webcam->pix_fmt, webcam->width, webcam->height);
+
+  av_frame_unref(webcam->frame);
+
+  if (webcam->pix_fmt == AV_PIX_FMT_YUYV422 && !webcam->video_data[1])
+  {
+    // 2 bytes per pixel, take 2 pixels and use YUV conversion to change it
+    // parse every 4 bytes
+    struct YUV422
+    {
+      uint8_t y1, u, y2, v;
+    };
+
+    for (uint i = 0; i < webcam->video_bufsize / sizeof(YUV422); i++)
+    {
+      membuild(YUV422, yuv, webcam->video_data[0] + i * sizeof(YUV422));
+
+      Color3 byte1 = {yuv.y1, yuv.u, yuv.v};
+      byte1 = YCbCrToRGB(byte1);
+      Color3 byte2 = {yuv.y2, yuv.u, yuv.v};
+      byte2 = YCbCrToRGB(byte2);
+
+      memcpy(data->data + 2 * i * sizeof(Color3), &byte1, sizeof(Color3));
+      memcpy(data->data + (2 * i + 1) * sizeof(Color3), &byte2, sizeof(Color3));
     }
 
-    // TODO(ANT) figure out how data is formated
-    av_image_copy(webcam->video_data, webcam->video_linesize,
-                  (const uint8_t **)(webcam->frame->data), webcam->frame->linesize,
-                  webcam->pix_fmt, webcam->width, webcam->height);
-
-    av_frame_unref(webcam->frame);
-  // }
-  data->data = webcam->video_data[0];
-
-  if (webcam->pix_fmt == AV_PIX_FMT_YUYV422)
-  {
-    // ch_println(webcam->video_data[0][5]);
-    membuild(ivec3,yuv,webcam->video_data[0]);
-    print("{",yuv.x,",",yuv.y,",",yuv.z,"}");
+    // for reder with opencv as it uses bgr
+    for(uint i=0;i<data->width*data->height;i++){
+      membuild(Color3,c,data->data+3*i);
+      Color3 bgr={c.z,c.y,c.x};
+      memcpy(data->data+3*i,&bgr,3);
+    }
   }
 
   return 0;

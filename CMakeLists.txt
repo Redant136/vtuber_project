@@ -73,9 +73,15 @@ target_include_directories(vtuber PRIVATE ${LIBAV_PATH})
 target_link_libraries(faceDetection PRIVATE ${OpenCV_LIBS})
 target_include_directories(faceDetection PRIVATE ${OpenCV_INCLUDE_DIRS})
 
+add_library(knn kneuralnetwork/knn.c kneuralnetwork/knn_NEAT.c kneuralnetwork/knn_DeepLearning.c)
+target_link_libraries(test knn)
 
-target_link_libraries(test PRIVATE ${OpenCV_LIBS})
-target_include_directories(test PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(test PRIVATE ${LIBAV_LIBS})
-target_include_directories(test PRIVATE ${LIBAV_PATH})
+# target_link_libraries(test PRIVATE ${CMAKE_DL_LIBS})
 
+# add_subdirectory(libtensorflow)
+# target_link_libraries(test PUBLIC tensorflow)
+
+# target_link_libraries(test PRIVATE ${OpenCV_LIBS})
+# target_include_directories(test PRIVATE ${OpenCV_INCLUDE_DIRS})
+# target_link_libraries(test PRIVATE ${LIBAV_LIBS})
+# target_include_directories(test PRIVATE ${LIBAV_PATH})

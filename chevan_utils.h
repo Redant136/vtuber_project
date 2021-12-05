@@ -1,10 +1,10 @@
 #pragma once
 #ifndef CHEVAN_UTILS_H
 #define CHEVAN_UTILS_H 1
-#define CHEVAN_UTILS_VERSION "2.2.1"
+#define CHEVAN_UTILS_VERSION "2.3.4"
 #define CHEVAN_UTILS_INLINE inline
 
-#define PIf 3.1415926535897f
+// #define PIf 3.1415926535897f
 #ifndef CHEVAN_UTILS_FASTCALC_PRECISION
 #define CHEVAN_UTILS_FASTCALC_PRECISION 9
 #endif
@@ -29,17 +29,24 @@
   {                    \
     vec4List(v)        \
   }
-#define maxInVec2(v) ((v.x > v.y) ? v.x : v.y)
-#define maxInVec3(v) ((maxInVec2(v) > v.z) ? maxInVec2(v) : v.z)
-#define maxInVec4(v) ((maxInVec3(v) > v.w) ? maxInVec3(v) : v.w)
-#define minInVec2(v) ((v.x < v.y) ? v.x : v.y)
-#define minInVec3(v) ((minInVec2(v) < v.z) ? minInVec2(v) : v.z)
-#define minInVec4(v) ((minInVec3(v) < v.w) ? minInVec3(v) : v.w)
+#define maxInVec2(v) (((v).x > (v).y) ? (v).x : (v).y)
+#define maxInVec3(v) ((maxInVec2(v) > (v).z) ? maxInVec2(v) : (v).z)
+#define maxInVec4(v) ((maxInVec3(v) > (v).w) ? maxInVec3(v) : (v).w)
+#define minInVec2(v) (((v).x < (v).y) ? (v).x : (v).y)
+#define minInVec3(v) ((minInVec2(v) < (v).z) ? minInVec2(v) : (v).z)
+#define minInVec4(v) ((minInVec3(v) < (v).w) ? minInVec3(v) : (v).w)
 
 #define membuild(type, name, data) \
   type name;                       \
   memcpy(&name, data, sizeof(type));
 #define sizeofArr(arr) (sizeof(arr) / sizeof(arr[0]))
+#define mallocArr(type, size) malloc(sizeof(type) * (size)) // calloc technically slower as sets all bytes to 0
+
+#define nassert(c) assert(!(c))
+
+#define USER_NOT_IMPLEMENTED_ERROR(usr) assert(0 && "this has yet to be implemented. Please ask "#usr" to create it")
+#define AC_NOT_IMPLEMENTED_ERROR assert(0 && "this has yet to be implemented. Please kindly ask Antoine Chevalier to get off his ass and get to work")
+
 
 #ifdef CHEVAN_UTILS_MACRO_MAGIC
 #ifndef CONCAT
@@ -127,6 +134,7 @@
 #include <assert.h>
 #include <stdexcept>
 #include <functional>
+#include <stdarg.h>
 #endif
 
 namespace chevan_utils
@@ -153,43 +161,207 @@ namespace chevan_utils
   template <typename T, typename L = size_t>
   struct Array
   {
-    L length = 0;
     T *arr = NULL;
+    L length = 0, MAX_LENGTH = 0;
     Array() = default;
     Array(L l)
     {
       length = l;
+      MAX_LENGTH = l;
       arr = new T[l];
     }
-    Array(L l, T *arr)
+    Array(L l, L MAX_LENGTH)
     {
       this->length = l;
+      this->MAX_LENGTH = MAX_LENGTH;
+      this->arr = new T[MAX_LENGTH];
+    }
+    Array(T *arr, L l, L MAX_LENGTH)
+    {
+      this->length = l;
+      this->MAX_LENGTH = MAX_LENGTH;
       this->arr = arr;
     }
-    template <typename I = size_t>
-    T &operator[](I i)
+    T &operator[](size_t i)
     {
       assert(arr);
       assert(i < length + 1);
       return arr[i];
     }
-    template <typename I = size_t>
-    T *operator+(I i)
+    T &get(size_t i)
+    {
+      return operator[][i];
+    }
+    T *operator+(size_t i)
     {
       return arr + i;
     }
+    void addElement(const T element)
+    {
+      if (!arr)
+      {
+        arr = new T[2];
+        MAX_LENGTH = 2;
+      }
+      if (length >= MAX_LENGTH)
+      {
+        arr = (T *)realloc(arr, sizeof(T) * (length + 1) * 2);
+        MAX_LENGTH = (length + 1) * 2;
+      }
+      arr[length] = element;
+      length++;
+    }
     Array<T, L> clone()
     {
-      T *a = new T[length];
+      T *a = new T[MAX_LENGTH];
       memcpy(a, arr, sizeof(T) * length);
-      return {length, a};
+      return {a, length, MAX_LENGTH};
     }
     void free()
     {
       delete[] arr;
       arr = NULL;
     }
+    void free(void (*freeFunc)(void *))
+    {
+      for (uint i = 0; i < length; i++)
+      {
+        freeFunc(arr + i);
+      }
+      delete[] arr;
+      arr = NULL;
+    }
   };
+
+  static CHEVAN_UTILS_INLINE float regularizeDegree(float angle)
+  {
+    float degree = fmodf(angle, 360);
+    if (degree < 0)
+      degree += 360;
+    return degree;
+  }
+  static CHEVAN_UTILS_INLINE float regularizeRad(float angle)
+  {
+    float rad = fmodf(angle, 2 * M_PI);
+    if (rad < 0)
+      rad += 2 * M_PI;
+    return rad;
+  }
+
+  static CHEVAN_UTILS_INLINE float fast_cos(float angle)
+  {
+    float t_angle = regularizeRad(angle) - M_PI;
+    float res = 0;
+    float x = 1;
+    int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
+    unsigned long long factorials[] = {0,
+                                       1,
+                                       2,
+                                       6,
+                                       24,
+                                       120,
+                                       720,
+                                       5040,
+                                       40320,
+                                       362880,
+                                       3628800,
+                                       39916800,
+                                       479001600,
+                                       6227020800,
+                                       87178291200,
+                                       1307674368000,
+                                       20922789888000,
+                                       355687428096000,
+                                       6402373705728000,
+                                       121645100408832000};
+    for (int32_t i = 0; i <= precision && i < sizeofArr(factorials); i += 4)
+    {
+      res += x / factorials[i];
+      x *= t_angle * t_angle;
+      res -= x / factorials[i + 2];
+      x *= t_angle * t_angle;
+    }
+    return -res;
+  }
+  static CHEVAN_UTILS_INLINE float fast_sin(float angle)
+  {
+    float t_angle = regularizeRad(angle) - M_PI;
+    float res = 0;
+    float x = t_angle;
+    int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
+    unsigned long long factorials[] = {0,
+                                       1,
+                                       2,
+                                       6,
+                                       24,
+                                       120,
+                                       720,
+                                       5040,
+                                       40320,
+                                       362880,
+                                       3628800,
+                                       39916800,
+                                       479001600,
+                                       6227020800,
+                                       87178291200,
+                                       1307674368000,
+                                       20922789888000,
+                                       355687428096000,
+                                       6402373705728000,
+                                       121645100408832000,
+                                       2432902008176640000};
+    for (int32_t i = 1; i <= precision && i < sizeof(factorials); i += 4)
+    {
+      res += x / factorials[i];
+      x *= t_angle * t_angle;
+      res -= x / factorials[i + 2];
+      x *= t_angle * t_angle;
+    }
+    return -res;
+  }
+  static CHEVAN_UTILS_INLINE float fast_atan(float a)
+  {
+    if ((a > -1.5 && a < -0.7) || (a < 1.4 && a >= 0.6))
+    {
+      return atanf(a);
+    }
+    if (a > -1 && a < 1)
+    {
+      float res = 0;
+      float x = a;
+      int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
+      for (int32_t i = 1; i <= precision; i += 2)
+      {
+        res += x / (4 * i - 3);
+        x *= a * a;
+        res -= x / (4 * i - 1);
+        x *= a * a;
+      }
+      return res;
+    }
+    else
+    {
+      float res = 0;
+      float x = -a;
+      int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
+      for (int32_t i = 1; i < precision * 2; i += 2)
+      {
+        res += 1.f / ((4 * i - 3) * x);
+        x *= a * a;
+        res -= 1.f / ((4 * i - 1) * x);
+        x *= a * a;
+      }
+      if (x < 0)
+      {
+        res += M_PI / 2;
+      }
+      else
+      {
+        res -= M_PI / 2;
+      }
+      return res;
+    }
+  }
   static std::string toLowerCase(std::string &s)
   {
     std::string r = s;
@@ -904,7 +1076,6 @@ namespace chevan_utils
     typedef Vec2<int32_t> ivec2;
     typedef Vec3<int32_t> ivec3;
     typedef Vec4<int32_t> ivec4;
-
 #endif
 
 #ifndef CHEVAN_UTILS_VEC2
@@ -1118,8 +1289,8 @@ namespace chevan_utils
       std::cout << std::endl;
     }
 
-#define ch_print(x) chevan_utils::chevanut_print::print(x)
-#define ch_println(x) chevan_utils::chevanut_print::println(x)
+#define ch_print(...) chevan_utils::chevanut_print::print(__VA_ARGS__)
+#define ch_println(...) chevan_utils::chevanut_print::println(__VA_ARGS__)
   }
 
   namespace chevanut_math
@@ -1944,16 +2115,28 @@ namespace chevan_utils
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
 #include <assert.h>
 #include <ctype.h>
 
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #ifndef CHEVAN_UTILS_NO_EXTRA_INCLUDES
 #include <stdarg.h>
 #endif
+#ifndef true
 typedef unsigned char bool;
+#define true 1
+#define false 0
+#endif
 typedef unsigned char uchar;
 typedef unsigned short ushort;
 typedef unsigned int uint;
@@ -1974,9 +2157,62 @@ enum Cardinal8dir
 };
 struct Array
 {
-  size_t length;
   void *arr;
+  size_t length, MAX_LENGTH;
 };
+static struct Array array_init(size_t _elementSize, size_t length)
+{
+  struct Array arr = {malloc(_elementSize * length), length, length};
+  return arr;
+}
+#define array_init(type, length) array_init(sizeof(type), length)
+static CHEVAN_UTILS_INLINE void array_free(size_t _elementSize, struct Array *arr, void (*freeFunc)(void *))
+{
+  for (uint i = 0; i < arr->length; i++)
+  {
+    freeFunc(arr->arr + i * _elementSize);
+  }
+  free(arr->arr);
+}
+#define array_ffree(a) free((a)->arr)
+#define array_free(type, arr, freeFunc) array_free(sizeof(type), arr, freeFunc)
+static CHEVAN_UTILS_INLINE void *array_get(size_t _elementSize, struct Array arr, size_t i)
+{
+  return arr.arr + i * _elementSize;
+}
+static CHEVAN_UTILS_INLINE void array_set(size_t _elementSize, struct Array arr, size_t i, void *element)
+{
+  memcpy(array_get(_elementSize, arr, i), element, _elementSize);
+}
+#define array_get(type, arr, index) (*(type *)array_get(sizeof(type), arr, index))
+#define array_set(type, arr, index, element) array_set(sizeof(type), arr, index, &element)
+#define array_arr(type, a) ((type *)a.arr)
+static CHEVAN_UTILS_INLINE struct Array array_clone(size_t _elementSize, struct Array arr)
+{
+  struct Array c = {malloc(_elementSize * arr.MAX_LENGTH), arr.length, arr.MAX_LENGTH};
+  if (!arr.arr)
+    return c;
+  memcpy(c.arr, arr.arr, _elementSize * arr.length);
+  return c;
+}
+#define array_clone(type, arr) array_clone(sizeof(type), arr)
+static CHEVAN_UTILS_INLINE void array_addElement(size_t _elementSize, struct Array *arr, void *element)
+{
+  if (!arr->arr)
+  {
+    arr->arr = malloc(_elementSize * 2);
+    arr->MAX_LENGTH = 2;
+  }
+  if (arr->length >= arr->MAX_LENGTH)
+  {
+    arr->arr = realloc(arr->arr, _elementSize * (arr->length + 1) * 2);
+    arr->MAX_LENGTH = (arr->length + 1) * 2;
+  }
+  memcpy(((uchar *)arr->arr) + _elementSize * arr->length, element, _elementSize);
+  arr->length++;
+}
+#define array_addElement(arr, element) array_addElement(sizeof(element), arr, &element)
+
 static char *toLowerCase(const char *src)
 {
   uint l = 0;
@@ -2041,12 +2277,13 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 #endif
-struct vec2
+
+typedef struct vec2
 {
   float x;
   float y;
-};
-struct vec3
+} vec2;
+typedef struct vec3
 {
   union
   {
@@ -2060,8 +2297,8 @@ struct vec3
   {
     float z, b;
   };
-};
-struct vec4
+} vec3;
+typedef struct vec4
 {
   union
   {
@@ -2079,7 +2316,7 @@ struct vec4
   {
     float w, height, a;
   };
-};
+} vec4;
 static CHEVAN_UTILS_INLINE struct vec2 vec2_init(float x, float y)
 {
   struct vec2 v = {x, y};
@@ -2253,9 +2490,15 @@ static void chevanut_print_uchar(const uchar c) { printf("%c", c); }
   static void chevanut_print_u##type(const type t) { printf("%d", t); }
 _chevanut_print_macro(short);
 _chevanut_print_macro(int);
-_chevanut_print_macro(long);
-_chevanut_print_macro(llong);
 #undef _chevanut_print_macro
+static void chevanut_print_long(const long t)
+{
+  printf("%ld", t);
+}
+static void chevanut_print_ulong(const long t) { printf("%ld", t); }
+static void chevanut_print_llong(const llong t) { printf("%lld", t); }
+static void chevanut_print_ullong(const llong t) { printf("%lld", t); }
+
 static void chevanut_print_float(const float f)
 {
   printf("%f", f);
@@ -2306,6 +2549,12 @@ static void chevanut_print_chevanutVec4(struct vec4 v) { printf("{%f, %f, %f, %f
 static void chevanut_print_ivec2(struct ivec2 v) { printf("{%d, %d}", v.x, v.y); }
 static void chevanut_print_ivec3(struct ivec3 v) { printf("{%d, %d, %d}", v.x, v.y, v.z); }
 static void chevanut_print_ivec4(struct ivec4 v) { printf("{%d, %d, %d, %d}", v.x, v.y, v.z, v.w); }
+
+#define ch_println_struct_Array(type, arr) \
+  for (uint _i = 0; _i < arr.length; _i++) \
+  {                                        \
+    ch_print(array_get(type, arr, _i));    \
+  }
 
 #ifdef CHEVAN_UTILS_MACRO_MAGIC
 #define _chevanut_println_recurse_MAP(x) ch_print(x);
@@ -2367,6 +2616,67 @@ static void chevanut_print_ivec4(struct ivec4 v) { printf("{%d, %d, %d, %d}", v.
 namespace chevan_utils
 {
 #endif
+  typedef struct Color3
+  {
+    union
+    {
+      struct
+      {
+        union
+        {
+          uint8_t x, r;
+        };
+        union
+        {
+          uint8_t y, g;
+        };
+        union
+        {
+          uint8_t z, b;
+        };
+      };
+      struct
+      {
+        uint8_t r, g, b;
+      } rgb;
+      struct
+      {
+        uint8_t y, cb, cr;
+      } ycc;
+    };
+  } Color3;
+  typedef struct Color4
+  {
+    union
+    {
+      uint8_t x, r;
+    };
+    union
+    {
+      uint8_t y, g;
+    };
+    union
+    {
+      uint8_t z, b;
+    };
+    union
+    {
+      uint8_t w, a;
+    };
+  } Color4;
+  static Color3 initColor3(uint8_t x, uint8_t y, uint8_t z)
+  {
+    Color3 c = {x, y, z};
+    return c;
+  }
+#define Color3(x, y, z) initColor3(x, y, z)
+  static Color4 initColor4(uint8_t x, uint8_t y, uint8_t z, uint8_t w)
+  {
+    Color4 c = {x, y, z, w};
+    return c;
+  }
+#define Color4(x, y, z, w) initColor4(x, y, z, w)
+
   static CHEVAN_UTILS_INLINE float degreeToRad(float deg)
   {
     return deg / 180.f * M_PI;
@@ -2375,136 +2685,12 @@ namespace chevan_utils
   {
     return rad / M_PI * 180;
   }
-  static CHEVAN_UTILS_INLINE float randf() { return rand() / RAND_MAX; }
-  static CHEVAN_UTILS_INLINE float regularizeDegree(float angle)
-  {
-    float degree = fmodf(angle, 360);
-    if (degree < 0)
-      degree += 360;
-    return degree;
-  }
-  static CHEVAN_UTILS_INLINE float regularizeRad(float angle)
-  {
-    float rad = fmodf(angle, 2 * M_PI);
-    if (rad < 0)
-      rad += 2 * M_PI;
-    return rad;
-  }
+  static CHEVAN_UTILS_INLINE float randf() { return rand() / RAND_MAX; } // random float ranging 0-1
 
-  static CHEVAN_UTILS_INLINE float fast_cos(float angle)
-  {
-    float t_angle = regularizeRad(angle) - M_PI;
-    float res = 0;
-    float x = 1;
-    int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
-    unsigned long long factorials[] = {0,
-                                       1,
-                                       2,
-                                       6,
-                                       24,
-                                       120,
-                                       720,
-                                       5040,
-                                       40320,
-                                       362880,
-                                       3628800,
-                                       39916800,
-                                       479001600,
-                                       6227020800,
-                                       87178291200,
-                                       1307674368000,
-                                       20922789888000,
-                                       355687428096000,
-                                       6402373705728000,
-                                       121645100408832000};
-    for (int32_t i = 0; i <= precision && i < sizeofArr(factorials); i += 4)
-    {
-      res += x / factorials[i];
-      x *= t_angle * t_angle;
-      res -= x / factorials[i + 2];
-      x *= t_angle * t_angle;
-    }
-    return -res;
-  }
-  static CHEVAN_UTILS_INLINE float fast_sin(float angle)
-  {
-    float t_angle = regularizeRad(angle) - M_PI;
-    float res = 0;
-    float x = t_angle;
-    int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
-    unsigned long long factorials[] = {0,
-                                       1,
-                                       2,
-                                       6,
-                                       24,
-                                       120,
-                                       720,
-                                       5040,
-                                       40320,
-                                       362880,
-                                       3628800,
-                                       39916800,
-                                       479001600,
-                                       6227020800,
-                                       87178291200,
-                                       1307674368000,
-                                       20922789888000,
-                                       355687428096000,
-                                       6402373705728000,
-                                       121645100408832000,
-                                       2432902008176640000};
-    for (int32_t i = 1; i <= precision && i < sizeof(factorials); i += 4)
-    {
-      res += x / factorials[i];
-      x *= t_angle * t_angle;
-      res -= x / factorials[i + 2];
-      x *= t_angle * t_angle;
-    }
-    return -res;
-  }
-  static CHEVAN_UTILS_INLINE float fast_atan(float a)
-  {
-    if ((a > -1.5 && a < -0.7) || (a < 1.4 && a >= 0.6))
-    {
-      return atanf(a);
-    }
-    if (a > -1 && a < 1)
-    {
-      float res = 0;
-      float x = a;
-      int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
-      for (int32_t i = 1; i <= precision; i += 2)
-      {
-        res += x / (4 * i - 3);
-        x *= a * a;
-        res -= x / (4 * i - 1);
-        x *= a * a;
-      }
-      return res;
-    }
-    else
-    {
-      float res = 0;
-      float x = -a;
-      int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
-      for (int32_t i = 1; i < precision * 2; i += 2)
-      {
-        res += 1.f / ((4 * i - 3) * x);
-        x *= a * a;
-        res -= 1.f / ((4 * i - 1) * x);
-        x *= a * a;
-      }
-      if (x < 0)
-      {
-        res += M_PI / 2;
-      }
-      else
-      {
-        res -= M_PI / 2;
-      }
-      return res;
-    }
-  }
+  static CHEVAN_UTILS_INLINE Color3 Vec3ToColor3(CHEVAN_UTILS_VEC3 v) { return Color3(v.x * 255.f, v.y * 255.f, v.z * 255.f); }
+  static CHEVAN_UTILS_INLINE Color4 Vec4ToColor4(CHEVAN_UTILS_VEC4 v) { return Color4(v.x * 255.f, v.y * 255.f, v.z * 255.f, v.w * 255.f); }
+  static CHEVAN_UTILS_INLINE CHEVAN_UTILS_VEC3 Color3ToVec3(Color3 c) { return (CHEVAN_UTILS_VEC3){c.x / 255.f, c.y / 255.f, c.z / 255.f}; }
+  static CHEVAN_UTILS_INLINE CHEVAN_UTILS_VEC4 Color4ToVec4(Color4 c) { return (CHEVAN_UTILS_VEC4){c.x / 255.f, c.y / 255.f, c.z / 255.f, c.w / 255.f}; }
 
   static CHEVAN_UTILS_VEC3 RGBToYUV(CHEVAN_UTILS_VEC3 rgb)
   {
@@ -2513,84 +2699,116 @@ namespace chevan_utils
   }
   static CHEVAN_UTILS_VEC3 YUVToRGB(CHEVAN_UTILS_VEC3 yuv)
   {
-    return (CHEVAN_UTILS_VEC3){yuv.x + 1.14 * yuv.z, yuv.x - 0.395 * yuv.y - 0.581 * yuv.z, yuv.x + 2.033 * yuv.y};
+    return (CHEVAN_UTILS_VEC3){yuv.x + 1.14f * yuv.z, yuv.x - 0.395f * yuv.y - 0.581f * yuv.z, yuv.x + 2.033f * yuv.y};
+  }
+  static Color3 RGBToYCbCr(Color3 rgb)
+  {
+    CHEVAN_UTILS_VEC3 v = {16 + (65.481 * rgb.r + 128.553 * rgb.g + 24.966 * rgb.b),
+                           128 + (-37.797 * rgb.r - 74.203 * rgb.g + 112.0 * rgb.b),
+                           128 + (112 * rgb.r - 93.786 * rgb.g - 18.214 * rgb.b)};
+    if (v.x > 255)
+      v.x = 255;
+    if (v.y > 255)
+      v.y = 255;
+    if (v.z > 255)
+      v.z = 255;
+    return (Color3){(uint8_t)v.x, (uint8_t)v.y, (uint8_t)v.z};
+  }
+  static Color3 YCbCrToRGB(Color3 ycc)
+  {
+    CHEVAN_UTILS_VEC3 v = {255.f * (ycc.x - 16) / 219 + 255.f * 1.402f * (ycc.z - 128) / 224,
+                           255.f * (ycc.x - 16) / 219 - 255.f * (1.772f * 0.114f * (ycc.y - 128) / 0.587f + 1.402f * 0.299f * (ycc.z - 128) / 0.587f) / 224,
+                           255.f * (ycc.x - 16) / 219 + 255.f * 1.772f * (ycc.y - 128) / 224};
+    if (v.x > 255)
+      v.x = 255;
+    if (v.y > 255)
+      v.y = 255;
+    if (v.z > 255)
+      v.z = 255;
+    return (Color3){(uint8_t)v.x, (uint8_t)v.y, (uint8_t)v.z};
   }
   static CHEVAN_UTILS_VEC3 RGBToHSV(CHEVAN_UTILS_VEC3 rgb)
   {
     float c_max = maxInVec3(rgb);
     float c_min = minInVec3(rgb);
+
     float delta = c_max - c_min;
+    if (delta < 0.00001)
+    {
+      return (CHEVAN_UTILS_VEC3){0.f, 0.f, c_max};
+    }
+    if (c_max <= 0)
+    {
+      return (CHEVAN_UTILS_VEC3){0.f, 0.f, c_max};
+    }
+    float s = delta / c_max;
     bool c_max_is_r = rgb.r > rgb.g && rgb.r > rgb.b;
     bool c_max_is_g = rgb.g > rgb.r && rgb.g > rgb.b;
     bool c_max_is_b = rgb.b > rgb.r && rgb.b > rgb.g;
     float h = (c_max_is_r ? (rgb.g - rgb.b) / delta + 0 : c_max_is_g ? (rgb.b - rgb.r) / delta + 2
                                                       : c_max_is_b   ? (rgb.r - rgb.g) / delta + 4
                                                                      : 0);
-    float s = c_max == 0 ? 0 : (delta / c_max);
-    float v = c_max;
-    return (CHEVAN_UTILS_VEC3){h / 6.f, s, v};
+    h *= 60.f;
+    if (h < 0.f)
+      h += 360.f;
+    return (CHEVAN_UTILS_VEC3){h, s, c_max};
   }
   static CHEVAN_UTILS_VEC3 HSVToRGB(CHEVAN_UTILS_VEC3 hsv)
   {
-    float h = fmodf(hsv.x * 360.f, 360.f);
-    float s = hsv.y;
-    float v = hsv.z;
+    double hh, p, q, t, ff;
+    long i;
+    CHEVAN_UTILS_VEC3 out;
 
-    float c = v * s;
-    float x = c * (1 - fabsf(fmodf((h / 60.f), 2) - 1));
-    float m = v - c;
+    hh = hsv.x;
+    if (hh >= 360.0)
+      hh = 0.0;
+    hh /= 60.0;
+    i = (long)hh;
+    ff = hh - i;
+    p = hsv.z * (1.0 - hsv.y);
+    q = hsv.z * (1.0 - (hsv.y * ff));
+    t = hsv.z * (1.0 - (hsv.y * (1.0 - ff)));
 
-    float r;
-    float g;
-    float b;
+    switch (i)
+    {
+    case 0:
+      out.r = hsv.z;
+      out.g = t;
+      out.b = p;
+      break;
+    case 1:
+      out.r = q;
+      out.g = hsv.z;
+      out.b = p;
+      break;
+    case 2:
+      out.r = p;
+      out.g = hsv.z;
+      out.b = t;
+      break;
 
-    if ((h >= 0.f && h < 60.f) || (h >= 360.f && h < 420.f))
-    {
-      r = c;
-      g = x;
-      b = 0;
+    case 3:
+      out.r = p;
+      out.g = q;
+      out.b = hsv.z;
+      break;
+    case 4:
+      out.r = t;
+      out.g = p;
+      out.b = hsv.z;
+      break;
+    case 5:
+    default:
+      out.r = hsv.z;
+      out.g = p;
+      out.b = q;
+      break;
     }
-    else if (h >= 60.f && h < 120.f)
-    {
-      r = x;
-      g = c;
-      b = 0;
-    }
-    else if (h >= 120.f && h < 180.f)
-    {
-      r = 0;
-      g = c;
-      b = x;
-    }
-    else if (h >= 180.f && h < 240.f)
-    {
-      r = 0;
-      g = x;
-      b = c;
-    }
-    else if (h >= 240.f && h < 300.f)
-    {
-      r = x;
-      g = 0;
-      b = c;
-    }
-    else if ((h >= 300.f && h <= 360.f) ||
-             (h >= -60.f && h <= 0.f))
-    {
-      r = c;
-      g = 0;
-      b = x;
-    }
-    else
-    {
-      r = 0;
-      g = 0;
-      b = 0;
-    }
-
-    return (CHEVAN_UTILS_VEC3){r + m, g + m, b + m};
+    return out;
   }
 
+  // ch_print(x)
+  // ch_println(x)
   static void print_chevanut_version()
   {
 #ifdef __cplusplus
