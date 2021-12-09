@@ -15,8 +15,12 @@ extern "C"
     float(*costFunction)(float,float);
   } knn_DeepLearning_Backpropagator;
 
-  void knn_backpropagate(knn_DeepLearning *net, knn_DeepLearning_Backpropagator info);
-  
+  void knn_DeepLearning_backpropagate(knn_DeepLearning *net, knn_DeepLearning_Backpropagator info);
+
+  static float knn_DeepLearning_basicCostFunction(float y, float yHat)
+  {
+    return (y - yHat) * (y - yHat);
+  }
 
 #ifdef __cplusplus
 }

@@ -548,13 +548,16 @@ knn_DeepLearning_Layer *knn_DeepLearning_addConnectedLayer(knn_DeepLearning_Laye
   layer->prev = in;
   layer->type = Linear;
   layer->nodes = (struct Array){mallocArr(knn_Node, size), size, size};
-  layer->fullyConnected.links = (struct Array){mallocArr(knn_DeepLearning_Layer, layer->nodes.MAX_LENGTH), layer->nodes.MAX_LENGTH, layer->nodes.MAX_LENGTH};
+  layer->fullyConnected.links = (struct Array){mallocArr(knn_DeepLearning_Link, layer->nodes.MAX_LENGTH * in->nodes.length),
+                                               layer->nodes.MAX_LENGTH * in->nodes.length, layer->nodes.MAX_LENGTH * in->nodes.length};
   for (uint i = 0; i < layer->nodes.length; i++)
   {
-    knn_DeepLearning_Link *l = &array_get(knn_DeepLearning_Link, layer->fullyConnected.links, i);
-    l->input = i;
-    l->output = i;
-    l->weight = randf();
+    for(uint j=0;j<layer->prev->nodes.length;j++){
+      knn_DeepLearning_Link *l = &array_get(knn_DeepLearning_Link, layer->fullyConnected.links, i * layer->prev->nodes.length);
+      l->input = j;
+      l->output = i;
+      l->weight = randf();
+    }
   }
   layer->bias = (struct Array){mallocArr(float, size), size, size};
   for (uint i = 0; i < size; i++)
@@ -651,6 +654,7 @@ static void calcFullyConnected(knn_DeepLearning_Layer *layer)
   }
   for (uint i = 0; i < layer->nodes.length; i++)
   {
+    array_get(knn_Node, layer->nodes, i).value += array_get(float, layer->bias, i);
     array_get(knn_Node, layer->nodes, i).value = layer->fullyConnected.function(array_get(knn_Node, layer->nodes, i).value);
     array_get(knn_Node, layer->nodes, i).calculated = true;
   }
@@ -667,19 +671,19 @@ static void calcConv_recurse(uint index, knnArray pos, knn_DeepLearning_Layer *l
           array_get(knn_Node, layer->prev->nodes, array_get(knn_DeepLearning_Link, layer->convolutionnal.links, i).input + inOffset).value *
           array_get(knn_DeepLearning_Link, layer->convolutionnal.links, i).weight;
     }
+    return;
   }
   for (uint i = 0; i < array_get(uint, layer->layout, index); i++)
   {
     array_get(uint, pos, index) = i;
-    calcConv_recurse(index+1,pos,layer);
+    calcConv_recurse(index + 1, pos, layer);
   }
 }
 static void calcConv(knn_DeepLearning_Layer *layer)
 {
-  knnArray pos=array_init(uint,layer->layout.length);
+  knnArray pos = array_init(uint, layer->layout.length);
   calcConv_recurse(0, pos, layer);
-
-  // nImpl_err;
+  array_ffree(&pos);
 }
 static void calculateLayer(knn_DeepLearning_Layer *layer)
 {
@@ -705,7 +709,7 @@ static void calculateLayer(knn_DeepLearning_Layer *layer)
 
 void knn_DeepLearning_calculate(knn_DeepLearning *net)
 {
-  calculateLayer(net->input.next);
+  calculateLayer(net->input->next);
 }
 
 knn_DeepLearning knn_DeepLearning_createNet(uint number_layers, ...) { nImpl_err; }

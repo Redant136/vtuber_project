@@ -181,8 +181,8 @@ typedef struct ivec4 knnVec4;
   } knn_DeepLearning_Layer;
   typedef struct knn_DeepLearning
   {
-    knn_DeepLearning_Layer input;
-    knn_DeepLearning_Layer output;
+    knn_DeepLearning_Layer *input;
+    knn_DeepLearning_Layer *output;
   } knn_DeepLearning;
 
   knn_DeepLearning_Layer *knn_DeepLearning_inputLayer(knnArray layout);
@@ -265,7 +265,7 @@ typedef struct ivec4 knnVec4;
   }
 
   knn_DeepLearning knn_DeepLearning_createNet(uint number_layers, ...);
-  static knn_DeepLearning knn_DeepLearning_createNet_InOut(knn_DeepLearning_Layer in, knn_DeepLearning_Layer out)
+  static knn_DeepLearning knn_DeepLearning_createNet_InOut(knn_DeepLearning_Layer *in, knn_DeepLearning_Layer *out)
   {
     knn_DeepLearning net = {in, out};
     return net;

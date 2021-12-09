@@ -111,7 +111,10 @@
     "cfenv": "cpp",
     "*.def": "cpp",
     "chevan_utils.h": "c",
-    "knn.h": "c"
+    "knn.h": "c",
+    "math.h": "c",
+    "stdbool.h": "c",
+    "string.h": "c"
   },
   "git.ignoreLimitWarning": true
 }

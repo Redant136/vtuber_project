@@ -8,6 +8,7 @@
 // #include "webcam.h"
 // #include <tensorflow/c/c_api.h>
 #include "kneuralnetwork/knn.h"
+#include "kneuralnetwork/knn_DeepLearning.h"
 using namespace chevan_utils;
 using namespace chevan_utils::chevanut_print;
 // using namespace chevanut_byte_typedef;
@@ -21,28 +22,32 @@ int main(int argc, char **argv)
   array_get(uint, format, 0) = 3;
   array_get(uint, format, 1) = 3;
   knn_DeepLearning_Layer *conv = knn_DeepLearning_addConvolutionLayer(in, format);
-  for (uint i = 0; i < 3; i++)
-  {
-    for (uint j = 0; j < 3; j++)
-    {
-      print(array_get(knn_DeepLearning_Link, conv->convolutionnal.links, i * 3 + j).input, " ");
-    }
-    println();
-  }
+
+  // for (uint i = 0; i < 3; i++)
+  // {
+  //   for (uint j = 0; j < 3; j++)
+  //   {
+  //     print(array_get(knn_DeepLearning_Link, conv->convolutionnal.links, i * 3 + j).weight, " ");
+  //   }
+  //   println();
+  // }
 
   knn_DeepLearning_Layer *out = knn_DeepLearning_addConnectedLayer(conv, 2, "lin");
-  knn_DeepLearning net = knn_DeepLearning_createNet_InOut(*in, *out);
+  knn_DeepLearning net = knn_DeepLearning_createNet_InOut(in, out);
 
-  float **outV = knn_DeepLearning_getLayerValuesPointers(&net.output);
+  float **outV = knn_DeepLearning_getLayerValuesPointers(net.output);
   for (uint i = 0; i < 2; i++)
   {
-    ch_println(*outV[i]);
+    // ch_println(*outV[i]);
   }
   knn_DeepLearning_calculate(&net);
   for (uint i = 0; i < 2; i++)
   {
     ch_println(*outV[i]);
   }
+  float r[2]={0,0};
+  knn_DeepLearning_Backpropagator backprop = {r, knn_DeepLearning_basicCostFunction};
+  knn_DeepLearning_backpropagate(&net, backprop);
 
   // webcamInfo *webcam = webcamInfoAlloc();
   // initWebcam(webcam);

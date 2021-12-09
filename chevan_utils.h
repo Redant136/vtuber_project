@@ -2178,6 +2178,7 @@ static CHEVAN_UTILS_INLINE void array_free(size_t _elementSize, struct Array *ar
 #define array_free(type, arr, freeFunc) array_free(sizeof(type), arr, freeFunc)
 static CHEVAN_UTILS_INLINE void *array_get(size_t _elementSize, struct Array arr, size_t i)
 {
+  assert(i < arr.MAX_LENGTH);
   return arr.arr + i * _elementSize;
 }
 static CHEVAN_UTILS_INLINE void array_set(size_t _elementSize, struct Array arr, size_t i, void *element)
@@ -2405,11 +2406,11 @@ static CHEVAN_UTILS_INLINE struct ivec4 ivec4_init(int32_t x, int32_t y, int32_t
 #endif // !CHEVAN_UTILS_VEC2
 
 #define to_vec2(v) vec2((v).x, (v).y)
-#define to_vec3(v) vec3((v).x, (v).y, (v).y)
-#define to_vec4(v) vec4((v).x, (v).y, (v).y, (v).z)
+#define to_vec3(v) vec3((v).x, (v).y, (v).z)
+#define to_vec4(v) vec4((v).x, (v).y, (v).z, (v).w)
 #define to_ivec2(v) ivec2((v).x, (v).y)
-#define to_ivec3(v) ivec3((v).x, (v).y, (v).y)
-#define to_ivec4(v) ivec4((v).x, (v).y, (v).y, (v).z)
+#define to_ivec3(v) ivec3((v).x, (v).y, (v).z)
+#define to_ivec4(v) ivec4((v).x, (v).y, (v).z, (v).w)
 
 #define _chevanut_concat(a, b) a##b
 #define _chevanut_vec_op_macro(name, op)                                                               \
@@ -2459,14 +2460,14 @@ _chevanut_vec_op_macro(div, /);
 #define printVec3(v) printf("{%f, %f, %f}\n", v.x, v.y, v.z)
 #define printVec4(v) printf("{%f, %f, %f, %f}\n", v.x, v.y, v.z, v.w)
 
-static void printMat4(float mat[16])
+static void ch_printMat4(float mat[16])
 {
   for (uint i = 0; i < 4; i++)
   {
     printf("%f, %f, %f, %f\n", mat[0 + i * 4], mat[1 + i * 4], mat[2 + i * 4], mat[3 + i * 4]);
   }
 }
-static void printMem(void *p, ulong length)
+static void ch_printMem(void *p, ulong length)
 {
   char *s = malloc(length + 1);
   for (uint i = 0; i < length; i++)
@@ -2477,7 +2478,7 @@ static void printMem(void *p, ulong length)
   printf("%s", s);
   free(s);
 }
-static void printSep()
+static void ch_printSep()
 {
   printf("---------------------------------\n");
 }
@@ -2550,14 +2551,18 @@ static void chevanut_print_ivec2(struct ivec2 v) { printf("{%d, %d}", v.x, v.y);
 static void chevanut_print_ivec3(struct ivec3 v) { printf("{%d, %d, %d}", v.x, v.y, v.z); }
 static void chevanut_print_ivec4(struct ivec4 v) { printf("{%d, %d, %d, %d}", v.x, v.y, v.z, v.w); }
 
-#define ch_println_struct_Array(type, arr) \
-  for (uint _i = 0; _i < arr.length; _i++) \
-  {                                        \
-    ch_print(array_get(type, arr, _i));    \
-  }
+#define ch_println_struct_Array(type, arr)      \
+  ch_print("{");                                \
+  for (uint _i = 0; _i < arr.length; _i++)      \
+  {                                             \
+    ch_print(array_get(type, arr, _i));         \
+    ch_print((_i < arr.length - 1) ? "," : ""); \
+  }                                             \
+  ch_println("}");
 
 #ifdef CHEVAN_UTILS_MACRO_MAGIC
 #define _chevanut_println_recurse_MAP(x) ch_print(x);
+#define chevanut_print_recurse(...) EVAL(MAP(_chevanut_println_recurse_MAP, __VA_ARGS__))
 #define chevanut_println_recurse(...) EVAL(MAP(_chevanut_println_recurse_MAP, __VA_ARGS__, "\n"))
 #endif
 
@@ -2685,7 +2690,7 @@ namespace chevan_utils
   {
     return rad / M_PI * 180;
   }
-  static CHEVAN_UTILS_INLINE float randf() { return rand() / RAND_MAX; } // random float ranging 0-1
+  static CHEVAN_UTILS_INLINE float randf() { return (float)rand() / RAND_MAX; } // random float ranging 0-1
 
   static CHEVAN_UTILS_INLINE Color3 Vec3ToColor3(CHEVAN_UTILS_VEC3 v) { return Color3(v.x * 255.f, v.y * 255.f, v.z * 255.f); }
   static CHEVAN_UTILS_INLINE Color4 Vec4ToColor4(CHEVAN_UTILS_VEC4 v) { return Color4(v.x * 255.f, v.y * 255.f, v.z * 255.f, v.w * 255.f); }
