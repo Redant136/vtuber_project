@@ -249,19 +249,19 @@ static int readWebcamFrame(webcam_data *data, webcamInfo *webcam)
     {
       membuild(YUV422, yuv, webcam->video_data[0] + i * sizeof(YUV422));
 
-      Color3 byte1 = {yuv.y1, yuv.u, yuv.v};
+      color3_t byte1 = {yuv.y1, yuv.u, yuv.v};
       byte1 = YCbCrToRGB(byte1);
-      Color3 byte2 = {yuv.y2, yuv.u, yuv.v};
+      color3_t byte2 = {yuv.y2, yuv.u, yuv.v};
       byte2 = YCbCrToRGB(byte2);
 
-      memcpy(data->data + 2 * i * sizeof(Color3), &byte1, sizeof(Color3));
-      memcpy(data->data + (2 * i + 1) * sizeof(Color3), &byte2, sizeof(Color3));
+      memcpy(data->data + 2 * i * sizeof(color3_t), &byte1, sizeof(color3_t));
+      memcpy(data->data + (2 * i + 1) * sizeof(color3_t), &byte2, sizeof(color3_t));
     }
 
     // for reder with opencv as it uses bgr
     for(uint i=0;i<data->width*data->height;i++){
       membuild(Color3,c,data->data+3*i);
-      Color3 bgr={c.z,c.y,c.x};
+      color3_t bgr={c.z,c.y,c.x};
       memcpy(data->data+3*i,&bgr,3);
     }
   }

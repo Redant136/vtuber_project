@@ -25,3 +25,19 @@ typedef HANDLE cthread_t;
 #endif
 
 #endif
+
+/**
+ * template for threaded loop
+ * 
+ * create thread array
+ * for(int _thread=0;_thread<THREAD_COUNT;_thread++){
+ *    launchThread(_thread,THREAD_COUNT)
+ *        {
+ *          for(int i=_thread;_thread<MAX;_thread+=THREAD_COUNT){
+ *            ...
+ *          }
+ *        }
+ * }
+ * join threads
+ * 
+ **/

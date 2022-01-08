@@ -1,0 +1,7 @@
+mkdir opencv_install
+cd opencv_install
+cmake ../extern/opencv -DCMAKE_INSTALL_PREFIX="."
+cmake --build . --config debug
+cmake --build . --config release
+cmake --build . --config debug --target install
+cmake --build . --config release --target install

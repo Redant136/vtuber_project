@@ -1,6 +1,11 @@
 #include "knn.h"
 #define print ch_println
 
+static float randf_knn()
+{
+  return randf() * 2 - 1;
+}
+
 knn_NEAT knn_NEAT_createNet(uint inputSize, uint outputSize)
 {
   knn_NEAT net;
@@ -147,8 +152,6 @@ void knn_NEAT_calculateNetNode(knn_NEAT *net, uint node)
   array_get(knn_Node, net->nodes, node).value = NEAT_Function(array_get(knn_Node, net->nodes, node).value);
   array_get(knn_Node, net->nodes, node).calculated = true;
 }
-
-// ---------------------------
 
 float knn_NEAT_calculateNetDelta(knn_NEAT *n1, knn_NEAT *n2, float maxDelta)
 {
@@ -430,27 +433,27 @@ knn_NEAT knn_NEAT_breedNets(knn_NEAT *parent1, knn_NEAT *parent2, float speciesR
   return offspring;
 }
 
-static float linearFunction(float x)
+static double linearFunction(double x)
 {
   return x;
 }
-static float sigmoidFunction(float x)
+static double sigmoidFunction(double x)
 {
   return 1 / (1 + exp(-x));
 }
-static float softsignFunction(float x)
+static double softsignFunction(double x)
 {
   return x / (1 + abs(x));
 }
-static float softplusFunction(float x)
+static double softplusFunction(double x)
 {
   return log(exp(x) + 1);
 }
-static float swishFunction(float x)
+static double swishFunction(double x)
 {
   return x / (1 + exp(x));
 }
-static float reluFunction(float x)
+static double reluFunction(double x)
 {
   if (x > 0)
   {
@@ -474,7 +477,7 @@ static knn_ActivationFunc parseFunction(const char *name)
   }
   else if (strcmp(name, "tanh") == 0)
   {
-    return &tanhf;
+    return &tanh;
   }
   else if (strcmp(name, "softsign") == 0)
   {
@@ -509,6 +512,8 @@ knn_DeepLearning_Layer *knn_DeepLearning_inputLayer(knnArray layout)
   }
   layer->nodes = (struct Array)array_init(knn_Node, tS);
   layer->layout = array_clone(uint, layout);
+  layer->prev = NULL;
+  layer->next = NULL;
   return layer;
 }
 knn_DeepLearning_Layer *knn_DeepLearning_inputLayer_size(size_t size)
@@ -518,6 +523,8 @@ knn_DeepLearning_Layer *knn_DeepLearning_inputLayer_size(size_t size)
   layer->nodes = (struct Array)array_init(knn_Node, size);
   layer->layout = (struct Array)array_init(uint, 1);
   array_get(uint, layer->layout, 0) = size;
+  layer->prev = NULL;
+  layer->next = NULL;
   return layer;
 }
 knn_DeepLearning_Layer *knn_DeepLearning_addLinearLayer(knn_DeepLearning_Layer *in, const char *function)
@@ -531,15 +538,17 @@ knn_DeepLearning_Layer *knn_DeepLearning_addLinearLayer(knn_DeepLearning_Layer *
     knn_DeepLearning_Link *l = &array_get(knn_DeepLearning_Link, layer->fullyConnected.links, i);
     l->input = i;
     l->output = i;
-    l->weight = randf();
+    l->weight = randf_knn();
   }
-  layer->bias = (struct Array){mallocArr(float, in->nodes.MAX_LENGTH), in->nodes.MAX_LENGTH, in->nodes.MAX_LENGTH};
+  layer->bias = calloc(in->nodes.MAX_LENGTH, sizeof(double));
   for (uint i = 0; i < in->nodes.MAX_LENGTH; i++)
   {
-    array_get(float, layer->bias, i) = randf();
+    layer->bias[i] = randf_knn();
   }
   layer->fullyConnected.function = parseFunction(function);
   layer->layout = (struct Array){in->layout.arr, in->layout.length, in->layout.MAX_LENGTH};
+  layer->next = 0;
+  return layer;
 }
 knn_DeepLearning_Layer *knn_DeepLearning_addConnectedLayer(knn_DeepLearning_Layer *in, size_t size, const char *function)
 {
@@ -548,24 +557,62 @@ knn_DeepLearning_Layer *knn_DeepLearning_addConnectedLayer(knn_DeepLearning_Laye
   layer->prev = in;
   layer->type = Linear;
   layer->nodes = (struct Array){mallocArr(knn_Node, size), size, size};
-  layer->fullyConnected.links = (struct Array){mallocArr(knn_DeepLearning_Link, layer->nodes.MAX_LENGTH * in->nodes.length),
+  layer->fullyConnected.preFunctionNodeValues = calloc(layer->nodes.length, sizeof(double));
+  layer->fullyConnected.links = (struct Array){calloc(layer->nodes.MAX_LENGTH * in->nodes.length, sizeof(knn_DeepLearning_Link)),
                                                layer->nodes.MAX_LENGTH * in->nodes.length, layer->nodes.MAX_LENGTH * in->nodes.length};
   for (uint i = 0; i < layer->nodes.length; i++)
   {
-    for(uint j=0;j<layer->prev->nodes.length;j++){
-      knn_DeepLearning_Link *l = &array_get(knn_DeepLearning_Link, layer->fullyConnected.links, i * layer->prev->nodes.length);
+    for (uint j = 0; j < layer->prev->nodes.length; j++)
+    {
+      knn_DeepLearning_Link *l = &array_get(knn_DeepLearning_Link, layer->fullyConnected.links, i * layer->prev->nodes.length + j);
       l->input = j;
       l->output = i;
-      l->weight = randf();
+      l->weight = randf_knn();
     }
   }
-  layer->bias = (struct Array){mallocArr(float, size), size, size};
+  layer->bias = calloc(size, sizeof(double));
   for (uint i = 0; i < size; i++)
   {
-    array_get(float, layer->bias, i) = randf();
+    layer->bias[i] = randf_knn();
   }
   layer->fullyConnected.function = parseFunction(function);
-  layer->layout = (struct Array){in->layout.arr, in->layout.length, in->layout.MAX_LENGTH};
+  layer->layout = (struct Array)array_init(uint, 1);
+  array_get(uint, layer->layout, 0) = size;
+  layer->next = 0;
+  return layer;
+}
+knn_DeepLearning_Layer *knn_DeepLearning_addConnectedLayer_layout(knn_DeepLearning_Layer *in, knnArray layout, const char *function)
+{
+  knn_DeepLearning_Layer *layer = malloc(sizeof(knn_DeepLearning_Layer));
+  in->next = layer;
+  layer->prev = in;
+  layer->type = Linear;
+  layer->nodes.MAX_LENGTH = 1;
+  for (uint i = 0; i < layout.length; i++)
+  {
+    layer->nodes.MAX_LENGTH *= array_get(uint, layout, i);
+  }
+  layer->nodes = (struct Array){calloc(layer->nodes.MAX_LENGTH, sizeof(knn_Node)), layer->nodes.MAX_LENGTH, layer->nodes.MAX_LENGTH};
+  layer->fullyConnected.preFunctionNodeValues = calloc(layer->nodes.length, sizeof(double));
+  layer->fullyConnected.links = array_init(knn_DeepLearning_Link, layer->nodes.MAX_LENGTH * in->nodes.length);
+  for (uint i = 0; i < layer->nodes.length; i++)
+  {
+    for (uint j = 0; j < layer->prev->nodes.length; j++)
+    {
+      knn_DeepLearning_Link *l = &array_get(knn_DeepLearning_Link, layer->fullyConnected.links, i * layer->prev->nodes.length + j);
+      l->input = j;
+      l->output = i;
+      l->weight = randf_knn();
+    }
+  }
+  layer->bias = calloc(layer->nodes.length, sizeof(double));
+  for (uint i = 0; i < layer->nodes.length; i++)
+  {
+    layer->bias[i] = randf_knn();
+  }
+  layer->fullyConnected.function = parseFunction(function);
+  layer->layout = array_clone(uint, layout);
+  layer->next = 0;
   return layer;
 }
 static void convLayer_setupLinks(uint index, knnArray pos, knnArray convFormat, knnArray links, knnArray layout)
@@ -583,12 +630,14 @@ static void convLayer_setupLinks(uint index, knnArray pos, knnArray convFormat, 
     convLayer_setupLinks(index + 1, pos, convFormat, links, layout);
   }
 }
-knn_DeepLearning_Layer *knn_DeepLearning_addConvolutionLayer(knn_DeepLearning_Layer *in, knnArray convFormat)
+knn_DeepLearning_Layer *knn_DeepLearning_addConvolutionLayer(knn_DeepLearning_Layer *in, knnArray convFormat, const char *function)
 {
   knn_DeepLearning_Layer *layer = malloc(sizeof(knn_DeepLearning_Layer));
   in->next = layer;
   layer->prev = in;
   layer->type = Convolutionnal;
+  layer->convolutionnal.function = parseFunction(function);
+
   assert(in->layout.length == convFormat.length);
   layer->layout = array_clone(uint, in->layout);
 
@@ -603,6 +652,7 @@ knn_DeepLearning_Layer *knn_DeepLearning_addConvolutionLayer(knn_DeepLearning_La
   }
   layer->nodes.length = layer->nodes.MAX_LENGTH;
   layer->nodes.arr = calloc(sizeof(knn_Node), layer->nodes.length);
+  layer->fullyConnected.preFunctionNodeValues = calloc(layer->nodes.length, sizeof(double));
 
   layer->convolutionnal.convFormat = array_clone(uint, convFormat);
   layer->convolutionnal.links.MAX_LENGTH = 1;
@@ -616,12 +666,13 @@ knn_DeepLearning_Layer *knn_DeepLearning_addConvolutionLayer(knn_DeepLearning_La
   knnArray links = layer->convolutionnal.links;
   for (uint i = 0; i < layer->convolutionnal.links.length; i++)
   {
-    array_get(knn_DeepLearning_Link, links, i).weight = randf();
+    array_get(knn_DeepLearning_Link, links, i).weight = randf_knn();
   }
 
   knnArray currentPosition = array_init(uint, convFormat.length);
   convLayer_setupLinks(0, currentPosition, convFormat, links, layer->prev->layout);
   array_ffree(&currentPosition);
+  layer->next = 0;
   return layer;
 }
 knn_DeepLearning_Layer *knn_DeepLearning_addMaxPoolingLayer(knn_DeepLearning_Layer *in)
@@ -634,28 +685,36 @@ knn_DeepLearning_Layer *knn_DeepLearning_addDropoutLayer(knn_DeepLearning_Layer 
   nImpl_err;
   return NULL;
 }
-knn_DeepLearning_Layer *knn_DeepLearning_addSoftmaxLayer(knn_DeepLearning_Layer *in)
+knn_DeepLearning_Layer *knn_DeepLearning_addSoftmaxLayer(knn_DeepLearning_Layer *in, size_t size)
 {
-  nImpl_err;
-  return NULL;
+  knn_DeepLearning_Layer *layer = knn_DeepLearning_addConnectedLayer(in, size, "");
+  layer->type = Softmax;
+  memset(layer->bias, 0, layer->nodes.length * sizeof(double));
+  return layer;
+}
+knn_DeepLearning_Layer *knn_DeepLearning_addSoftmaxLayer_layout(knn_DeepLearning_Layer *in, knnArray layout)
+{
+  knn_DeepLearning_Layer *layer = knn_DeepLearning_addConnectedLayer_layout(in, layout, "");
+  layer->type = Softmax;
+  memset(layer->bias, 0, layer->nodes.length * sizeof(double));
+  return layer;
 }
 
 static void calculateLayer(knn_DeepLearning_Layer *layer);
 static void calcFullyConnected(knn_DeepLearning_Layer *layer)
 {
-  for (uint i = 0; i < layer->nodes.length; i++)
-  {
-    array_get(knn_Node, layer->nodes, i).value = 0;
-  }
   for (uint i = 0; i < layer->fullyConnected.links.length; i++)
   {
     knn_DeepLearning_Link l = array_get(knn_DeepLearning_Link, layer->fullyConnected.links, i);
     array_get(knn_Node, layer->nodes, l.output).value += array_get(knn_Node, layer->prev->nodes, l.input).value * l.weight;
+    assert(isfinite(array_get(knn_Node, layer->nodes, l.output).value));
   }
   for (uint i = 0; i < layer->nodes.length; i++)
   {
-    array_get(knn_Node, layer->nodes, i).value += array_get(float, layer->bias, i);
+    array_get(knn_Node, layer->nodes, i).value += layer->bias[i];
+    layer->fullyConnected.preFunctionNodeValues[i] = array_get(knn_Node, layer->nodes, i).value;
     array_get(knn_Node, layer->nodes, i).value = layer->fullyConnected.function(array_get(knn_Node, layer->nodes, i).value);
+    assert(isfinite(array_get(knn_Node, layer->nodes, i).value));
     array_get(knn_Node, layer->nodes, i).calculated = true;
   }
 }
@@ -683,11 +742,45 @@ static void calcConv(knn_DeepLearning_Layer *layer)
 {
   knnArray pos = array_init(uint, layer->layout.length);
   calcConv_recurse(0, pos, layer);
+  for (uint i = 0; i < layer->nodes.length; i++)
+  {
+    layer->convolutionnal.preFunctionNodeValues[i] = array_get(knn_Node, layer->nodes, i).value;
+    array_get(knn_Node, layer->nodes, i).value = layer->convolutionnal.function(array_get(knn_Node, layer->nodes, i).value);
+    array_get(knn_Node, layer->nodes, i).calculated = true;
+  }
   array_ffree(&pos);
+}
+static void calcSoftmax(knn_DeepLearning_Layer *layer)
+{
+  calcFullyConnected(layer);
+  double sum = 0;
+  for (uint i = 0; i < layer->nodes.length; i++)
+  {
+    double d = array_get(knn_Node, layer->nodes, i).value;
+    array_get(knn_Node, layer->nodes, i).value = exp(array_get(knn_Node, layer->nodes, i).value);
+    if (isinf(array_get(knn_Node, layer->nodes, i).value)){
+      array_get(knn_Node, layer->nodes, i).value=10000;
+    }
+
+    nassert_value(d, isfinite(array_get(knn_Node, layer->nodes, i).value));
+    layer->fullyConnected.preFunctionNodeValues[i] = array_get(knn_Node, layer->nodes, i).value;
+    sum += array_get(knn_Node, layer->nodes, i).value;
+  }
+  for (uint i = 0; i < layer->nodes.length; i++)
+  {
+    array_get(knn_Node, layer->nodes, i).value /= sum;
+  }
 }
 static void calculateLayer(knn_DeepLearning_Layer *layer)
 {
-
+  if (!layer->type != Input)
+  {
+    for (uint i = 0; i < layer->nodes.length; i++)
+    {
+      array_get(knn_Node, layer->nodes, i).value = 0;
+      array_get(knn_Node, layer->nodes, i).calculated = false;
+    }
+  }
   switch (layer->type)
   {
   case FullyConnected:
@@ -697,19 +790,32 @@ static void calculateLayer(knn_DeepLearning_Layer *layer)
   case Convolutionnal:
     calcConv(layer);
     break;
+  case Softmax:
+    calcSoftmax(layer);
+    break;
   default:
     nImpl_err;
     break;
   }
+
   if (layer->next)
     calculateLayer(layer->next);
-
-  // TODO(ANT)
 }
 
 void knn_DeepLearning_calculate(knn_DeepLearning *net)
 {
   calculateLayer(net->input->next);
+}
+void knn_DeepLearning_clear(knn_DeepLearning *net)
+{
+  for (knn_DeepLearning_Layer *current = net->input; current != NULL; current = current->next)
+  {
+    for (uint i = 0; i < current->nodes.length; i++)
+    {
+      array_get(knn_Node, current->nodes, i).value = 0;
+      array_get(knn_Node, current->nodes, i).calculated = false;
+    }
+  }
 }
 
 knn_DeepLearning knn_DeepLearning_createNet(uint number_layers, ...) { nImpl_err; }

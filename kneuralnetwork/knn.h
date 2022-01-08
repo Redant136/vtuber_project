@@ -5,6 +5,7 @@
 #include "../chevan_utils.h"
 
 #ifdef __cplusplus
+using namespace chevan_utils;
 extern "C"
 {
 #endif
@@ -104,7 +105,7 @@ typedef struct ivec4 knnVec4;
     bool enabled, recursive;
   } knn_NEAT_Link;
 
-  typedef float (*knn_ActivationFunc)(float);
+  typedef double (*knn_ActivationFunc)(double);
 
   typedef struct knn_NEAT
   {
@@ -140,6 +141,9 @@ typedef struct ivec4 knnVec4;
     uint input, output;
     float weight;
   } knn_DeepLearning_Link;
+#define knn_DeepLearning_Layer_functionnable \
+  knn_ActivationFunc function;               \
+  float *preFunctionNodeValues;
   typedef struct knn_DeepLearning_Layer
   {
     struct knn_DeepLearning_Layer *prev, *next;
@@ -154,22 +158,22 @@ typedef struct ivec4 knnVec4;
       Input           // in layer
     } type;
     knnArray nodes;
-    knnArray bias;
+    double *bias;
     union
     {
       struct
       {
         knnArray links;
-        knn_ActivationFunc function;
-      } fullyConnected;
+        knn_DeepLearning_Layer_functionnable
+      } fullyConnected; // is also used for softmax
       struct
       {
         float dropoutValue;
       } dropout;
       struct
       {
-        knnArray links,convFormat;
-        knn_ActivationFunc function;
+        knnArray links, convFormat;
+        knn_DeepLearning_Layer_functionnable
       } convolutionnal;
       struct
       {
@@ -189,12 +193,15 @@ typedef struct ivec4 knnVec4;
   knn_DeepLearning_Layer *knn_DeepLearning_inputLayer_size(size_t size);
   knn_DeepLearning_Layer *knn_DeepLearning_addLinearLayer(knn_DeepLearning_Layer *in, const char *function);
   knn_DeepLearning_Layer *knn_DeepLearning_addConnectedLayer(knn_DeepLearning_Layer *in, size_t size, const char *function);
-  knn_DeepLearning_Layer *knn_DeepLearning_addConvolutionLayer(knn_DeepLearning_Layer *in, knnArray convFormat); // not implemented
-  knn_DeepLearning_Layer *knn_DeepLearning_addMaxPoolingLayer(knn_DeepLearning_Layer *in);                       // not implemented
+  knn_DeepLearning_Layer *knn_DeepLearning_addConnectedLayer_layout(knn_DeepLearning_Layer *in, knnArray layout, const char *function);
+  knn_DeepLearning_Layer *knn_DeepLearning_addConvolutionLayer(knn_DeepLearning_Layer *in, knnArray convFormat, const char *function);
+  knn_DeepLearning_Layer *knn_DeepLearning_addMaxPoolingLayer(knn_DeepLearning_Layer *in); // not implemented
   knn_DeepLearning_Layer *knn_DeepLearning_addDropoutLayer(knn_DeepLearning_Layer *in, float dropout);
-  knn_DeepLearning_Layer *knn_DeepLearning_addSoftmaxLayer(knn_DeepLearning_Layer *in);
+  knn_DeepLearning_Layer *knn_DeepLearning_addSoftmaxLayer(knn_DeepLearning_Layer *in,size_t size);
+  knn_DeepLearning_Layer *knn_DeepLearning_addSoftmaxLayer_layout(knn_DeepLearning_Layer *in, knnArray layout);
 
   void knn_DeepLearning_calculate(knn_DeepLearning *net);
+  void knn_DeepLearning_clear(knn_DeepLearning *net);
 
   static uint knn_DeepLearning_getCorrespondingIndexV2(knnVec2 pos, knnArray layout)
   {

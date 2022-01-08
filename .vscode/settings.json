@@ -114,7 +114,9 @@
     "knn.h": "c",
     "math.h": "c",
     "stdbool.h": "c",
-    "string.h": "c"
+    "string.h": "c",
+    "types.h": "c",
+    "float.h": "c"
   },
   "git.ignoreLimitWarning": true
 }

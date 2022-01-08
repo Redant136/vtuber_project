@@ -32,7 +32,7 @@ endif(APPLE)
 
 add_executable(vtuber main.cpp)
 add_executable(faceDetection faceDetection.cpp)
-add_executable(test test.cpp)
+add_executable(test trainMNIST.cpp)
 
 file(COPY models DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})

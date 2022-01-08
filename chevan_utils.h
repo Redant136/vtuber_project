@@ -1,12 +1,17 @@
 #pragma once
 #ifndef CHEVAN_UTILS_H
 #define CHEVAN_UTILS_H 1
-#define CHEVAN_UTILS_VERSION "2.3.4"
+#define CHEVAN_UTILS_VERSION "2.3.5"
 #define CHEVAN_UTILS_INLINE inline
 
 // #define PIf 3.1415926535897f
 #ifndef CHEVAN_UTILS_FASTCALC_PRECISION
 #define CHEVAN_UTILS_FASTCALC_PRECISION 9
+#endif
+
+#ifdef CHEVAN_DEBUG
+#undef CHEVAN_DEBUG
+#define CHEVAN_DEBUG 1
 #endif
 
 #define convertVec2(dest, src) \
@@ -41,8 +46,15 @@
   memcpy(&name, data, sizeof(type));
 #define sizeofArr(arr) (sizeof(arr) / sizeof(arr[0]))
 #define mallocArr(type, size) malloc(sizeof(type) * (size)) // calloc technically slower as sets all bytes to 0
-
+#define fcompare(a, b) ((a - b) < 0.0001 && (b - a) < 0.0001)
 #define nassert(c) assert(!(c))
+#define assert_value(val, cond) \
+  if ((cond))                   \
+  {                             \
+    ch_println(val);            \
+    assert(!(cond));            \
+  }
+#define nassert_value(val,cond) assert_value(val,!(cond))
 
 #define USER_NOT_IMPLEMENTED_ERROR(usr) assert(0 && "this has yet to be implemented. Please ask "#usr" to create it")
 #define AC_NOT_IMPLEMENTED_ERROR assert(0 && "this has yet to be implemented. Please kindly ask Antoine Chevalier to get off his ass and get to work")
@@ -119,6 +131,13 @@
 
 #endif // CHEVAN_UTILS_MACRO_MAGIC
 
+typedef unsigned char uchar;
+typedef unsigned short ushort;
+typedef unsigned int uint;
+typedef unsigned long ulong;
+typedef unsigned long long ullong;
+typedef long long llong;
+
 #ifdef __cplusplus
 #include <iostream>
 #include <string>
@@ -127,6 +146,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <time.h>
 
 #ifndef CHEVAN_UTILS_NO_EXTRA_INCLUDES
 #include <stddef.h>
@@ -139,12 +159,6 @@
 
 namespace chevan_utils
 {
-  typedef unsigned char uchar;
-  typedef unsigned short ushort;
-  typedef unsigned int uint;
-  typedef unsigned long ulong;
-  typedef unsigned long long ullong;
-  typedef long long llong;
   enum class Cardinal8dir
   {
     CENTER,
@@ -184,13 +198,16 @@ namespace chevan_utils
     }
     T &operator[](size_t i)
     {
-      assert(arr);
-      assert(i < length + 1);
-      return arr[i];
+      return get(i);
     }
     T &get(size_t i)
     {
-      return operator[][i];
+#ifdef CHEVAN_DEBUG
+      assert(arr);
+      assert(i < MAX_LENGTH);
+#endif
+
+      return arr[i];
     }
     T *operator+(size_t i)
     {
@@ -1157,6 +1174,23 @@ namespace chevan_utils
       }
       std::cout << s << std::endl;
     }
+    template <typename T>
+    static void printBits(T *t, size_t length = 1)
+    {
+      for (uint i = 0; i < length * 8; i++)
+      {
+        std::cout << ((((uchar *)t)[i / 8] & (1 << i % 8)) > 0 ? 1 : 0);
+      }
+      std::cout << std::endl;
+    }
+    template<typename T>
+    static void printBits(T t){
+      for (uint i = 0; i < sizeof(T) * 8; i++)
+      {
+        std::cout << ((t & (1 << i)) > 0 ? 1 : 0);
+      }
+      std::cout << std::endl;
+    }
     // ----------------------------------------------
     static void print()
     {
@@ -2121,6 +2155,7 @@ namespace chevan_utils
 #include <stdint.h>
 #include <assert.h>
 #include <ctype.h>
+#include <time.h>
 
 #ifndef max
 #define max(a, b) ((a) > (b) ? (a) : (b))
@@ -2131,18 +2166,14 @@ namespace chevan_utils
 
 #ifndef CHEVAN_UTILS_NO_EXTRA_INCLUDES
 #include <stdarg.h>
+#include <limits.h>
+#include <float.h>
 #endif
 #ifndef true
 typedef unsigned char bool;
 #define true 1
 #define false 0
 #endif
-typedef unsigned char uchar;
-typedef unsigned short ushort;
-typedef unsigned int uint;
-typedef unsigned long ulong;
-typedef unsigned long long ullong;
-typedef long long llong;
 enum Cardinal8dir
 {
   CENTER,
@@ -2178,7 +2209,9 @@ static CHEVAN_UTILS_INLINE void array_free(size_t _elementSize, struct Array *ar
 #define array_free(type, arr, freeFunc) array_free(sizeof(type), arr, freeFunc)
 static CHEVAN_UTILS_INLINE void *array_get(size_t _elementSize, struct Array arr, size_t i)
 {
+#ifdef CHEVAN_DEBUG
   assert(i < arr.MAX_LENGTH);
+#endif
   return arr.arr + i * _elementSize;
 }
 static CHEVAN_UTILS_INLINE void array_set(size_t _elementSize, struct Array arr, size_t i, void *element)
@@ -2278,6 +2311,20 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 #endif
+
+static int iabs(int x)
+{
+  return abs(x);
+}
+#define abs(x) _Generic((x),     \
+                        int      \
+                        : abs,   \
+                          long   \
+                        : abs,   \
+                          float  \
+                        : fabsf, \
+                          double \
+                        : fabs)(x)
 
 typedef struct vec2
 {
@@ -2482,6 +2529,15 @@ static void ch_printSep()
 {
   printf("---------------------------------\n");
 }
+static void ch_printBits_ptr(void *e, size_t _elementSize)
+{
+  for (uint i = 0; i < _elementSize * 8; i++)
+  {
+    printf("%d", (((uchar *)e)[i / 8] & (1 << i % 8)) > 0 ? 1 : 0);
+  }
+  printf("\n");
+}
+#define ch_printBits(e) ch_printBits_ptr(&(e), sizeof((e)))
 
 static void chevanut_print_str(const char *s) { printf("%s", s); }
 static void chevanut_print_char(const char c) { printf("%c", c); }
@@ -2551,19 +2607,33 @@ static void chevanut_print_ivec2(struct ivec2 v) { printf("{%d, %d}", v.x, v.y);
 static void chevanut_print_ivec3(struct ivec3 v) { printf("{%d, %d, %d}", v.x, v.y, v.z); }
 static void chevanut_print_ivec4(struct ivec4 v) { printf("{%d, %d, %d, %d}", v.x, v.y, v.z, v.w); }
 
-#define ch_println_struct_Array(type, arr)      \
-  ch_print("{");                                \
-  for (uint _i = 0; _i < arr.length; _i++)      \
-  {                                             \
-    ch_print(array_get(type, arr, _i));         \
-    ch_print((_i < arr.length - 1) ? "," : ""); \
-  }                                             \
-  ch_println("}");
+#define ch_println_struct_Array(type, arr)        \
+  if (1)                                          \
+  {                                               \
+    ch_print("{");                                \
+    for (uint _i = 0; _i < arr.length; _i++)      \
+    {                                             \
+      ch_print(array_get(type, arr, _i));         \
+      ch_print((_i < arr.length - 1) ? "," : ""); \
+    }                                             \
+    ch_println("}");                              \
+  }
+#define ch_println_array(length, arr)             \
+  if (1)                                          \
+  {                                               \
+    ch_print("{");                                \
+    for (uint _i = 0; _i < length; _i++)      \
+    {                                             \
+      ch_print(arr[_i]);         \
+      ch_print((_i < length - 1) ? "," : ""); \
+    }                                             \
+    ch_println("}");                              \
+  }
 
 #ifdef CHEVAN_UTILS_MACRO_MAGIC
 #define _chevanut_println_recurse_MAP(x) ch_print(x);
-#define chevanut_print_recurse(...) EVAL(MAP(_chevanut_println_recurse_MAP, __VA_ARGS__))
-#define chevanut_println_recurse(...) EVAL(MAP(_chevanut_println_recurse_MAP, __VA_ARGS__, "\n"))
+#define ch_print_recurse(...) EVAL(MAP(_chevanut_println_recurse_MAP, __VA_ARGS__))
+#define ch_println_recurse(...) EVAL(MAP(_chevanut_println_recurse_MAP, __VA_ARGS__, "\n"))
 #endif
 
 #define ch_print(x) _Generic((x),                     \
@@ -2621,7 +2691,7 @@ static void chevanut_print_ivec4(struct ivec4 v) { printf("{%d, %d, %d, %d}", v.
 namespace chevan_utils
 {
 #endif
-  typedef struct Color3
+  typedef struct color3_t
   {
     union
     {
@@ -2649,8 +2719,8 @@ namespace chevan_utils
         uint8_t y, cb, cr;
       } ycc;
     };
-  } Color3;
-  typedef struct Color4
+  } color3_t;
+  typedef struct color4_t
   {
     union
     {
@@ -2668,19 +2738,19 @@ namespace chevan_utils
     {
       uint8_t w, a;
     };
-  } Color4;
-  static Color3 initColor3(uint8_t x, uint8_t y, uint8_t z)
+  } color4_t;
+  static color3_t initColor3(uint8_t x, uint8_t y, uint8_t z)
   {
-    Color3 c = {x, y, z};
+    color3_t c = {x, y, z};
     return c;
   }
-#define Color3(x, y, z) initColor3(x, y, z)
-  static Color4 initColor4(uint8_t x, uint8_t y, uint8_t z, uint8_t w)
+#define color3_t(x, y, z) initColor3(x, y, z)
+  static color4_t initColor4(uint8_t x, uint8_t y, uint8_t z, uint8_t w)
   {
-    Color4 c = {x, y, z, w};
+    color4_t c = {x, y, z, w};
     return c;
   }
-#define Color4(x, y, z, w) initColor4(x, y, z, w)
+#define color4_t(x, y, z, w) initColor4(x, y, z, w)
 
   static CHEVAN_UTILS_INLINE float degreeToRad(float deg)
   {
@@ -2691,11 +2761,29 @@ namespace chevan_utils
     return rad / M_PI * 180;
   }
   static CHEVAN_UTILS_INLINE float randf() { return (float)rand() / RAND_MAX; } // random float ranging 0-1
+  static CHEVAN_UTILS_INLINE void seed_rand() { srand(time(NULL)); }
 
-  static CHEVAN_UTILS_INLINE Color3 Vec3ToColor3(CHEVAN_UTILS_VEC3 v) { return Color3(v.x * 255.f, v.y * 255.f, v.z * 255.f); }
-  static CHEVAN_UTILS_INLINE Color4 Vec4ToColor4(CHEVAN_UTILS_VEC4 v) { return Color4(v.x * 255.f, v.y * 255.f, v.z * 255.f, v.w * 255.f); }
-  static CHEVAN_UTILS_INLINE CHEVAN_UTILS_VEC3 Color3ToVec3(Color3 c) { return (CHEVAN_UTILS_VEC3){c.x / 255.f, c.y / 255.f, c.z / 255.f}; }
-  static CHEVAN_UTILS_INLINE CHEVAN_UTILS_VEC4 Color4ToVec4(Color4 c) { return (CHEVAN_UTILS_VEC4){c.x / 255.f, c.y / 255.f, c.z / 255.f, c.w / 255.f}; }
+
+  static void *ch_bufferFile(const char *file, void **targetBuffer, size_t *bufferLength)
+  {
+    FILE *fp = fopen(file, "rb");
+    if (fp)
+    {
+      fseek(fp, 0, SEEK_END);
+      *bufferLength = ftell(fp);
+      fseek(fp, 0, SEEK_SET);
+      *targetBuffer = malloc(*bufferLength);
+      fread(*targetBuffer, *bufferLength, 1, fp);
+      fclose(fp);
+      return *targetBuffer;
+    }
+    return NULL;
+  }
+
+  static CHEVAN_UTILS_INLINE color3_t Vec3ToColor3(CHEVAN_UTILS_VEC3 v) { return color3_t(v.x * 255.f, v.y * 255.f, v.z * 255.f); }
+  static CHEVAN_UTILS_INLINE color4_t Vec4ToColor4(CHEVAN_UTILS_VEC4 v) { return color4_t(v.x * 255.f, v.y * 255.f, v.z * 255.f, v.w * 255.f); }
+  static CHEVAN_UTILS_INLINE CHEVAN_UTILS_VEC3 Color3ToVec3(color3_t c) { return (CHEVAN_UTILS_VEC3){c.x / 255.f, c.y / 255.f, c.z / 255.f}; }
+  static CHEVAN_UTILS_INLINE CHEVAN_UTILS_VEC4 Color4ToVec4(color4_t c) { return (CHEVAN_UTILS_VEC4){c.x / 255.f, c.y / 255.f, c.z / 255.f, c.w / 255.f}; }
 
   static CHEVAN_UTILS_VEC3 RGBToYUV(CHEVAN_UTILS_VEC3 rgb)
   {
@@ -2706,7 +2794,7 @@ namespace chevan_utils
   {
     return (CHEVAN_UTILS_VEC3){yuv.x + 1.14f * yuv.z, yuv.x - 0.395f * yuv.y - 0.581f * yuv.z, yuv.x + 2.033f * yuv.y};
   }
-  static Color3 RGBToYCbCr(Color3 rgb)
+  static color3_t RGBToYCbCr(color3_t rgb)
   {
     CHEVAN_UTILS_VEC3 v = {16 + (65.481 * rgb.r + 128.553 * rgb.g + 24.966 * rgb.b),
                            128 + (-37.797 * rgb.r - 74.203 * rgb.g + 112.0 * rgb.b),
@@ -2717,9 +2805,9 @@ namespace chevan_utils
       v.y = 255;
     if (v.z > 255)
       v.z = 255;
-    return (Color3){(uint8_t)v.x, (uint8_t)v.y, (uint8_t)v.z};
+    return (color3_t){(uint8_t)v.x, (uint8_t)v.y, (uint8_t)v.z};
   }
-  static Color3 YCbCrToRGB(Color3 ycc)
+  static color3_t YCbCrToRGB(color3_t ycc)
   {
     CHEVAN_UTILS_VEC3 v = {255.f * (ycc.x - 16) / 219 + 255.f * 1.402f * (ycc.z - 128) / 224,
                            255.f * (ycc.x - 16) / 219 - 255.f * (1.772f * 0.114f * (ycc.y - 128) / 0.587f + 1.402f * 0.299f * (ycc.z - 128) / 0.587f) / 224,
@@ -2730,7 +2818,7 @@ namespace chevan_utils
       v.y = 255;
     if (v.z > 255)
       v.z = 255;
-    return (Color3){(uint8_t)v.x, (uint8_t)v.y, (uint8_t)v.z};
+    return (color3_t){(uint8_t)v.x, (uint8_t)v.y, (uint8_t)v.z};
   }
   static CHEVAN_UTILS_VEC3 RGBToHSV(CHEVAN_UTILS_VEC3 rgb)
   {
