@@ -13,8 +13,9 @@ extern "C"
   typedef struct knn_DeepLearning_Backpropagator_Internal knn_DeepLearning_Backpropagator_Internal;
   typedef struct knn_DeepLearning_Backpropagator
   {
-    double *expextedOutput;
-    double (*costFunction)(double, double);
+    float *expextedOutput;
+    float (*costFunction)(float, float);
+    float backpropagationRange;
     knn_DeepLearning_Backpropagator_Internal *internal;
   } knn_DeepLearning_Backpropagator;
 
@@ -23,9 +24,9 @@ extern "C"
   void knn_DeepLearning_backpropagate(knn_DeepLearning *net, knn_DeepLearning_Backpropagator info);
   void knn_DeepLearning_backpropagateStore(knn_DeepLearning *net, knn_DeepLearning_Backpropagator info, uint max);
 
-  static double knn_DeepLearning_getCost(knn_DeepLearning *net, knn_DeepLearning_Backpropagator info)
+  static float knn_DeepLearning_getCost(knn_DeepLearning *net, knn_DeepLearning_Backpropagator info)
   {
-    double sum = 0;
+    float sum = 0;
     for (uint i = 0; i < net->output->nodes.length; i++)
     {
       sum += info.costFunction(array_get(knn_Node, net->output->nodes, i).value, info.expextedOutput[i]);
@@ -33,12 +34,12 @@ extern "C"
     return sum / net->output->nodes.length;
   }
 
-  static double knn_DeepLearning_meanSquaredError(double yHat, double y)
+  static float knn_DeepLearning_meanSquaredError(float yHat, float y)
   {
     return (yHat - y) * (yHat - y) / 2;
   }
 
-  static double knn_DeepLearning_crossEntropyLoss(double yHat, double y)
+  static float knn_DeepLearning_crossEntropyLoss(float yHat, float y)
   {
     if (y == 1)
     {

@@ -4,6 +4,10 @@
 #define knn_h
 #include "../chevan_utils.h"
 
+#ifndef knn_ThreadCount
+#define knn_ThreadCount 8
+#endif
+
 #ifdef __cplusplus
 using namespace chevan_utils;
 extern "C"
@@ -105,7 +109,7 @@ typedef struct ivec4 knnVec4;
     bool enabled, recursive;
   } knn_NEAT_Link;
 
-  typedef double (*knn_ActivationFunc)(double);
+  typedef float (*knn_ActivationFunc)(float);
 
   typedef struct knn_NEAT
   {
@@ -132,9 +136,7 @@ typedef struct ivec4 knnVec4;
   // HID=0,IN=1,OUT=2,BIAS=3,ACT=4
   uint knn_NEAT_getNodeType(knn_NEAT *net, uint node);
 
-  float knn_NEAT_calculateNetDelta(knn_NEAT *n1, knn_NEAT *n2, float maxDelta);
   void knn_NEAT_calculateNet(knn_NEAT *net);
-  knn_NEAT knn_NEAT_breedNets(knn_NEAT *parent1, knn_NEAT *parent2, float speciesRatio, knnArray *linksHistory);
 
   typedef struct knn_DeepLearning_Link
   {
@@ -149,16 +151,16 @@ typedef struct ivec4 knnVec4;
     struct knn_DeepLearning_Layer *prev, *next;
     enum
     {
-      FullyConnected, // 1->1 2->1 3->1
-      Linear,         // 1->1 2->2
-      Convolutionnal, // 1,2,3,4->1, 2,3,4,5->2
-      MaxPooling,     // 1,2,3,4->1 5,6,7,8->2
-      Dropout,        // dropout
-      Softmax,        // gives percentage
-      Input           // in layer
+      knn_DeepLearning_FullyConnected, // 1->1 2->1 3->1
+      knn_DeepLearning_Linear,         // 1->1 2->2
+      knn_DeepLearning_Convolutionnal, // 1,2,3,4->1, 2,3,4,5->2
+      knn_DeepLearning_MaxPooling,     // 1,2,3,4->1 5,6,7,8->2
+      knn_DeepLearning_Dropout,        // dropout
+      knn_DeepLearning_Softmax,        // gives percentage
+      knn_DeepLearning_Input           // in layer
     } type;
     knnArray nodes;
-    double *bias;
+    float *bias;
     union
     {
       struct
@@ -168,7 +170,7 @@ typedef struct ivec4 knnVec4;
       } fullyConnected; // is also used for softmax
       struct
       {
-        float dropoutValue;
+        float dropoutRate;
       } dropout;
       struct
       {

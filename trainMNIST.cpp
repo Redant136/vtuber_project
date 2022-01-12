@@ -92,7 +92,7 @@ static void parseMnist()
   free(labelData);
 
   // --------------------------------
-  
+
   imgData = (uchar *)ch_bufferFile(trainingImagesPath.c_str(), (void **)&imgData, &imgDataL);
   labelData = (uchar *)ch_bufferFile(trainingLabelPath.c_str(), (void **)&labelData, &labelDataL);
 
@@ -120,7 +120,7 @@ static void parseMnist()
   for (uint i = 0; i < dataset.training.length; i++)
   {
     dataset.training[i].label = mnistData.labels.labels[i];
-    dataset.training[i].pixels = mnistData.images.pixels + i*(dataset.width * dataset.height);
+    dataset.training[i].pixels = mnistData.images.pixels + i * (dataset.width * dataset.height);
   }
   free(imgData);
   free(labelData);
@@ -132,7 +132,7 @@ int main()
   {
     static const int numTrainingSets = 4;
     double training_inputs[numTrainingSets][2] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}};
-    double training_outputs[numTrainingSets][1] = {{0.0f}, {1.0f}, {1.0f}, {0.0f}};
+    float training_outputs[numTrainingSets][1] = {{0.0f}, {1.0f}, {1.0f}, {0.0f}};
     knn_DeepLearning_Layer *in = knn_DeepLearning_inputLayer_size(2);
     knn_DeepLearning_Layer *current = in;
     current = knn_DeepLearning_addConnectedLayer(current, 2, "sig");
@@ -161,14 +161,16 @@ int main()
   array_get(uint, format, 0) = dataset.width;
   array_get(uint, format, 1) = dataset.height;
   knn_DeepLearning_Layer *in = knn_DeepLearning_inputLayer(format);
-  array_get(uint, format, 0) = 2;
-  array_get(uint, format, 1) = 2;
+  array_get(uint, format, 0) = 5;
+  array_get(uint, format, 1) = 5;
   knn_DeepLearning_Layer *current = in;
   // current = knn_DeepLearning_addConvolutionLayer(in, format, "relu");
   array_get(uint, format, 0) = dataset.width;
   array_get(uint, format, 1) = dataset.height;
   // current = knn_DeepLearning_addConnectedLayer_layout(current, format, "tanh");
   // current = knn_DeepLearning_addConnectedLayer_layout(current, format, "sig");
+
+  current = knn_DeepLearning_addDropoutLayer(current, 0.1);
   current = knn_DeepLearning_addConnectedLayer(current, 49, "sig");
 
   knn_DeepLearning_Layer *out = knn_DeepLearning_addConnectedLayer(current, 10, "sig");
@@ -177,15 +179,15 @@ int main()
 
   float **inV = knn_DeepLearning_getLayerValuesPointers(net.input);
   float **outV = knn_DeepLearning_getLayerValuesPointers(net.output);
-  double result[10];
-  knn_DeepLearning_Backpropagator backprop = {result, knn_DeepLearning_meanSquaredError};
+  float result[10];
+  knn_DeepLearning_Backpropagator backprop = {result, knn_DeepLearning_meanSquaredError,1};
   knn_DeepLearning_initBackpropagateInternal(&net, &backprop);
 
   double lastRes[100] = {1};
+  // cchrono_start(chrono);
   for (uint d = 0; d < dataset.training.length; d++)
   {
     uint i = d % dataset.training.length;
-    // i %= 2;
     for (uint j = 0; j < net.input->nodes.length; j++)
     {
       *inV[j] = dataset.training[i].pixels[j] / 255.0;
@@ -226,12 +228,14 @@ int main()
     }
     // println(sum / sizeofArr(lastRes));
     // println(cost);
-    // knn_DeepLearning_backpropagate(&net, backprop);
 
+    // knn_DeepLearning_backpropagate(&net, backprop);
     knn_DeepLearning_backpropagateStore(&net, backprop, 10);
 
     knn_DeepLearning_clear(&net);
   }
+  // ch_println(cchrono_elapsed(chrono));
+
   if (1)
   {
     uint index = randf() * dataset.training.length;
@@ -262,5 +266,55 @@ int main()
 
     println(netOut);
     println(dataset.training[index].label);
+
+    for (int i = 0; i < 28; i++)
+    {
+      for (int j = 0; j < 28; j++)
+      {
+        print(dataset.training[index].pixels[j + i * 28] > 127 ? "1" : " ", " ");
+      }
+      println();
+    }
+  }
+  while (0)
+  {
+    uint index = 0;
+    std::cin >> index;
+    // index %= 2;
+    printSep();
+    for (uint j = 0; j < net.input->nodes.length; j++)
+    {
+      *inV[j] = dataset.training[index].pixels[j] / 255.0;
+    }
+    knn_DeepLearning_calculate(&net);
+    int netOut = -1;
+    float max = -1;
+    float sum = 0;
+    for (uint i = 0; i < net.output->nodes.length; i++)
+    {
+      sum += *outV[i];
+      if (max < *outV[i])
+      {
+        max = *outV[i];
+        netOut = i;
+      }
+    }
+    for (uint i = 0; i < net.output->nodes.length; i++)
+    {
+      // println(i, ": ", *outV[i] / sum * 100, "%");
+      println(i, ": ", *outV[i]);
+    }
+
+    println(netOut);
+    println(dataset.training[index].label);
+
+    for (int i = 0; i < 28; i++)
+    {
+      for (int j = 0; j < 28; j++)
+      {
+        print(dataset.training[index].pixels[j + i * 28] > 70 ? "1" : " ", " ");
+      }
+      println();
+    }
   }
 }

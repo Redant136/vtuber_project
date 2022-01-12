@@ -56,6 +56,7 @@ add_subdirectory(extern/glm)
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(extern/json)
 find_package(OpenCV REQUIRED HINTS PATHS "${CMAKE_BINARY_DIR}/../opencv_install" "${CMAKE_BINARY_DIR}/../extern")
+# add_subdirectory(extern/OpenCL-SDK)
 
 
 target_link_libraries(vtuber PRIVATE glad)
@@ -73,7 +74,7 @@ target_include_directories(vtuber PRIVATE ${LIBAV_PATH})
 target_link_libraries(faceDetection PRIVATE ${OpenCV_LIBS})
 target_include_directories(faceDetection PRIVATE ${OpenCV_INCLUDE_DIRS})
 
-add_library(knn kneuralnetwork/knn.c kneuralnetwork/knn_NEAT.c kneuralnetwork/knn_DeepLearning.c)
+add_subdirectory(kneuralnetwork)
 target_link_libraries(test knn)
 
 # target_link_libraries(test PRIVATE ${CMAKE_DL_LIBS})
