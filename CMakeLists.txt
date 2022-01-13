@@ -56,7 +56,6 @@ add_subdirectory(extern/glm)
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(extern/json)
 find_package(OpenCV REQUIRED HINTS PATHS "${CMAKE_BINARY_DIR}/../opencv_install" "${CMAKE_BINARY_DIR}/../extern")
-# add_subdirectory(extern/OpenCL-SDK)
 
 
 target_link_libraries(vtuber PRIVATE glad)
