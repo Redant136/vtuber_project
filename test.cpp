@@ -1,17 +1,16 @@
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <iostream>
-// #include <fstream>
-// #include <sstream>
-// #include <opencv2/opencv.hpp>
+#include <stdio.h>
+#include <stdlib.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include "chevan_utils.h"
+#include <opencv2/opencv.hpp>
 
 // #include "webcam.h"
 // #include <tensorflow/c/c_api.h>
-#include "kneuralnetwork/knn.h"
-#include "kneuralnetwork/knn_DeepLearning.h"
-using namespace chevan_utils;
-using namespace chevan_utils::chevanut_print;
-using namespace chevanut_byte_typedef;
+// #include "kneuralnetwork/knn.h"
+// #include "kneuralnetwork/knn_DeepLearning.h"
+using namespace ch;
 // using namespace chevanut_byte_typedef;
 
 

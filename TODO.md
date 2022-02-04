@@ -62,14 +62,21 @@
 [x] (camera) render camera onto screen
 [x] (camera) yuv 422 https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/pixfmt-packed-yuv.html
 [x] (face recognition) create own NN lib
+[x] (utils) c utils https://en.cppreference.com/w/c/variadic https://stackoverflow.com/questions/58900903/what-is-compile-time-encapsulation-in-c
+[x] (face recognition) get opencv to recognize face
 
 ## working on
 [ ] (shader) shadows (hard) https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
-[ ] (face recognition) get opencv to recognize face
-
+[ ] (face recognition) get face features 
+[ ] (research) http://dlib.net/compile.html
+[ ] (research) http://dlib.net/face_detection_ex.cpp.html , http://dlib.net/dnn_mmod_face_detection_ex.cpp.html , http://dlib.net/webcam_face_pose_ex.cpp.html , http://dlib.net/face_landmark_detection_ex.cpp.html
+[ ] (research) http://www.muonics.net/school/spring05/videoInput/
 
 ## upcoming
-[ ] (face recognition) nn
+[ ] (research) https://github.com/kwea123/VTuber_Unity/tree/ff5e1457d76d00f96eeb9c2ec9cf872f5ed43d0f
+[ ] (math) replace glm by personnal lib
+[ ] (optimization) register variable (lookup register modifier)
+[ ] (optimization) put vrmLoader.hpp and vtuber.hpp in seperate c++ file
 [ ] (camera) macos webcam (also uses libav, just not v4l2)
 [ ] (camera) look into libav camera framerate if slow
 [ ] (optimization) morph could be passed to gpu (look into geometry shader)
@@ -107,10 +114,9 @@
 [ ] (lighting) blinn-phong lighting https://learnopengl.com/Advanced-Lighting/Advanced-Lighting
 
 ## quality of life
+[~] (face recognition) nn
 [ ] (workflow) remedybg debugger
 [ ] (workflow) 4coder
-[~] (utils) c utils https://en.cppreference.com/w/c/variadic https://stackoverflow.com/questions/58900903/what-is-compile-time-encapsulation-in-c
-[-] (math) m4 and matrix multiplications and transforms
 [ ] (glb rendering) reflection textures
 [ ] (glb rendering) when material uses multiple texcoords ie texcoord_1 (make larger VAO)
 [ ] (glb rendering) texture double sided (gl_FrontFacing)

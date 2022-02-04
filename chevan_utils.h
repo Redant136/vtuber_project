@@ -1,14 +1,41 @@
 #pragma once
+
+/**
+  Helper header-only lib for personnal projects
+
+  typedef for unsigned variable types
+  commonly used includes
+  general helper function and quality of life
+  vec2,3,4 struct
+  color functions
+  Arrays
+
+  define CHEVAN_UTILS_VEC* to change the type of vec used
+
+*/
+
 #ifndef CHEVAN_UTILS_H
 #define CHEVAN_UTILS_H 1
-#define CHEVAN_UTILS_VERSION "2.3.5"
+#define CHEVAN_UTILS_VERSION 20402
 #define CHEVAN_UTILS_INLINE inline
 
-// #define PIf 3.1415926535897f
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#ifndef M_E
+#define M_E 2.71828182845904523536
+#endif
+
 #ifndef CHEVAN_UTILS_FASTCALC_PRECISION
 #define CHEVAN_UTILS_FASTCALC_PRECISION 9
 #endif
 
+#ifdef NDEBUG
+#ifndef CHEVAN_DEBUG
+#define CHEVAN_DEBUG 1
+#endif
+#undef NDEBUG
+#endif
 #ifdef CHEVAN_DEBUG
 #undef CHEVAN_DEBUG
 #define CHEVAN_DEBUG 1
@@ -46,7 +73,7 @@
   memcpy(&name, data, sizeof(type));
 #define sizeofArr(arr) (sizeof(arr) / sizeof(arr[0]))
 #define mallocArr(type, size) malloc(sizeof(type) * (size)) // calloc technically slower as sets all bytes to 0
-#define fcompare(a, b) ((a - b) < 0.0001 && (b - a) < 0.0001)
+#define fcompare(a, b) ((a - b) < FLT_EPSILON && (b - a) < FLT_EPSILON)
 #define nassert(c) assert(!(c))
 #define assert_value(val, cond) \
   if ((cond))                   \
@@ -54,11 +81,10 @@
     ch_println(val);            \
     assert(!(cond));            \
   }
-#define nassert_value(val,cond) assert_value(val,!(cond))
+#define nassert_value(val, cond) assert_value(val, !(cond))
 
-#define USER_NOT_IMPLEMENTED_ERROR(usr) assert(0 && "this has yet to be implemented. Please ask "#usr" to create it")
+#define USER_NOT_IMPLEMENTED_ERROR(usr) assert(0 && "this has yet to be implemented. Please ask " #usr " to create it")
 #define AC_NOT_IMPLEMENTED_ERROR assert(0 && "this has yet to be implemented. Please kindly ask Antoine Chevalier to get off his ass and get to work")
-
 
 #ifdef CHEVAN_UTILS_MACRO_MAGIC
 #ifndef CONCAT
@@ -140,24 +166,25 @@ typedef long long llong;
 
 #ifdef __cplusplus
 #include <iostream>
-#include <string>
+#include <stdio.h>
 #include <stdint.h>
+#include <string>
 #include <string.h>
+#include <assert.h>
+#include <time.h>
 #include <vector>
 #include <cmath>
 #include <algorithm>
-#include <time.h>
 
 #ifndef CHEVAN_UTILS_NO_EXTRA_INCLUDES
 #include <stddef.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <stdexcept>
 #include <functional>
 #include <stdarg.h>
 #endif
 
-namespace chevan_utils
+namespace ch
 {
   enum class Cardinal8dir
   {
@@ -206,7 +233,6 @@ namespace chevan_utils
       assert(arr);
       assert(i < MAX_LENGTH);
 #endif
-
       return arr[i];
     }
     T *operator+(size_t i)
@@ -230,7 +256,7 @@ namespace chevan_utils
     }
     Array<T, L> clone()
     {
-      T *a = new T[MAX_LENGTH];
+      T *a = malloc(sizeof(T) * MAX_LENGTH);
       memcpy(a, arr, sizeof(T) * length);
       return {a, length, MAX_LENGTH};
     }
@@ -240,6 +266,16 @@ namespace chevan_utils
       arr = NULL;
     }
     void free(void (*freeFunc)(void *))
+    {
+      for (uint i = 0; i < length; i++)
+      {
+        freeFunc(arr + i);
+      }
+      delete[] arr;
+      arr = NULL;
+    }
+    template <typename Func>
+    void free(Func freeFunc)
     {
       for (uint i = 0; i < length; i++)
       {
@@ -265,120 +301,6 @@ namespace chevan_utils
     return rad;
   }
 
-  static CHEVAN_UTILS_INLINE float fast_cos(float angle)
-  {
-    float t_angle = regularizeRad(angle) - M_PI;
-    float res = 0;
-    float x = 1;
-    int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
-    unsigned long long factorials[] = {0,
-                                       1,
-                                       2,
-                                       6,
-                                       24,
-                                       120,
-                                       720,
-                                       5040,
-                                       40320,
-                                       362880,
-                                       3628800,
-                                       39916800,
-                                       479001600,
-                                       6227020800,
-                                       87178291200,
-                                       1307674368000,
-                                       20922789888000,
-                                       355687428096000,
-                                       6402373705728000,
-                                       121645100408832000};
-    for (int32_t i = 0; i <= precision && i < sizeofArr(factorials); i += 4)
-    {
-      res += x / factorials[i];
-      x *= t_angle * t_angle;
-      res -= x / factorials[i + 2];
-      x *= t_angle * t_angle;
-    }
-    return -res;
-  }
-  static CHEVAN_UTILS_INLINE float fast_sin(float angle)
-  {
-    float t_angle = regularizeRad(angle) - M_PI;
-    float res = 0;
-    float x = t_angle;
-    int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
-    unsigned long long factorials[] = {0,
-                                       1,
-                                       2,
-                                       6,
-                                       24,
-                                       120,
-                                       720,
-                                       5040,
-                                       40320,
-                                       362880,
-                                       3628800,
-                                       39916800,
-                                       479001600,
-                                       6227020800,
-                                       87178291200,
-                                       1307674368000,
-                                       20922789888000,
-                                       355687428096000,
-                                       6402373705728000,
-                                       121645100408832000,
-                                       2432902008176640000};
-    for (int32_t i = 1; i <= precision && i < sizeof(factorials); i += 4)
-    {
-      res += x / factorials[i];
-      x *= t_angle * t_angle;
-      res -= x / factorials[i + 2];
-      x *= t_angle * t_angle;
-    }
-    return -res;
-  }
-  static CHEVAN_UTILS_INLINE float fast_atan(float a)
-  {
-    if ((a > -1.5 && a < -0.7) || (a < 1.4 && a >= 0.6))
-    {
-      return atanf(a);
-    }
-    if (a > -1 && a < 1)
-    {
-      float res = 0;
-      float x = a;
-      int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
-      for (int32_t i = 1; i <= precision; i += 2)
-      {
-        res += x / (4 * i - 3);
-        x *= a * a;
-        res -= x / (4 * i - 1);
-        x *= a * a;
-      }
-      return res;
-    }
-    else
-    {
-      float res = 0;
-      float x = -a;
-      int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
-      for (int32_t i = 1; i < precision * 2; i += 2)
-      {
-        res += 1.f / ((4 * i - 3) * x);
-        x *= a * a;
-        res -= 1.f / ((4 * i - 1) * x);
-        x *= a * a;
-      }
-      if (x < 0)
-      {
-        res += M_PI / 2;
-      }
-      else
-      {
-        res -= M_PI / 2;
-      }
-      return res;
-    }
-  }
   static std::string toLowerCase(std::string &s)
   {
     std::string r = s;
@@ -398,937 +320,932 @@ namespace chevan_utils
     return r;
   }
 
-  namespace chevanut_byte_typedef
+#ifdef CHEVAN_UTILS_BYTE_TYPEDEF
+  typedef int8_t i8;
+  typedef int16_t i16;
+  typedef int32_t i32;
+  typedef int64_t i64;
+  typedef uint8_t u8;
+  typedef uint16_t u16;
+  typedef uint32_t u32;
+  typedef uint64_t u64;
+  typedef float f32;
+  typedef double f64;
+#endif
+
+  template <typename T>
+  struct Vec2;
+  template <typename T>
+  struct Vec3;
+  template <typename T>
+  struct Vec4;
+
+  template <typename T>
+  struct Vec2
   {
-    typedef int8_t i8;
-    typedef int16_t i16;
-    typedef int32_t i32;
-    typedef int64_t i64;
-    typedef uint8_t u8;
-    typedef uint16_t u16;
-    typedef uint32_t u32;
-    typedef uint64_t u64;
-    typedef float f32;
-    typedef double f64;
-  }
+    T x, y;
+    constexpr Vec2() = default;
+    template <typename U>
+    Vec2(U x, U y)
+    {
+      this->x = x;
+      this->y = y;
+    }
+    template <typename Vec>
+    Vec2(const Vec &base)
+    {
+      this->x = base.x;
+      this->y = base.y;
+    }
 
-  namespace chevanut_vec
+    Vec2<T> operator+(const Vec2<T> a) { return Vec2<T>(x + a.x, y + a.y); }
+    Vec2<T> operator-(const Vec2<T> a) { return Vec2<T>(x - a.x, y - a.y); }
+    void operator+=(const Vec2<T> a)
+    {
+      x += a.x;
+      y += a.y;
+    }
+    void operator-=(const Vec2<T> a)
+    {
+      x -= a.x;
+      y -= a.y;
+    }
+    template <typename U>
+    Vec2<T> operator+(const U a) { return Vec2<T>(x + a, y + a); }
+    template <typename U>
+    Vec2<T> operator-(const U a) { return Vec2<T>(x - a, y - a); }
+    template <typename U>
+    Vec2<T> operator*(const U a) { return Vec2<T>(x * a, y * a); }
+    template <typename U>
+    Vec2<T> operator/(const U a) { return Vec2<T>(x / a, y / a); }
+    template <typename U>
+    void operator+=(const U a) { (*this) = (*this) + a; }
+    template <typename U>
+    void operator-=(const U a) { (*this) = (*this) - a; }
+    template <typename U>
+    void operator*=(const U a) { (*this) = (*this) * a; }
+    template <typename U>
+    void operator/=(const U a) { (*this) = (*this) / a; }
+  };
+  template <typename T>
+  struct Vec3
   {
-    template <typename T>
-    struct Vec2;
-    template <typename T>
-    struct Vec3;
-    template <typename T>
-    struct Vec4;
-
-#define _chevanut_apply_all_types(F) \
-  F(float);                          \
-  F(double);                         \
-  F(char);                           \
-  F(uchar);                          \
-  F(short);                          \
-  F(ushort);                         \
-  F(int);                            \
-  F(uint);                           \
-  F(long);                           \
-  F(ulong);                          \
-  F(ullong);
-
-    template <typename T>
-    struct Vec2
+    union
     {
-      T x, y;
-      constexpr Vec2() = default;
-#define _chevanut_v2_init(type) \
-  Vec2(type x, type y)          \
-  {                             \
-    this->x = x;                \
-    this->y = y;                \
-  }                             \
-  Vec2(type a)                  \
-  {                             \
-    this->x = a;                \
-    this->y = 0;                \
-  }
-
-      _chevanut_apply_all_types(_chevanut_v2_init);
-#undef _chevan_v2_init
-
-      template <typename Vec>
-      Vec2(const Vec &base)
-      {
-        this->x = base.x;
-        this->y = base.y;
-      }
-
-      Vec2<T> operator+(const Vec2<T> a) { return Vec2<T>(x + a.x, y + a.y); }
-      Vec2<T> operator-(const Vec2<T> a) { return Vec2<T>(x - a.x, y - a.y); }
-      void operator+=(const Vec2<T> a)
-      {
-        x += a.x;
-        y += a.y;
-      }
-      void operator-=(const Vec2<T> a)
-      {
-        x -= a.x;
-        y -= a.y;
-      }
-#define _chevanut_v2_op(T)                                       \
-  Vec2<T> operator+(const T a) { return Vec2<T>(x + a, y + a); } \
-  Vec2<T> operator-(const T a) { return Vec2<T>(x - a, y - a); } \
-  Vec2<T> operator*(const T a) { return Vec2<T>(x * a, y * a); } \
-  Vec2<T> operator/(const T a) { return Vec2<T>(x / a, y / a); }
-      _chevanut_apply_all_types(_chevanut_v2_op);
-#undef _chevanut_v2_op
-      template <typename I>
-      void operator+=(const I a)
-      {
-        (*this) = (*this) + a;
-      }
-      template <typename I>
-      void operator-=(const I a)
-      {
-        (*this) = (*this) - a;
-      }
-      template <typename I>
-      void operator*=(const I a)
-      {
-        (*this) = (*this) * a;
-      }
-      template <typename I>
-      void operator/=(const I a)
-      {
-        (*this) = (*this) / a;
-      }
+      T x;
+      T r;
     };
-    template <typename T>
-    struct Vec3
+    union
     {
-      union
-      {
-        T x;
-        T r;
-      };
-      union
-      {
-        T y;
-        T g;
-      };
-      union
-      {
-        T z;
-        T b;
-      };
-      constexpr Vec3() = default;
-#define _chevanut_v3_init(type) \
-  Vec3(type x, type y, type z)  \
-  {                             \
-    this->x = x;                \
-    this->y = y;                \
-    this->z = z;                \
-  }                             \
-  Vec3(type a)                  \
-  {                             \
-    this->x = a;                \
-  }                             \
-  Vec3(type a, type b)          \
-  {                             \
-    this->x = a;                \
-    this->y = b;                \
-  }
-      _chevanut_apply_all_types(_chevanut_v3_init);
-
-#undef _chevan_v3_init
-
-      template <typename Vec>
-      Vec3(const Vec &base, T z)
-      {
-        this->x = base.x;
-        this->y = base.y;
-        this->z = z;
-      }
-      template <typename Vec>
-      Vec3(const Vec &base)
-      {
-        this->x = base.x;
-        this->y = base.y;
-        this->z = base.z;
-      }
-
-      Vec3<T> operator+(const Vec3<T> a) { return Vec3<T>(x + a.x, y + a.y, z + a.z); }
-      Vec3<T> operator-(const Vec3<T> a) { return Vec3<T>(x - a.x, y - a.y, z - a.z); }
-      void operator+=(const Vec3<T> a)
-      {
-        x += a.x;
-        y += a.y;
-        z += a.z;
-      }
-      void operator-=(const Vec3<T> a)
-      {
-        x -= a.x;
-        y -= a.y;
-        z -= a.z;
-      }
-#define _chevanut_v3_op(T)                                              \
-  Vec3<T> operator+(const T a) { return Vec3<T>(x + a, y + a, z + a); } \
-  Vec3<T> operator-(const T a) { return Vec3<T>(x - a, y - a, z - a); } \
-  Vec3<T> operator*(const T a) { return Vec3<T>(x * a, y * a, z * a); } \
-  Vec3<T> operator/(const T a) { return Vec3<T>(x / a, y / a, z / a); }
-      _chevanut_apply_all_types(_chevanut_v3_op);
-#undef _chevanut_v3_op
-
-      void operator+=(const T a)
-      {
-        x += a;
-        y += a;
-        z += a;
-      }
-      void operator-=(const T a)
-      {
-        x -= a;
-        y -= a;
-        z -= a;
-      }
-      void operator*=(const T a)
-      {
-        x *= a;
-        y *= a;
-        z *= a;
-      }
-      void operator/=(const T a)
-      {
-        x /= a;
-        y /= a;
-        z /= a;
-      }
+      T y;
+      T g;
     };
-    template <typename T>
-    struct Vec4
+    union
     {
-      union
-      {
-        T x;
-        T r;
-      };
-      union
-      {
-        T y;
-        T g;
-      };
-      union
-      {
-        T z;
-        T width;
-        T b;
-      };
-      union
-      {
-        T w;
-        T height;
-        T a;
-      };
-      constexpr Vec4() = default;
-#define _chevanut_v4_init(type)        \
-  Vec4(type x, type y, type z, type w) \
-  {                                    \
-    this->x = x;                       \
-    this->y = y;                       \
-    this->z = z;                       \
-    this->w = w;                       \
-  }                                    \
-  Vec4(type a)                         \
-  {                                    \
-    this->x = a;                       \
-  }                                    \
-  Vec4(type a, type b)                 \
-  {                                    \
-    this->x = a;                       \
-    this->y = b;                       \
-  }                                    \
-  Vec4(type a, type b, type c)         \
-  {                                    \
-    this->x = a;                       \
-    this->y = b;                       \
-    this->z = c;                       \
-  }
-      _chevanut_v4_init(float);
-      _chevanut_v4_init(double);
-      _chevanut_v4_init(char);
-      _chevanut_v4_init(uchar);
-      _chevanut_v4_init(short);
-      _chevanut_v4_init(ushort);
-      _chevanut_v4_init(int);
-      _chevanut_v4_init(uint);
-      _chevanut_v4_init(long);
-      _chevanut_v4_init(ulong);
-      _chevanut_v4_init(ullong);
-
-#undef _chevan_v4_init
-
-      template <typename Vec>
-      Vec4(const Vec &base, T z, T w)
-      {
-        this->x = base.x;
-        this->y = base.y;
-        this->z = z;
-        this->w = w;
-      }
-      template <typename Vec>
-      Vec4(const Vec &base, T w)
-      {
-        this->x = base.x;
-        this->y = base.y;
-        this->z = base.z;
-        this->w = w;
-      }
-      template <typename Vec>
-      Vec4(const Vec &base)
-      {
-        this->x = base.x;
-        this->y = base.y;
-        this->z = base.z;
-        this->w = w;
-      }
-
-      Vec4<T> operator+(const Vec4<T> a) { return Vec4<T>(x + a.x, y + a.y, z + a.z, w + a.w); }
-      Vec4<T> operator-(const Vec4<T> a) { return Vec4<T>(x - a.x, y - a.y, z - a.z, w - a.w); }
-      void operator+=(const Vec4<T> a)
-      {
-        x += a.x;
-        y += a.y;
-        z += a.z;
-        w += a.w;
-      }
-      void operator-=(const Vec4<T> a)
-      {
-        x -= a.x;
-        y -= a.y;
-        z -= a.z;
-        w -= a.w;
-      }
-#define _chevanut_v4_op(T)                                                     \
-  Vec4<T> operator+(const T a) { return Vec4<T>(x + a, y + a, z + a, w + a); } \
-  Vec4<T> operator-(const T a) { return Vec4<T>(x - a, y - a, z - a, w - a); } \
-  Vec4<T> operator*(const T a) { return Vec4<T>(x * a, y * a, z * a, w * a); } \
-  Vec4<T> operator/(const T a) { return Vec4<T>(x / a, y / a, z / a, w / a); }
-      _chevanut_apply_all_types(_chevanut_v4_op);
-#undef _chevanut_v4_op
-      void operator+=(const T a)
-      {
-        x += a;
-        y += a;
-        z += a;
-        z += a;
-      }
-      void operator-=(const T a)
-      {
-        x -= a;
-        y -= a;
-        z -= a;
-        z -= a;
-      }
-      void operator*=(const T a)
-      {
-        x *= a;
-        y *= a;
-        z *= a;
-        z *= a;
-      }
-      void operator/=(const T a)
-      {
-        x /= a;
-        y /= a;
-        z /= a;
-        z /= a;
-      }
+      T z;
+      T b;
     };
+    constexpr Vec3() = default;
+    template <typename U>
+    Vec3(U x, U y, U z)
+    {
+      this->x = x;
+      this->y = y;
+      this->z = z;
+    }
+    template <typename Vec>
+    Vec3(const Vec &base, T z)
+    {
+      this->x = base.x;
+      this->y = base.y;
+      this->z = z;
+    }
+    template <typename Vec>
+    Vec3(const Vec &base)
+    {
+      this->x = base.x;
+      this->y = base.y;
+      this->z = base.z;
+    }
+
+    Vec3<T> operator+(const Vec3<T> a) { return Vec3<T>(x + a.x, y + a.y, z + a.z); }
+    Vec3<T> operator-(const Vec3<T> a) { return Vec3<T>(x - a.x, y - a.y, z - a.z); }
+    void operator+=(const Vec3<T> a)
+    {
+      x += a.x;
+      y += a.y;
+      z += a.z;
+    }
+    void operator-=(const Vec3<T> a)
+    {
+      x -= a.x;
+      y -= a.y;
+      z -= a.z;
+    }
+
+    template <typename U>
+    Vec3<T> operator+(const U a) { return Vec3<T>(x + a, y + a, z + a); }
+    template <typename U>
+    Vec3<T> operator-(const U a) { return Vec3<T>(x - a, y - a, z - a); }
+    template <typename U>
+    Vec3<T> operator*(const U a) { return Vec3<T>(x * a, y * a, z * a); }
+    template <typename U>
+    Vec3<T> operator/(const U a) { return Vec3<T>(x / a, y / a, z / a); }
+    template <typename U>
+    void operator+=(const U a) { (*this) = (*this) + a; }
+    template <typename U>
+    void operator-=(const U a) { (*this) = (*this) - a; }
+    template <typename U>
+    void operator*=(const U a) { (*this) = (*this) * a; }
+    template <typename U>
+    void operator/=(const U a) { (*this) = (*this) / a; }
+  };
+  template <typename T>
+  struct Vec4
+  {
+    union
+    {
+      T x;
+      T r;
+    };
+    union
+    {
+      T y;
+      T g;
+    };
+    union
+    {
+      T z;
+      T width;
+      T b;
+    };
+    union
+    {
+      T w;
+      T height;
+      T a;
+    };
+    constexpr Vec4() = default;
+    template <typename U>
+    Vec4(U x, U y, U z, U w)
+    {
+      this->x = x;
+      this->y = y;
+      this->z = z;
+      this->w = w;
+    }
+    template <typename Vec>
+    Vec4(const Vec &base, T z, T w)
+    {
+      this->x = base.x;
+      this->y = base.y;
+      this->z = z;
+      this->w = w;
+    }
+    template <typename Vec>
+    Vec4(const Vec &base, T w)
+    {
+      this->x = base.x;
+      this->y = base.y;
+      this->z = base.z;
+      this->w = w;
+    }
+    template <typename Vec>
+    Vec4(const Vec &base)
+    {
+      this->x = base.x;
+      this->y = base.y;
+      this->z = base.z;
+      this->w = w;
+    }
+
+    Vec4<T> operator+(const Vec4<T> a) { return Vec4<T>(x + a.x, y + a.y, z + a.z, w + a.w); }
+    Vec4<T> operator-(const Vec4<T> a) { return Vec4<T>(x - a.x, y - a.y, z - a.z, w - a.w); }
+    void operator+=(const Vec4<T> a)
+    {
+      x += a.x;
+      y += a.y;
+      z += a.z;
+      w += a.w;
+    }
+    void operator-=(const Vec4<T> a)
+    {
+      x -= a.x;
+      y -= a.y;
+      z -= a.z;
+      w -= a.w;
+    }
+
+    template <typename U>
+    Vec4<T> operator+(const U a) { return Vec4<T>(x + a, y + a, z + a, w + a); }
+    template <typename U>
+    Vec4<T> operator-(const U a) { return Vec4<T>(x - a, y - a, z - a, w - a); }
+    template <typename U>
+    Vec4<T> operator*(const U a) { return Vec4<T>(x * a, y * a, z * a, w * a); }
+    template <typename U>
+    Vec4<T> operator/(const U a) { return Vec4<T>(x / a, y / a, z / a, w / a); }
+    template <typename U>
+    void operator+=(const U a) { (*this) = (*this) + a; }
+    template <typename U>
+    void operator-=(const U a) { (*this) = (*this) - a; }
+    template <typename U>
+    void operator*=(const U a) { (*this) = (*this) * a; }
+    template <typename U>
+    void operator/=(const U a) { (*this) = (*this) / a; }
+  };
 
 #ifdef chevanut_staticVec
-    struct vec2
+  struct vec2
+  {
+    float x, y;
+    vec2 operator+(const vec2 a) { return {x + a.x, y + a.y}; }
+    vec2 operator-(const vec2 a) { return {x - a.x, y - a.y}; }
+    void operator+=(const vec2 a)
     {
-      float x, y;
-      vec2 operator+(const vec2 a) { return {x + a.x, y + a.y}; }
-      vec2 operator-(const vec2 a) { return {x - a.x, y - a.y}; }
-      void operator+=(const vec2 a)
-      {
-        x += a.x;
-        y += a.y;
-      }
-      void operator-=(const vec2 a)
-      {
-        x -= a.x;
-        y -= a.y;
-      }
-      vec2 operator+(const float a) { return {x + a, y + a}; }
-      vec2 operator-(const float a) { return {x - a, y - a}; }
-      vec2 operator*(const float a) { return {x * a, y * a}; }
-      vec2 operator/(const float a) { return {x / a, y / a}; }
-      void operator+=(const float a)
-      {
-        x += a;
-        y += a;
-      }
-      void operator-=(const float a)
-      {
-        x -= a;
-        y -= a;
-      }
-      void operator*=(const float a)
-      {
-        x *= a;
-        y *= a;
-      }
-      void operator/=(const float a)
-      {
-        x /= a;
-        y /= a;
-      }
-    };
-    struct vec3
+      x += a.x;
+      y += a.y;
+    }
+    void operator-=(const vec2 a)
     {
-      union
-      {
-        float x, r;
-      };
-      union
-      {
-        float y, g;
-      };
-      union
-      {
-        float z, b;
-      };
-      vec3 operator+(const vec3 &a) { return {x + a.x, y + a.y, z + a.z}; }
-      vec3 operator-(const vec3 &a) { return {x - a.x, y - a.y, z - a.z}; }
-      void operator+=(const vec3 &a)
-      {
-        x += a.x;
-        y += a.y;
-        z += a.z;
-      }
-      void operator-=(const vec3 &a)
-      {
-        x -= a.x;
-        y -= a.y;
-        z -= a.z;
-      }
-      vec3 operator+(const float &a) { return {x + a, y + a, z + a}; }
-      vec3 operator-(const float &a) { return {x - a, y - a, z - a}; }
-      vec3 operator*(const float &a) { return {x * a, y * a, z * a}; }
-      vec3 operator/(const float &a) { return {x / a, y / a, z / a}; }
-      void operator+=(const float &a)
-      {
-        x += a;
-        y += a;
-        z += a;
-      }
-      void operator-=(const float &a)
-      {
-        x -= a;
-        y -= a;
-        z -= a;
-      }
-      void operator*=(const float &a)
-      {
-        x *= a;
-        y *= a;
-        z *= a;
-      }
-      void operator/=(const float &a)
-      {
-        x /= a;
-        y /= a;
-        z /= a;
-      }
-    };
-    struct vec4
+      x -= a.x;
+      y -= a.y;
+    }
+    vec2 operator+(const float a) { return {x + a, y + a}; }
+    vec2 operator-(const float a) { return {x - a, y - a}; }
+    vec2 operator*(const float a) { return {x * a, y * a}; }
+    vec2 operator/(const float a) { return {x / a, y / a}; }
+    void operator+=(const float a)
     {
-      union
-      {
-        float x;
-        float r;
-      };
-      union
-      {
-        float y;
-        float g;
-      };
-      union
-      {
-        float z;
-        float width;
-        float b;
-      };
-      union
-      {
-        float w;
-        float height;
-        float a;
-      };
-      vec4 operator+(const vec4 &a) { return {x + a.x, y + a.y, z + a.z, w + a.w}; }
-      vec4 operator-(const vec4 &a) { return {x - a.x, y - a.y, z - a.z, w - a.w}; }
-      void operator+=(const vec4 &a)
-      {
-        x += a.x;
-        y += a.y;
-        z += a.z;
-        w += a.w;
-      }
-      void operator-=(const vec4 &a)
-      {
-        x -= a.x;
-        y -= a.y;
-        z -= a.z;
-        w -= a.w;
-      }
-      vec4 operator+(const float &a) { return {x + a, y + a, z + a, w + a}; }
-      vec4 operator-(const float &a) { return {x - a, y - a, z - a, w - a}; }
-      vec4 operator*(const float &a) { return {x * a, y * a, z * a, w * a}; }
-      vec4 operator/(const float &a) { return {x / a, y / a, z / a, w / a}; }
-      void operator+=(const float &a)
-      {
-        x += a;
-        y += a;
-        z += a;
-        z += a;
-      }
-      void operator-=(const float &a)
-      {
-        x -= a;
-        y -= a;
-        z -= a;
-        z -= a;
-      }
-      void operator*=(const float &a)
-      {
-        x *= a;
-        y *= a;
-        z *= a;
-        z *= a;
-      }
-      void operator/=(const float &a)
-      {
-        x /= a;
-        y /= a;
-        z /= a;
-        z /= a;
-      }
+      x += a;
+      y += a;
+    }
+    void operator-=(const float a)
+    {
+      x -= a;
+      y -= a;
+    }
+    void operator*=(const float a)
+    {
+      x *= a;
+      y *= a;
+    }
+    void operator/=(const float a)
+    {
+      x /= a;
+      y /= a;
+    }
+  };
+  struct vec3
+  {
+    union
+    {
+      float x, r;
     };
+    union
+    {
+      float y, g;
+    };
+    union
+    {
+      float z, b;
+    };
+    vec3 operator+(const vec3 &a) { return {x + a.x, y + a.y, z + a.z}; }
+    vec3 operator-(const vec3 &a) { return {x - a.x, y - a.y, z - a.z}; }
+    void operator+=(const vec3 &a)
+    {
+      x += a.x;
+      y += a.y;
+      z += a.z;
+    }
+    void operator-=(const vec3 &a)
+    {
+      x -= a.x;
+      y -= a.y;
+      z -= a.z;
+    }
+    vec3 operator+(const float &a) { return {x + a, y + a, z + a}; }
+    vec3 operator-(const float &a) { return {x - a, y - a, z - a}; }
+    vec3 operator*(const float &a) { return {x * a, y * a, z * a}; }
+    vec3 operator/(const float &a) { return {x / a, y / a, z / a}; }
+    void operator+=(const float &a)
+    {
+      x += a;
+      y += a;
+      z += a;
+    }
+    void operator-=(const float &a)
+    {
+      x -= a;
+      y -= a;
+      z -= a;
+    }
+    void operator*=(const float &a)
+    {
+      x *= a;
+      y *= a;
+      z *= a;
+    }
+    void operator/=(const float &a)
+    {
+      x /= a;
+      y /= a;
+      z /= a;
+    }
+  };
+  struct vec4
+  {
+    union
+    {
+      float x;
+      float r;
+    };
+    union
+    {
+      float y;
+      float g;
+    };
+    union
+    {
+      float z;
+      float width;
+      float b;
+    };
+    union
+    {
+      float w;
+      float height;
+      float a;
+    };
+    vec4 operator+(const vec4 &a) { return {x + a.x, y + a.y, z + a.z, w + a.w}; }
+    vec4 operator-(const vec4 &a) { return {x - a.x, y - a.y, z - a.z, w - a.w}; }
+    void operator+=(const vec4 &a)
+    {
+      x += a.x;
+      y += a.y;
+      z += a.z;
+      w += a.w;
+    }
+    void operator-=(const vec4 &a)
+    {
+      x -= a.x;
+      y -= a.y;
+      z -= a.z;
+      w -= a.w;
+    }
+    vec4 operator+(const float &a) { return {x + a, y + a, z + a, w + a}; }
+    vec4 operator-(const float &a) { return {x - a, y - a, z - a, w - a}; }
+    vec4 operator*(const float &a) { return {x * a, y * a, z * a, w * a}; }
+    vec4 operator/(const float &a) { return {x / a, y / a, z / a, w / a}; }
+    void operator+=(const float &a)
+    {
+      x += a;
+      y += a;
+      z += a;
+      z += a;
+    }
+    void operator-=(const float &a)
+    {
+      x -= a;
+      y -= a;
+      z -= a;
+      z -= a;
+    }
+    void operator*=(const float &a)
+    {
+      x *= a;
+      y *= a;
+      z *= a;
+      z *= a;
+    }
+    void operator/=(const float &a)
+    {
+      x /= a;
+      y /= a;
+      z /= a;
+      z /= a;
+    }
+  };
 
-    struct ivec2
+  struct ivec2
+  {
+    int32_t x, y;
+    ivec2 operator+(const ivec2 &a) { return {x + a.x, y + a.y}; }
+    ivec2 operator-(const ivec2 &a) { return {x - a.x, y - a.y}; }
+    void operator+=(const ivec2 &a)
     {
-      int32_t x, y;
-      ivec2 operator+(const ivec2 &a) { return {x + a.x, y + a.y}; }
-      ivec2 operator-(const ivec2 &a) { return {x - a.x, y - a.y}; }
-      void operator+=(const ivec2 &a)
-      {
-        x += a.x;
-        y += a.y;
-      }
-      void operator-=(const ivec2 &a)
-      {
-        x -= a.x;
-        y -= a.y;
-      }
-      ivec2 operator+(const int32_t &a) { return {x + a, y + a}; }
-      ivec2 operator-(const int32_t &a) { return {x - a, y - a}; }
-      ivec2 operator*(const int32_t &a) { return {x * a, y * a}; }
-      ivec2 operator/(const int32_t &a) { return {x / a, y / a}; }
-      void operator+=(const int32_t &a)
-      {
-        x += a;
-        y += a;
-      }
-      void operator-=(const int32_t &a)
-      {
-        x -= a;
-        y -= a;
-      }
-      void operator*=(const int32_t &a)
-      {
-        x *= a;
-        y *= a;
-      }
-      void operator/=(const int32_t &a)
-      {
-        x /= a;
-        y /= a;
-      }
-    };
-    struct ivec3
+      x += a.x;
+      y += a.y;
+    }
+    void operator-=(const ivec2 &a)
     {
-      union
-      {
-        int32_t x, r;
-      };
-      union
-      {
-        int32_t y, g;
-      };
-      union
-      {
-        int32_t z, b;
-      };
-      ivec3 operator+(const ivec3 &a) { return {x + a.x, y + a.y, z + a.z}; }
-      ivec3 operator-(const ivec3 &a) { return {x - a.x, y - a.y, z - a.z}; }
-      void operator+=(const ivec3 &a)
-      {
-        x += a.x;
-        y += a.y;
-        z += a.z;
-      }
-      void operator-=(const ivec3 &a)
-      {
-        x -= a.x;
-        y -= a.y;
-        z -= a.z;
-      }
-      ivec3 operator+(const int32_t &a) { return {x + a, y + a, z + a}; }
-      ivec3 operator-(const int32_t &a) { return {x - a, y - a, z - a}; }
-      ivec3 operator*(const int32_t &a) { return {x * a, y * a, z * a}; }
-      ivec3 operator/(const int32_t &a) { return {x / a, y / a, z / a}; }
-      void operator+=(const int32_t &a)
-      {
-        x += a;
-        y += a;
-        z += a;
-      }
-      void operator-=(const int32_t &a)
-      {
-        x -= a;
-        y -= a;
-        z -= a;
-      }
-      void operator*=(const int32_t &a)
-      {
-        x *= a;
-        y *= a;
-        z *= a;
-      }
-      void operator/=(const int32_t &a)
-      {
-        x /= a;
-        y /= a;
-        z /= a;
-      }
-    };
-    struct ivec4
+      x -= a.x;
+      y -= a.y;
+    }
+    ivec2 operator+(const int32_t &a) { return {x + a, y + a}; }
+    ivec2 operator-(const int32_t &a) { return {x - a, y - a}; }
+    ivec2 operator*(const int32_t &a) { return {x * a, y * a}; }
+    ivec2 operator/(const int32_t &a) { return {x / a, y / a}; }
+    void operator+=(const int32_t &a)
     {
-      union
-      {
-        int32_t x;
-        int32_t r;
-      };
-      union
-      {
-        int32_t y;
-        int32_t g;
-      };
-      union
-      {
-        int32_t z;
-        int32_t width;
-        int32_t b;
-      };
-      union
-      {
-        int32_t w;
-        int32_t height;
-        int32_t a;
-      };
-      ivec4 operator+(const ivec4 &a) { return {x + a.x, y + a.y, z + a.z, w + a.w}; }
-      ivec4 operator-(const ivec4 &a) { return {x - a.x, y - a.y, z - a.z, w - a.w}; }
-      void operator+=(const ivec4 &a)
-      {
-        x += a.x;
-        y += a.y;
-        z += a.z;
-        w += a.w;
-      }
-      void operator-=(const ivec4 &a)
-      {
-        x -= a.x;
-        y -= a.y;
-        z -= a.z;
-        w -= a.w;
-      }
-      ivec4 operator+(const int32_t &a) { return {x + a, y + a, z + a, w + a}; }
-      ivec4 operator-(const int32_t &a) { return {x - a, y - a, z - a, w - a}; }
-      ivec4 operator*(const int32_t &a) { return {x * a, y * a, z * a, w * a}; }
-      ivec4 operator/(const int32_t &a) { return {x / a, y / a, z / a, w / a}; }
-      void operator+=(const int32_t &a)
-      {
-        x += a;
-        y += a;
-        z += a;
-        z += a;
-      }
-      void operator-=(const int32_t &a)
-      {
-        x -= a;
-        y -= a;
-        z -= a;
-        z -= a;
-      }
-      void operator*=(const int32_t &a)
-      {
-        x *= a;
-        y *= a;
-        z *= a;
-        z *= a;
-      }
-      void operator/=(const int32_t &a)
-      {
-        x /= a;
-        y /= a;
-        z /= a;
-        z /= a;
-      }
+      x += a;
+      y += a;
+    }
+    void operator-=(const int32_t &a)
+    {
+      x -= a;
+      y -= a;
+    }
+    void operator*=(const int32_t &a)
+    {
+      x *= a;
+      y *= a;
+    }
+    void operator/=(const int32_t &a)
+    {
+      x /= a;
+      y /= a;
+    }
+  };
+  struct ivec3
+  {
+    union
+    {
+      int32_t x, r;
     };
+    union
+    {
+      int32_t y, g;
+    };
+    union
+    {
+      int32_t z, b;
+    };
+    ivec3 operator+(const ivec3 &a) { return {x + a.x, y + a.y, z + a.z}; }
+    ivec3 operator-(const ivec3 &a) { return {x - a.x, y - a.y, z - a.z}; }
+    void operator+=(const ivec3 &a)
+    {
+      x += a.x;
+      y += a.y;
+      z += a.z;
+    }
+    void operator-=(const ivec3 &a)
+    {
+      x -= a.x;
+      y -= a.y;
+      z -= a.z;
+    }
+    ivec3 operator+(const int32_t &a) { return {x + a, y + a, z + a}; }
+    ivec3 operator-(const int32_t &a) { return {x - a, y - a, z - a}; }
+    ivec3 operator*(const int32_t &a) { return {x * a, y * a, z * a}; }
+    ivec3 operator/(const int32_t &a) { return {x / a, y / a, z / a}; }
+    void operator+=(const int32_t &a)
+    {
+      x += a;
+      y += a;
+      z += a;
+    }
+    void operator-=(const int32_t &a)
+    {
+      x -= a;
+      y -= a;
+      z -= a;
+    }
+    void operator*=(const int32_t &a)
+    {
+      x *= a;
+      y *= a;
+      z *= a;
+    }
+    void operator/=(const int32_t &a)
+    {
+      x /= a;
+      y /= a;
+      z /= a;
+    }
+  };
+  struct ivec4
+  {
+    union
+    {
+      int32_t x;
+      int32_t r;
+    };
+    union
+    {
+      int32_t y;
+      int32_t g;
+    };
+    union
+    {
+      int32_t z;
+      int32_t width;
+      int32_t b;
+    };
+    union
+    {
+      int32_t w;
+      int32_t height;
+      int32_t a;
+    };
+    ivec4 operator+(const ivec4 &a) { return {x + a.x, y + a.y, z + a.z, w + a.w}; }
+    ivec4 operator-(const ivec4 &a) { return {x - a.x, y - a.y, z - a.z, w - a.w}; }
+    void operator+=(const ivec4 &a)
+    {
+      x += a.x;
+      y += a.y;
+      z += a.z;
+      w += a.w;
+    }
+    void operator-=(const ivec4 &a)
+    {
+      x -= a.x;
+      y -= a.y;
+      z -= a.z;
+      w -= a.w;
+    }
+    ivec4 operator+(const int32_t &a) { return {x + a, y + a, z + a, w + a}; }
+    ivec4 operator-(const int32_t &a) { return {x - a, y - a, z - a, w - a}; }
+    ivec4 operator*(const int32_t &a) { return {x * a, y * a, z * a, w * a}; }
+    ivec4 operator/(const int32_t &a) { return {x / a, y / a, z / a, w / a}; }
+    void operator+=(const int32_t &a)
+    {
+      x += a;
+      y += a;
+      z += a;
+      z += a;
+    }
+    void operator-=(const int32_t &a)
+    {
+      x -= a;
+      y -= a;
+      z -= a;
+      z -= a;
+    }
+    void operator*=(const int32_t &a)
+    {
+      x *= a;
+      y *= a;
+      z *= a;
+      z *= a;
+    }
+    void operator/=(const int32_t &a)
+    {
+      x /= a;
+      y /= a;
+      z /= a;
+      z /= a;
+    }
+  };
 
 #else
-    typedef Vec2<float> vec2;
-    typedef Vec3<float> vec3;
-    typedef Vec4<float> vec4;
-    typedef Vec2<int32_t> ivec2;
-    typedef Vec3<int32_t> ivec3;
-    typedef Vec4<int32_t> ivec4;
+  typedef Vec2<float> vec2;
+  typedef Vec3<float> vec3;
+  typedef Vec4<float> vec4;
+  typedef Vec2<int32_t> ivec2;
+  typedef Vec3<int32_t> ivec3;
+  typedef Vec4<int32_t> ivec4;
 #endif
 
 #ifndef CHEVAN_UTILS_VEC2
-#define CHEVAN_UTILS_VEC2 chevan_utils::chevanut_vec::vec2
+#define CHEVAN_UTILS_VEC2 ch::vec2
 #endif // !CHEVAN_UTILS_VEC2
 #ifndef CHEVAN_UTILS_VEC3
-#define CHEVAN_UTILS_VEC3 chevan_utils::chevanut_vec::vec3
+#define CHEVAN_UTILS_VEC3 ch::vec3
 #endif // !CHEVAN_UTILS_VEC3
 #ifndef CHEVAN_UTILS_VEC4
-#define CHEVAN_UTILS_VEC4 chevan_utils::chevanut_vec::vec4
+#define CHEVAN_UTILS_VEC4 ch::vec4
 #endif // !CHEVAN_UTILS_VEC4
+
+  template <typename P>
+  static void print(P p);
+  template <typename P, typename... P2>
+  static void print(P p, P2... p2);
+  template <typename P>
+  static void println(P p);
+  template <typename P, typename... P2>
+  static void println(P p, P2... p2);
+
+  template <typename Vector>
+  static void printVec(Vector v)
+  {
+    for (auto t : v)
+    {
+      std::cout << t;
+    }
+    std::cout << std::endl;
+  }
+  template <typename V>
+  static void printVec2(V v)
+  {
+    println("{", v.x, ", ", v.y, "}");
+  }
+  template <typename V>
+  static void printVec3(V v)
+  {
+    println("{", v.x, ", ", v.y, ", ", v.z, "}");
+  }
+  template <typename V>
+  static void printVec4(V v)
+  {
+    println("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
+  }
+  static void printMat4(float mat[16])
+  {
+    for (uint i = 0; i < 4; i++)
+    {
+      println(mat[0 + i * 4], ", ", mat[1 + i * 4], ", ", mat[2 + i * 4], ", ", mat[3 + i * 4]);
+    }
+  }
+  static void printMat4(double mat[16])
+  {
+    for (uint i = 0; i < 4; i++)
+    {
+      println(mat[0 + i * 4], ", ", mat[1 + i * 4], ", ", mat[2 + i * 4], ", ", mat[3 + i * 4]);
+    }
+  }
+  template <typename M>
+  static void printMat4(M mat)
+  {
+    printMat4((float *)&mat);
+  }
+  template <typename M>
+  static void printMat4D(M mat)
+  {
+    printMat4((double *)&mat);
+  }
+  static void printMem(void *p, ulong length = 256)
+  {
+    std::string s = "";
+    for (uint i = 0; i < length; i++)
+    {
+      s += std::to_string(((uchar *)p)[i]);
+    }
+    std::cout << s << std::endl;
+  }
+  template <typename T>
+  static void printBits(T *t, size_t length = 1)
+  {
+    for (uint i = 0; i < length * 8; i++)
+    {
+      std::cout << ((((uchar *)t)[i / 8] & (1 << i % 8)) > 0 ? 1 : 0);
+    }
+    std::cout << std::endl;
+  }
+  template <typename T>
+  static void printBits(T t)
+  {
+    for (uint i = 0; i < sizeof(T) * 8; i++)
+    {
+      std::cout << ((t & (1 << i)) > 0 ? 1 : 0);
+    }
+    std::cout << std::endl;
+  }
+  // ----------------------------------------------
+  template <typename Printable>
+  static void print(Printable p)
+  {
+    std::cout << p;
+  }
+  static void print()
+  {
+    std::cout << std::endl;
+  }
+  static void println()
+  {
+    std::cout << std::endl;
+  }
+  static void printSep()
+  {
+    std::cout << "---------------------------------" << std::endl;
+  }
+  static void print(uchar *p)
+  {
+    std::cout << (void *)p;
+  }
+  static void print(uchar p)
+  {
+    print((int)p);
+  }
+  template <typename L>
+  static void print(Array<char, L> arr, L length = 256)
+  {
+    L l = arr.length < length ? arr.length : length;
+    std::cout << std::string(arr.arr, arr.arr + l);
+  }
+  template <typename L>
+  static void print(Array<uchar, L> arr, L length = 256)
+  {
+    L l = arr.length < length ? arr.length : length;
+    std::cout << std::string(arr.arr, arr.arr + l);
+  }
+  template <typename T, typename L>
+  static void print(Array<T, L> arr, L length = 256)
+  {
+    L l = arr.length < length ? arr.length : length;
+    std::cout << "{";
+    print(arr[0]);
+    for (uint i = 1; i < l; i++)
+    {
+      std::cout << ",";
+      print(arr[i]);
+    }
+    std::cout << "}";
+  }
+  template <typename T>
+  static void print(std::vector<T> vec)
+  {
+    for (T t : vec)
+    {
+      print(t);
+    }
+  }
+  static void print(CHEVAN_UTILS_VEC2 v)
+  {
+    print("{", v.x, ", ", v.y, "}");
+  }
+  static void print(CHEVAN_UTILS_VEC3 v)
+  {
+    print("{", v.x, ", ", v.y, ", ", v.z, "}");
+  }
+  static void print(CHEVAN_UTILS_VEC4 v)
+  {
+    print("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
+  }
+  static void print(Cardinal8dir dir)
+  {
+    switch (dir)
+    {
+    case Cardinal8dir::CENTER:
+      std::cout << "CENTER" << std::endl;
+      break;
+    case Cardinal8dir::NORTH:
+      std::cout << "NORTH" << std::endl;
+      break;
+    case Cardinal8dir::SOUTH:
+      std::cout << "SOUTH" << std::endl;
+      break;
+    case Cardinal8dir::EAST:
+      std::cout << "EAST" << std::endl;
+      break;
+    case Cardinal8dir::WEST:
+      std::cout << "WEST" << std::endl;
+      break;
+    case Cardinal8dir::NORTH_EAST:
+      std::cout << "NORTH_EAST" << std::endl;
+      break;
+    case Cardinal8dir::NORTH_WEST:
+      std::cout << "NORTH_WEST" << std::endl;
+      break;
+    case Cardinal8dir::SOUTH_EAST:
+      std::cout << "SOUTH_EAST" << std::endl;
+      break;
+    case Cardinal8dir::SOUTH_WEST:
+      std::cout << "SOUTH_WEST" << std::endl;
+      break;
+    default:
+      break;
+    }
+  }
+  template <typename Printable>
+  static void println(Printable p)
+  {
+    print(p);
+    std::cout << std::endl;
+  }
+  template <typename Printable, typename... Printable2>
+  static void print(Printable p, Printable2... p2)
+  {
+    print(p);
+    print(p2...);
+  }
+  template <typename Printable, typename... Printable2>
+  static void println(Printable p, Printable2... p2)
+  {
+    print(p);
+    print(p2...);
+    std::cout << std::endl;
   }
 
-  namespace chevanut_print
+#define ch_print(...) ch::print(__VA_ARGS__)
+#define ch_println(...) ch::println(__VA_ARGS__)
+
+  namespace chm
   {
-    template <typename P>
-    static void print(P p);
-    template <typename P, typename... P2>
-    static void print(P p, P2... p2);
-    template <typename P>
-    static void println(P p);
-    template <typename P, typename... P2>
-    static void println(P p, P2... p2);
-
-    template <typename Vector>
-    static void printVec(Vector v)
+    static CHEVAN_UTILS_INLINE float fast_cos(float angle)
     {
-      for (auto t : v)
+      float t_angle = regularizeRad(angle) - M_PI;
+      float res = 0;
+      float x = 1;
+      int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
+      unsigned long long factorials[] = {0,
+                                         1,
+                                         2,
+                                         6,
+                                         24,
+                                         120,
+                                         720,
+                                         5040,
+                                         40320,
+                                         362880,
+                                         3628800,
+                                         39916800,
+                                         479001600,
+                                         6227020800,
+                                         87178291200,
+                                         1307674368000,
+                                         20922789888000,
+                                         355687428096000,
+                                         6402373705728000,
+                                         121645100408832000};
+      for (int32_t i = 0; i <= precision && i < sizeofArr(factorials); i += 4)
       {
-        std::cout << t;
+        res += x / factorials[i];
+        x *= t_angle * t_angle;
+        res -= x / factorials[i + 2];
+        x *= t_angle * t_angle;
       }
-      std::cout << std::endl;
+      return -res;
     }
-    template <typename V>
-    static void printVec2(V v)
+    static CHEVAN_UTILS_INLINE float fast_sin(float angle)
     {
-      println("{", v.x, ", ", v.y, "}");
-    }
-    template <typename V>
-    static void printVec3(V v)
-    {
-      println("{", v.x, ", ", v.y, ", ", v.z, "}");
-    }
-    template <typename V>
-    static void printVec4(V v)
-    {
-      println("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
-    }
-    static void printMat4(float mat[16])
-    {
-      for (uint i = 0; i < 4; i++)
+      float t_angle = regularizeRad(angle) - M_PI;
+      float res = 0;
+      float x = t_angle;
+      int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
+      unsigned long long factorials[] = {0,
+                                         1,
+                                         2,
+                                         6,
+                                         24,
+                                         120,
+                                         720,
+                                         5040,
+                                         40320,
+                                         362880,
+                                         3628800,
+                                         39916800,
+                                         479001600,
+                                         6227020800,
+                                         87178291200,
+                                         1307674368000,
+                                         20922789888000,
+                                         355687428096000,
+                                         6402373705728000,
+                                         121645100408832000,
+                                         2432902008176640000};
+      for (int32_t i = 1; i <= precision && i < sizeof(factorials); i += 4)
       {
-        println(mat[0 + i * 4], ", ", mat[1 + i * 4], ", ", mat[2 + i * 4], ", ", mat[3 + i * 4]);
+        res += x / factorials[i];
+        x *= t_angle * t_angle;
+        res -= x / factorials[i + 2];
+        x *= t_angle * t_angle;
       }
+      return -res;
     }
-    static void printMat4(double mat[16])
+    static CHEVAN_UTILS_INLINE float fast_atan(float a)
     {
-      for (uint i = 0; i < 4; i++)
+      if ((a > -1.5 && a < -0.7) || (a < 1.4 && a >= 0.6))
       {
-        println(mat[0 + i * 4], ", ", mat[1 + i * 4], ", ", mat[2 + i * 4], ", ", mat[3 + i * 4]);
+        return atanf(a);
       }
-    }
-    template <typename M>
-    static void printMat4(M mat)
-    {
-      printMat4((float *)&mat);
-    }
-    template <typename M>
-    static void printMat4D(M mat)
-    {
-      printMat4((double *)&mat);
-    }
-    static void printMem(void *p, ulong length = 256)
-    {
-      std::string s = "";
-      for (uint i = 0; i < length; i++)
+      if (a > -1 && a < 1)
       {
-        s += std::to_string(((uchar *)p)[i]);
+        float res = 0;
+        float x = a;
+        int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
+        for (int32_t i = 1; i <= precision; i += 2)
+        {
+          res += x / (4 * i - 3);
+          x *= a * a;
+          res -= x / (4 * i - 1);
+          x *= a * a;
+        }
+        return res;
       }
-      std::cout << s << std::endl;
-    }
-    template <typename T>
-    static void printBits(T *t, size_t length = 1)
-    {
-      for (uint i = 0; i < length * 8; i++)
+      else
       {
-        std::cout << ((((uchar *)t)[i / 8] & (1 << i % 8)) > 0 ? 1 : 0);
+        float res = 0;
+        float x = -a;
+        int32_t precision = CHEVAN_UTILS_FASTCALC_PRECISION;
+        for (int32_t i = 1; i < precision * 2; i += 2)
+        {
+          res += 1.f / ((4 * i - 3) * x);
+          x *= a * a;
+          res -= 1.f / ((4 * i - 1) * x);
+          x *= a * a;
+        }
+        if (x < 0)
+        {
+          res += M_PI / 2;
+        }
+        else
+        {
+          res -= M_PI / 2;
+        }
+        return res;
       }
-      std::cout << std::endl;
-    }
-    template<typename T>
-    static void printBits(T t){
-      for (uint i = 0; i < sizeof(T) * 8; i++)
-      {
-        std::cout << ((t & (1 << i)) > 0 ? 1 : 0);
-      }
-      std::cout << std::endl;
-    }
-    // ----------------------------------------------
-    static void print()
-    {
-      std::cout << std::endl;
-    }
-    static void println()
-    {
-      std::cout << std::endl;
-    }
-    static void printSep()
-    {
-      std::cout << "---------------------------------" << std::endl;
-    }
-    static void print(uchar *p)
-    {
-      std::cout << (void *)p;
-    }
-    static void print(uchar p)
-    {
-      print((int)p);
-    }
-    template <typename L>
-    static void print(Array<char, L> arr, L length = 256)
-    {
-      L l = arr.length < length ? arr.length : length;
-      std::cout << std::string(arr.arr, arr.arr + l);
-    }
-    template <typename L>
-    static void print(Array<uchar, L> arr, L length = 256)
-    {
-      L l = arr.length < length ? arr.length : length;
-      std::cout << std::string(arr.arr, arr.arr + l);
-    }
-    template <typename T, typename L>
-    static void print(Array<T, L> arr, L length = 256)
-    {
-      L l = arr.length < length ? arr.length : length;
-      std::string s = "{";
-      s += std::to_string(arr[0]);
-      for (uint i = 1; i < l; i++)
-      {
-        s += "," + std::to_string(arr[i]);
-      }
-      s += "}";
-      std::cout << s;
-    }
-    template <typename T>
-    static void print(std::vector<T> vec)
-    {
-      for (auto t : vec)
-      {
-        std::cout << t;
-      }
-    }
-#ifdef CHEVAN_UTILS_VEC2
-    static void print(CHEVAN_UTILS_VEC2 v)
-    {
-      print("{", v.x, ", ", v.y, "}");
-    }
-#endif
-#ifdef CHEVAN_UTILS_VEC3
-    static void print(CHEVAN_UTILS_VEC3 v)
-    {
-      print("{", v.x, ", ", v.y, ", ", v.z, "}");
-    }
-#endif
-#ifdef CHEVAN_UTILS_VEC4
-    static void print(CHEVAN_UTILS_VEC4 v)
-    {
-      print("{", v.x, ", ", v.y, ", ", v.z, ", ", v.w, "}");
-    }
-#endif
-    static void print(Cardinal8dir dir)
-    {
-      switch (dir)
-      {
-      case Cardinal8dir::CENTER:
-        std::cout << "CENTER" << std::endl;
-        break;
-      case Cardinal8dir::NORTH:
-        std::cout << "NORTH" << std::endl;
-        break;
-      case Cardinal8dir::SOUTH:
-        std::cout << "SOUTH" << std::endl;
-        break;
-      case Cardinal8dir::EAST:
-        std::cout << "EAST" << std::endl;
-        break;
-      case Cardinal8dir::WEST:
-        std::cout << "WEST" << std::endl;
-        break;
-      case Cardinal8dir::NORTH_EAST:
-        std::cout << "NORTH_EAST" << std::endl;
-        break;
-      case Cardinal8dir::NORTH_WEST:
-        std::cout << "NORTH_WEST" << std::endl;
-        break;
-      case Cardinal8dir::SOUTH_EAST:
-        std::cout << "SOUTH_EAST" << std::endl;
-        break;
-      case Cardinal8dir::SOUTH_WEST:
-        std::cout << "SOUTH_WEST" << std::endl;
-        break;
-      default:
-        break;
-      }
-    }
-    template <typename Printable>
-    static void print(Printable p)
-    {
-      std::cout << p;
-    }
-    template <typename Printable>
-    static void println(Printable p)
-    {
-      print(p);
-      std::cout << std::endl;
-    }
-    template <typename Printable, typename... Printable2>
-    static void print(Printable p, Printable2... p2)
-    {
-      print(p);
-      print(p2...);
-    }
-    template <typename Printable, typename... Printable2>
-    static void println(Printable p, Printable2... p2)
-    {
-      print(p);
-      print(p2...);
-      std::cout << std::endl;
     }
 
-#define ch_print(...) chevan_utils::chevanut_print::print(__VA_ARGS__)
-#define ch_println(...) chevan_utils::chevanut_print::println(__VA_ARGS__)
-  }
-
-  namespace chevanut_math
-  {
 #define v2 CHEVAN_UTILS_VEC2
 #define v3 CHEVAN_UTILS_VEC3
 #define v4 CHEVAN_UTILS_VEC4
@@ -1485,7 +1402,7 @@ namespace chevan_utils
     }
 
 #ifndef CHEVAN_UTILS_MATH_M4
-    struct m4
+    struct mat4
     {
       // 0,1,2,3
       // 4,5,6,7
@@ -1496,19 +1413,19 @@ namespace chevan_utils
         float array[16] = {0.f};
         float elements[4][4];
       };
-      m4() = default;
-      m4(float diagonal)
+      mat4() = default;
+      mat4(float diagonal)
       {
         array[0] = diagonal;
         array[5] = diagonal;
         array[10] = diagonal;
         array[15] = diagonal;
       }
-      m4(float *array)
+      mat4(float *array)
       {
         memcpy(this->array, array, sizeof(float) * 16);
       }
-      m4(float **elements)
+      mat4(float **elements)
       {
         for (uint i = 0; i < 4; i++)
         {
@@ -1518,17 +1435,22 @@ namespace chevan_utils
           }
         }
       }
-      static m4 translation(v3 translate)
+      mat4(const mat4 &mat)
       {
-        m4 result = m4(1.f);
+        memcpy(this->array, mat.array, sizeof(float) * 16);
+      }
+      ~mat4() = default;
+      static mat4 translation(v3 translate)
+      {
+        mat4 result = mat4(1.f);
         result.elements[3][0] = translate.x;
         result.elements[3][1] = translate.y;
         result.elements[3][2] = translate.z;
         return result;
       }
-      static m4 rotation(float angle, v3 axis)
+      static mat4 rotation(float angle, v3 axis)
       {
-        m4 result = m4(1.f);
+        mat4 result = mat4(1.f);
 
         axis = normalize(axis);
 
@@ -1550,17 +1472,17 @@ namespace chevan_utils
 
         return result;
       }
-      static m4 scale(v3 scale)
+      static mat4 scale(v3 scale)
       {
-        m4 result = m4(1.f);
+        mat4 result = mat4(1.f);
         result.elements[0][0] = scale.x;
         result.elements[1][1] = scale.y;
         result.elements[2][2] = scale.z;
         return result;
       }
-      static m4 perspective(float fov, float aspect_ratio, float near_z, float far_z)
+      static mat4 perspective(float fov, float aspect_ratio, float near_z, float far_z)
       {
-        m4 result;
+        mat4 result;
         float tan_theta_over_2 = tanf(fov * (M_PI / 360.f));
         result.elements[0][0] = 1.f / tan_theta_over_2;
         result.elements[1][1] = aspect_ratio / tan_theta_over_2;
@@ -1570,9 +1492,9 @@ namespace chevan_utils
         result.elements[3][3] = 0.f;
         return result;
       }
-      static m4 orthographic(float left, float right, float bottom, float top, float near_depth, float far_depth)
+      static mat4 orthographic(float left, float right, float bottom, float top, float near_depth, float far_depth)
       {
-        m4 result;
+        mat4 result;
         result.elements[0][0] = 2.f / (right - left);
         result.elements[1][1] = 2.f / (top - bottom);
         result.elements[2][2] = -2.f / (far_depth - near_depth);
@@ -1582,9 +1504,9 @@ namespace chevan_utils
         result.elements[3][2] = (far_depth + near_depth) / (near_depth - far_depth);
         return result;
       }
-      static m4 lookAt(v3 eye, v3 center, v3 up)
+      static mat4 lookAt(v3 eye, v3 center, v3 up)
       {
-        m4 result;
+        mat4 result;
         v3 f = normalize(center - eye);
         v3 s = normalize(cross(f, up));
         v3 u = cross(s, f);
@@ -1611,9 +1533,9 @@ namespace chevan_utils
 
         return result;
       }
-      static m4 map(v3 min, v3 max, v3 targetMin, v3 targetMax)
+      static mat4 map(v3 min, v3 max, v3 targetMin, v3 targetMax)
       {
-        m4 transform = m4(1.f);
+        mat4 transform = mat4(1.f);
         transform = transform * translation(targetMin);
         transform = transform * scale(targetMax - targetMin);
         transform = transform * scale(v3(1.f / (max.x - min.x), 1.f / (max.y - min.y), 1.f / (max.z - min.z)));
@@ -1625,15 +1547,19 @@ namespace chevan_utils
       {
         return array[i];
       }
+      float &get(uint i)
+      {
+        return array[i];
+      }
       float &get(uint i, uint j)
       {
         return elements[i][j];
       }
 #define _chevanut_math_concat(a, b) a##b
 #define _chevanut_math_operatorMacro_t(type, Op)     \
-  m4 operator Op(type a)                             \
+  mat4 operator Op(type a)                           \
   {                                                  \
-    m4 c = m4(array);                                \
+    mat4 c = mat4(array);                            \
     for (uint i = 0; i < 16; i++)                    \
     {                                                \
       c[i] _chevanut_math_concat(Op, =) a;           \
@@ -1667,9 +1593,9 @@ namespace chevan_utils
 #undef _chevanut_math_operatorMacro_t
 #undef _chevanut_math_concat
 
-      m4 operator*(m4 mat)
+      mat4 operator*(mat4 mat)
       {
-        m4 m;
+        mat4 m;
         for (uint i = 0; i < 4; i++)
         {
           for (uint j = 0; j < 4; j++)
@@ -1682,7 +1608,7 @@ namespace chevan_utils
         }
         return m;
       }
-      void operator*=(m4 mat)
+      void operator*=(mat4 mat)
       {
         (*this) = (*this) * mat;
       }
@@ -1700,18 +1626,17 @@ namespace chevan_utils
         return result;
       }
     };
-#define CHEVAN_UTILS_MATH_M4 m4
-#else
-    typedef CHEVAN_UTILS_MATH_M4 m4;
+#define CHEVAN_UTILS_MATH_MAT4 ch::chm::mat4
 #endif // !CHEVAN_UTILS_MATH_M4
-    static void translate(m4 &mat, v3 translate)
+#define mat4 CHEVAN_UTILS_MATH_MAT4
+    static void translate(mat4 &mat, v3 translate)
     {
       mat.elements[3][0] = mat.elements[0][0] * translate.x + mat.elements[1][0] * translate.y + mat.elements[2][0] * translate.z + mat.elements[3][0];
       mat.elements[3][1] = mat.elements[0][1] * translate.x + mat.elements[1][1] * translate.y + mat.elements[2][1] * translate.z + mat.elements[3][1];
       mat.elements[3][2] = mat.elements[0][2] * translate.x + mat.elements[1][2] * translate.y + mat.elements[2][2] * translate.z + mat.elements[3][2];
       mat.elements[3][3] = mat.elements[0][3] * translate.x + mat.elements[1][3] * translate.y + mat.elements[2][3] * translate.z + mat.elements[3][3];
     }
-    static void rotate(m4 &mat, float angle, v3 axis)
+    static void rotate(mat4 &mat, float angle, v3 axis)
     {
       axis = normalize(axis);
       float sin_theta = sinf(angle);
@@ -1732,81 +1657,111 @@ namespace chevan_utils
         }
       }
     }
-    // NOTE(ANT) complete matrix math here
 
-#if 0
-  static m4 scale1(v3 scale)
-  {
-    m4 result = m4(1.f);
-    result.elements[0][0] = scale.x;
-    result.elements[1][1] = scale.y;
-    result.elements[2][2] = scale.z;
-    return result;
-  }
-  static m4 perspective1(float fov, float aspect_ratio, float near_z, float far_z)
-  {
-    m4 result;
-    float tan_theta_over_2 = tanf(fov * (M_PI / 360.f));
-    result.elements[0][0] = 1.f / tan_theta_over_2;
-    result.elements[1][1] = aspect_ratio / tan_theta_over_2;
-    result.elements[2][3] = -1.f;
-    result.elements[2][2] = (near_z + far_z) / (near_z - far_z);
-    result.elements[3][2] = (2.f * near_z * far_z) / (near_z - far_z);
-    result.elements[3][3] = 0.f;
-    return result;
-  }
-  static m4 orthographic1(float left, float right, float bottom, float top, float near_depth, float far_depth)
-  {
-    m4 result;
-    result.elements[0][0] = 2.f / (right - left);
-    result.elements[1][1] = 2.f / (top - bottom);
-    result.elements[2][2] = -2.f / (far_depth - near_depth);
-    result.elements[3][3] = 1.f;
-    result.elements[3][0] = (left + right) / (left - right);
-    result.elements[3][1] = (bottom + top) / (bottom - top);
-    result.elements[3][2] = (far_depth + near_depth) / (near_depth - far_depth);
-    return result;
-  }
-  static m4 lookAt1(v3 eye, v3 center, v3 up)
-  {
-    m4 result;
-    v3 f = normalize(center - eye);
-    v3 s = normalize(cross(f, up));
-    v3 u = cross(s, f);
+    static mat4 translation(v3 translate)
+    {
+      mat4 result = mat4(1.f);
+      result.elements[3][0] = result.elements[0][0] * translate.x + result.elements[1][0] * translate.y + result.elements[2][0] * translate.z + result.elements[3][0];
+      result.elements[3][1] = result.elements[0][1] * translate.x + result.elements[1][1] * translate.y + result.elements[2][1] * translate.z + result.elements[3][1];
+      result.elements[3][2] = result.elements[0][2] * translate.x + result.elements[1][2] * translate.y + result.elements[2][2] * translate.z + result.elements[3][2];
+      result.elements[3][3] = result.elements[0][3] * translate.x + result.elements[1][3] * translate.y + result.elements[2][3] * translate.z + result.elements[3][3];
+      return result;
+    }
+    static mat4 rotation(float angle, v3 axis)
+    {
+      axis = normalize(axis);
+      float sin_theta = sinf(angle);
+      float cos_theta = cosf(angle);
+      float cos_value = 1.f - cos_theta;
 
-    result.elements[0][0] = s.x;
-    result.elements[0][1] = u.x;
-    result.elements[0][2] = -f.x;
-    result.elements[0][3] = 0.f;
+      float rows[3][3] =
+          {
+              {(axis.x * axis.x * cos_value) + cos_theta, (axis.x * axis.y * cos_value) + (axis.z * sin_theta), (axis.x * axis.z * cos_value) - (axis.y * sin_theta)},
+              {(axis.y * axis.x * cos_value) - (axis.z * sin_theta), (axis.y * axis.y * cos_value) + cos_theta, (axis.y * axis.z * cos_value) + (axis.x * sin_theta)},
+              {(axis.z * axis.x * cos_value) + (axis.y * sin_theta), (axis.z * axis.y * cos_value) - (axis.x * sin_theta), (axis.z * axis.z * cos_value) + cos_theta}};
 
-    result.elements[1][0] = s.y;
-    result.elements[1][1] = u.y;
-    result.elements[1][2] = -f.y;
-    result.elements[1][3] = 0.f;
+      mat4 result = mat4(1.f);
+      for (uint i = 0; i < 4; i++)
+      {
+        for (uint j = 0; j < 3; j++)
+        {
+          result.elements[j][i] = result.elements[0][i] * rows[j][0] + result.elements[1][i] * rows[j][1] + result.elements[2][i] * rows[j][2];
+        }
+      }
+      return result;
+    }
+    static mat4 scale(v3 scale)
+    {
+      mat4 result = mat4(1.f);
+      result.elements[0][0] = scale.x;
+      result.elements[1][1] = scale.y;
+      result.elements[2][2] = scale.z;
+      return result;
+    }
+    static mat4 perspective(float fov, float aspect_ratio, float near_z, float far_z)
+    {
+      mat4 result;
+      float tan_theta_over_2 = tanf(fov * (M_PI / 360.f));
+      result.elements[0][0] = 1.f / tan_theta_over_2;
+      result.elements[1][1] = aspect_ratio / tan_theta_over_2;
+      result.elements[2][3] = -1.f;
+      result.elements[2][2] = (near_z + far_z) / (near_z - far_z);
+      result.elements[3][2] = (2.f * near_z * far_z) / (near_z - far_z);
+      result.elements[3][3] = 0.f;
+      return result;
+    }
+    static mat4 orthographic(float left, float right, float bottom, float top, float near_depth, float far_depth)
+    {
+      mat4 result;
+      result.elements[0][0] = 2.f / (right - left);
+      result.elements[1][1] = 2.f / (top - bottom);
+      result.elements[2][2] = -2.f / (far_depth - near_depth);
+      result.elements[3][3] = 1.f;
+      result.elements[3][0] = (left + right) / (left - right);
+      result.elements[3][1] = (bottom + top) / (bottom - top);
+      result.elements[3][2] = (far_depth + near_depth) / (near_depth - far_depth);
+      return result;
+    }
+    static mat4 lookAt1(v3 eye, v3 center, v3 up)
+    {
+      mat4 result;
+      v3 f = normalize(center - eye);
+      v3 s = normalize(cross(f, up));
+      v3 u = cross(s, f);
 
-    result.elements[2][0] = s.z;
-    result.elements[2][1] = u.z;
-    result.elements[2][2] = -f.z;
-    result.elements[2][3] = 0.f;
+      result.elements[0][0] = s.x;
+      result.elements[0][1] = u.x;
+      result.elements[0][2] = -f.x;
+      result.elements[0][3] = 0.f;
 
-    result.elements[3][0] = -dot(s, eye);
-    result.elements[3][1] = -dot(u, eye);
-    result.elements[3][2] = dot(f, eye);
-    result.elements[3][3] = 1.f;
+      result.elements[1][0] = s.y;
+      result.elements[1][1] = u.y;
+      result.elements[1][2] = -f.y;
+      result.elements[1][3] = 0.f;
 
-    return result;
-  }
-  static m4 map1(v3 min, v3 max, v3 targetMin, v3 targetMax)
-  {
-    m4 transform = m4(1.f);
-    // transform = transform * translation(targetMin);
-    // transform = transform * scale(targetMax - targetMin);
-    // transform = transform * scale(v3(1.f / (max.x - min.x), 1.f / (max.y - min.y), 1.f / (max.z - min.z)));
-    // transform = transform * translation(min * -1.f);
-    return transform;
-  }
-#endif
+      result.elements[2][0] = s.z;
+      result.elements[2][1] = u.z;
+      result.elements[2][2] = -f.z;
+      result.elements[2][3] = 0.f;
 
+      result.elements[3][0] = -dot(s, eye);
+      result.elements[3][1] = -dot(u, eye);
+      result.elements[3][2] = dot(f, eye);
+      result.elements[3][3] = 1.f;
+
+      return result;
+    }
+    static mat4 map(v3 min, v3 max, v3 targetMin, v3 targetMax)
+    {
+      mat4 transform = mat4(1.f);
+      transform = transform * translation(targetMin);
+      transform = transform * scale(targetMax - targetMin);
+      transform = transform * scale(v3(1.f / (max.x - min.x), 1.f / (max.y - min.y), 1.f / (max.z - min.z)));
+      transform = transform * translation(min * -1.f);
+      return transform;
+    }
+
+#undef mat4
 #undef v2
 #undef v3
 #undef v4
@@ -2201,7 +2156,7 @@ static CHEVAN_UTILS_INLINE void array_free(size_t _elementSize, struct Array *ar
 {
   for (uint i = 0; i < arr->length; i++)
   {
-    freeFunc(arr->arr + i * _elementSize);
+    freeFunc((char *)arr->arr + i * _elementSize);
   }
   free(arr->arr);
 }
@@ -2212,7 +2167,7 @@ static CHEVAN_UTILS_INLINE void *array_get(size_t _elementSize, struct Array arr
 #ifdef CHEVAN_DEBUG
   assert(i < arr.MAX_LENGTH);
 #endif
-  return arr.arr + i * _elementSize;
+  return (char *)arr.arr + i * _elementSize;
 }
 static CHEVAN_UTILS_INLINE void array_set(size_t _elementSize, struct Array arr, size_t i, void *element)
 {
@@ -2311,20 +2266,6 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 #endif
-
-static int iabs(int x)
-{
-  return abs(x);
-}
-#define abs(x) _Generic((x),     \
-                        int      \
-                        : abs,   \
-                          long   \
-                        : abs,   \
-                          float  \
-                        : fabsf, \
-                          double \
-                        : fabs)(x)
 
 typedef struct vec2
 {
@@ -2539,7 +2480,10 @@ static void ch_printBits_ptr(void *e, size_t _elementSize)
 }
 #define ch_printBits(e) ch_printBits_ptr(&(e), sizeof((e)))
 
-static void chevanut_print_str(const char *s) { printf("%s", s); }
+static void chevanut_print_str(const char *s)
+{
+  printf("%s", s);
+}
 static void chevanut_print_char(const char c) { printf("%c", c); }
 static void chevanut_print_uchar(const uchar c) { printf("%c", c); }
 #define _chevanut_print_macro(type)                                    \
@@ -2618,77 +2562,87 @@ static void chevanut_print_ivec4(struct ivec4 v) { printf("{%d, %d, %d, %d}", v.
     }                                             \
     ch_println("}");                              \
   }
-#define ch_println_array(length, arr)             \
-  if (1)                                          \
-  {                                               \
-    ch_print("{");                                \
+#define ch_println_array(length, arr)         \
+  if (1)                                      \
+  {                                           \
+    ch_print("{");                            \
     for (uint _i = 0; _i < length; _i++)      \
-    {                                             \
-      ch_print(arr[_i]);         \
+    {                                         \
+      ch_print(arr[_i]);                      \
       ch_print((_i < length - 1) ? "," : ""); \
-    }                                             \
-    ch_println("}");                              \
+    }                                         \
+    ch_println("}");                          \
   }
 
 #ifdef CHEVAN_UTILS_MACRO_MAGIC
-#define _chevanut_println_recurse_MAP(x) ch_print(x);
-#define ch_print_recurse(...) EVAL(MAP(_chevanut_println_recurse_MAP, __VA_ARGS__))
-#define ch_println_recurse(...) EVAL(MAP(_chevanut_println_recurse_MAP, __VA_ARGS__, "\n"))
+#define _chevanut_println_recurse_MAP(x) _ch_print(x);
+#define _ch_print_recurse(...) EVAL(MAP(_chevanut_println_recurse_MAP, __VA_ARGS__))
+#define _ch_println_recurse(...) EVAL(MAP(_chevanut_println_recurse_MAP, __VA_ARGS__, "\n"))
+#define ch_print _ch_print_recurse
+#define ch_println _ch_println_recurse
+#else
+#define ch_print _ch_print
+#define ch_println _ch_println
 #endif
 
-#define ch_print(x) _Generic((x),                     \
-                             char *                   \
-                             : chevanut_print_str,    \
-                               uchar                  \
-                             : chevanut_print_uchar,  \
-                               char                   \
-                             : chevanut_print_char,   \
-                               ushort                 \
-                             : chevanut_print_ushort, \
-                               short                  \
-                             : chevanut_print_short,  \
-                               uint                   \
-                             : chevanut_print_uint,   \
-                               int                    \
-                             : chevanut_print_int,    \
-                               ulong                  \
-                             : chevanut_print_ulong,  \
-                               long                   \
-                             : chevanut_print_long,   \
-                               ullong                 \
-                             : chevanut_print_ullong, \
-                               llong                  \
-                             : chevanut_print_llong,  \
-                               float                  \
-                             : chevanut_print_float,  \
-                               double                 \
-                             : chevanut_print_double, \
-                               void *                 \
-                             : chevanut_print_ptr,    \
-                               CHEVAN_UTILS_VEC2      \
-                             : chevanut_print_vec2,   \
-                               CHEVAN_UTILS_VEC3      \
-                             : chevanut_print_vec3,   \
-                               CHEVAN_UTILS_VEC4      \
-                             : chevanut_print_vec4,   \
-                               struct ivec2           \
-                             : chevanut_print_ivec2,  \
-                               struct ivec3           \
-                             : chevanut_print_ivec3,  \
-                               struct ivec4           \
-                             : chevanut_print_ivec4,  \
-                               default                \
-                             : chevanut_print_ptr)(x)
+#define _ch_print(x) _Generic((x),                     \
+                              char *                   \
+                              : chevanut_print_str,    \
+                                uchar                  \
+                              : chevanut_print_uchar,  \
+                                char                   \
+                              : chevanut_print_char,   \
+                                ushort                 \
+                              : chevanut_print_ushort, \
+                                short                  \
+                              : chevanut_print_short,  \
+                                uint                   \
+                              : chevanut_print_uint,   \
+                                int                    \
+                              : chevanut_print_int,    \
+                                ulong                  \
+                              : chevanut_print_ulong,  \
+                                long                   \
+                              : chevanut_print_long,   \
+                                ullong                 \
+                              : chevanut_print_ullong, \
+                                llong                  \
+                              : chevanut_print_llong,  \
+                                float                  \
+                              : chevanut_print_float,  \
+                                double                 \
+                              : chevanut_print_double, \
+                                void *                 \
+                              : chevanut_print_ptr,    \
+                                CHEVAN_UTILS_VEC2      \
+                              : chevanut_print_vec2,   \
+                                CHEVAN_UTILS_VEC3      \
+                              : chevanut_print_vec3,   \
+                                CHEVAN_UTILS_VEC4      \
+                              : chevanut_print_vec4,   \
+                                struct ivec2           \
+                              : chevanut_print_ivec2,  \
+                                struct ivec3           \
+                              : chevanut_print_ivec3,  \
+                                struct ivec4           \
+                              : chevanut_print_ivec4,  \
+                                default                \
+                              : chevanut_print_ptr)(x)
 
-#define ch_println(x) \
-  ch_print(x);        \
+#ifdef _WIN32
+#undef _ch_print
+#define _ch_print(x) assert(0 && "Windows doesn't support _Generic");
+#endif
+
+#define _ch_println(x) \
+  _ch_print(x);        \
   printf("\n")
 
 #endif
 
 // common to c and c++
 #ifdef __cplusplus
-namespace chevan_utils
+namespace ch
 {
 #endif
   typedef struct color3_t
@@ -2762,7 +2716,6 @@ namespace chevan_utils
   }
   static CHEVAN_UTILS_INLINE float randf() { return (float)rand() / RAND_MAX; } // random float ranging 0-1
   static CHEVAN_UTILS_INLINE void seed_rand() { srand(time(NULL)); }
-
 
   static void *ch_bufferFile(const char *file, void **targetBuffer, size_t *bufferLength)
   {
@@ -2900,15 +2853,13 @@ namespace chevan_utils
     return out;
   }
 
-  // ch_print(x)
-  // ch_println(x)
   static void print_chevanut_version()
   {
-#ifdef __cplusplus
-    std::cout << CHEVAN_UTILS_VERSION << std::endl;
-#else
-  printf("%s\n", CHEVAN_UTILS_VERSION);
-#endif
+    printf("%d.%d.%d\n", CHEVAN_UTILS_VERSION / 10000, CHEVAN_UTILS_VERSION % 10000 / 100, CHEVAN_UTILS_VERSION % 100);
+  }
+  static bool check_chevanut_version(uint release, uint major, uint minor)
+  {
+    return release == CHEVAN_UTILS_VERSION / 10000 && major == CHEVAN_UTILS_VERSION % 10000 / 100 && minor == CHEVAN_UTILS_VERSION % 100;
   }
 
 #ifdef __cplusplus

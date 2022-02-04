@@ -13,7 +13,7 @@ typedef nlohmann::json json;
 
 namespace vtuber
 {
-  using namespace chevan_utils;
+  using namespace ch;
 
   enum class Filetype
   {
@@ -68,7 +68,7 @@ namespace vtuber
         union Vec3
         {
           glm::vec3 glm_vec;
-          chevan_utils::chevanut_vec::vec3 vec;
+          ch::vec3 vec;
           struct
           {
             float x, y, z;
@@ -77,7 +77,7 @@ namespace vtuber
         union Vec4
         {
           glm::vec4 glm_vec;
-          chevan_utils::chevanut_vec::vec4 vec;
+          ch::vec4 vec;
           struct
           {
             float x, y, z, w;

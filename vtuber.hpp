@@ -3,8 +3,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include <opencv2/core.hpp>
-#include <opencv2/videoio.hpp>
+// #include <opencv2/core.hpp>
+// #include <opencv2/videoio.hpp>
 #include <sstream>
 
 #include <glm/glm.hpp>
@@ -21,8 +21,7 @@
 #define CHEVAN_UTILS_VEC4 glm::vec4
 void print(glm::mat4 mat);
 #include "chevan_utils.h"
-using namespace chevan_utils;
-using namespace chevanut_print;
+using namespace ch;
 void print(glm::mat4 mat)
 {
   printMat4((float *)&mat);

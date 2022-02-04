@@ -10,6 +10,6 @@
 [submodule "extern/json"]
 	path = extern/json
 	url = https://github.com/nlohmann/json.git
-[submodule "extern/OpenCL-SDK"]
-	path = extern/OpenCL-SDK
-	url = https://github.com/KhronosGroup/OpenCL-SDK.git
+[submodule "extern/dlib"]
+	path = extern/dlib
+	url = https://github.com/davisking/dlib.git
