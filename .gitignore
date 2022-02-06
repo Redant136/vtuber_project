@@ -36,3 +36,4 @@ install/*
 opencv_install/*
 libtensorflow/*
 */.DS_Store
+dnn/*
